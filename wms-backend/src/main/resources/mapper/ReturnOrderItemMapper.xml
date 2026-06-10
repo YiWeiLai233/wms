@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.returns.mapper.ReturnOrderItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.returns.entity.ReturnOrderItem">
+        <id column="id" property="id"/>
+        <result column="return_id" property="returnId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="sku_code" property="skuCode"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="quantity" property="quantity"/>
+        <result column="quality_status" property="qualityStatus"/>
+        <result column="location_id" property="locationId"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByReturnId" resultMap="BaseResultMap">
+        SELECT id, return_id, sku_id, sku_code, sku_name, quantity, quality_status,
+               location_id, created_at, updated_at
+        FROM return_order_item
+        WHERE return_id = #{returnId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, return_id, sku_id, sku_code, sku_name, quantity, quality_status,
+               location_id, created_at, updated_at
+        FROM return_order_item
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO return_order_item (return_id, sku_id, sku_code, sku_name, quantity)
+        VALUES (#{returnId}, #{skuId}, #{skuCode}, #{skuName}, #{quantity})
+    </insert>
+
+    <update id="updateQualityStatus">
+        UPDATE return_order_item
+        SET quality_status = #{qualityStatus}, location_id = #{locationId}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByReturnId">
+        DELETE FROM return_order_item WHERE return_id = #{returnId}
+    </delete>
+
+</mapper>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.warehouse.mapper.WarehouseMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.warehouse.entity.Warehouse">
+        <id column="id" property="id"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="address" property="address"/>
+        <result column="contact" property="contact"/>
+        <result column="phone" property="phone"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByPage" resultMap="BaseResultMap">
+        SELECT id, code, name, address, contact, phone, status, deleted, created_at, updated_at
+        FROM warehouse
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%') OR code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, code, name, address, contact, phone, status, deleted, created_at, updated_at
+        FROM warehouse
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findByCode" resultMap="BaseResultMap">
+        SELECT id, code, name, address, contact, phone, status, deleted, created_at, updated_at
+        FROM warehouse
+        WHERE code = #{code} AND deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO warehouse (code, name, address, contact, phone, status)
+        VALUES (#{code}, #{name}, #{address}, #{contact}, #{phone}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE warehouse
+        <set>
+            <if test="code != null">code = #{code},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="address != null">address = #{address},</if>
+            <if test="contact != null">contact = #{contact},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE warehouse SET deleted = 1 WHERE id = #{id}
+    </update>
+
+</mapper>

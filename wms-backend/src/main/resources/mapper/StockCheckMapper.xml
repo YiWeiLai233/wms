@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.stock.mapper.StockCheckMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.stock.entity.StockCheck">
+        <id column="id" property="id"/>
+        <result column="check_no" property="checkNo"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, check_no, warehouse_id, status, remark, operator_id, operator_name,
+               deleted, created_at, updated_at
+        FROM stock_check
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findByCheckNo" resultMap="BaseResultMap">
+        SELECT id, check_no, warehouse_id, status, remark, operator_id, operator_name,
+               deleted, created_at, updated_at
+        FROM stock_check
+        WHERE check_no = #{checkNo} AND deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_check (check_no, warehouse_id, status, remark, operator_id, operator_name)
+        VALUES (#{checkNo}, #{warehouseId}, #{status}, #{remark}, #{operatorId}, #{operatorName})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE stock_check SET status = #{status} WHERE id = #{id} AND deleted = 0
+    </update>
+
+</mapper>

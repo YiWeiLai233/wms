@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.order.mapper.SalesOrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.order.entity.SalesOrder">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="platform_order_no" property="platformOrderNo"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="warehouse_name" property="warehouseName"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_phone" property="receiverPhone"/>
+        <result column="receiver_address" property="receiverAddress"/>
+        <result column="order_status" property="orderStatus"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="remark" property="remark"/>
+        <result column="paid_at" property="paidAt"/>
+        <result column="shipped_at" property="shippedAt"/>
+        <result column="finished_at" property="finishedAt"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByPage" resultMap="BaseResultMap">
+        SELECT so.id, so.order_no, so.platform_order_no, so.warehouse_id, w.name AS warehouse_name,
+               so.receiver_name, so.receiver_phone, so.receiver_address, so.order_status,
+               so.total_amount, so.remark, so.paid_at, so.shipped_at, so.finished_at,
+               so.deleted, so.created_at, so.updated_at
+        FROM sales_order so
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        WHERE so.deleted = 0
+        <if test="orderNo != null and orderNo != ''">
+            AND so.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="platformOrderNo != null and platformOrderNo != ''">
+            AND so.platform_order_no LIKE CONCAT('%', #{platformOrderNo}, '%')
+        </if>
+        <if test="receiverName != null and receiverName != ''">
+            AND so.receiver_name LIKE CONCAT('%', #{receiverName}, '%')
+        </if>
+        <if test="receiverPhone != null and receiverPhone != ''">
+            AND so.receiver_phone = #{receiverPhone}
+        </if>
+        <if test="orderStatus != null and orderStatus != ''">
+            AND so.order_status = #{orderStatus}
+        </if>
+        <if test="warehouseId != null">
+            AND so.warehouse_id = #{warehouseId}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT so.id, so.order_no, so.platform_order_no, so.warehouse_id, w.name AS warehouse_name,
+               so.receiver_name, so.receiver_phone, so.receiver_address, so.order_status,
+               so.total_amount, so.remark, so.paid_at, so.shipped_at, so.finished_at,
+               so.deleted, so.created_at, so.updated_at
+        FROM sales_order so
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        WHERE so.id = #{id} AND so.deleted = 0
+    </select>
+
+    <select id="findByOrderNo" resultMap="BaseResultMap">
+        SELECT so.id, so.order_no, so.platform_order_no, so.warehouse_id, w.name AS warehouse_name,
+               so.receiver_name, so.receiver_phone, so.receiver_address, so.order_status,
+               so.total_amount, so.remark, so.paid_at, so.shipped_at, so.finished_at,
+               so.deleted, so.created_at, so.updated_at
+        FROM sales_order so
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        WHERE so.order_no = #{orderNo} AND so.deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sales_order (order_no, platform_order_no, warehouse_id, receiver_name,
+                                 receiver_phone, receiver_address, order_status, total_amount, remark)
+        VALUES (#{orderNo}, #{platformOrderNo}, #{warehouseId}, #{receiverName},
+                #{receiverPhone}, #{receiverAddress}, #{orderStatus}, #{totalAmount}, #{remark})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE sales_order
+        SET order_status = #{orderStatus}
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateShippedAt">
+        UPDATE sales_order
+        SET shipped_at = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+</mapper>

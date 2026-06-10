@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.stock.mapper.StockLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.stock.entity.StockLog">
+        <id column="id" property="id"/>
+        <result column="biz_type" property="bizType"/>
+        <result column="biz_no" property="bizNo"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="location_id" property="locationId"/>
+        <result column="quantity_before" property="quantityBefore"/>
+        <result column="quantity_change" property="quantityChange"/>
+        <result column="quantity_after" property="quantityAfter"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="remark" property="remark"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findByPage" resultMap="BaseResultMap">
+        SELECT id, biz_type, biz_no, sku_id, warehouse_id, location_id,
+               quantity_before, quantity_change, quantity_after,
+               operator_id, operator_name, remark, created_at
+        FROM stock_log
+        <where>
+            <if test="bizType != null and bizType != ''">
+                AND biz_type = #{bizType}
+            </if>
+            <if test="bizNo != null and bizNo != ''">
+                AND biz_no = #{bizNo}
+            </if>
+            <if test="skuId != null">
+                AND sku_id = #{skuId}
+            </if>
+            <if test="warehouseId != null">
+                AND warehouse_id = #{warehouseId}
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_log (biz_type, biz_no, sku_id, warehouse_id, location_id,
+                               quantity_before, quantity_change, quantity_after,
+                               operator_id, operator_name, remark)
+        VALUES (#{bizType}, #{bizNo}, #{skuId}, #{warehouseId}, #{locationId},
+                #{quantityBefore}, #{quantityChange}, #{quantityAfter},
+                #{operatorId}, #{operatorName}, #{remark})
+    </insert>
+
+</mapper>

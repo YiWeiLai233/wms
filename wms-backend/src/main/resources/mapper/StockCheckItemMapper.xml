@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.stock.mapper.StockCheckItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.stock.entity.StockCheckItem">
+        <id column="id" property="id"/>
+        <result column="check_id" property="checkId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="location_id" property="locationId"/>
+        <result column="system_qty" property="systemQty"/>
+        <result column="actual_qty" property="actualQty"/>
+        <result column="diff_qty" property="diffQty"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByCheckId" resultMap="BaseResultMap">
+        SELECT id, check_id, sku_id, location_id, system_qty, actual_qty, diff_qty,
+               created_at, updated_at
+        FROM stock_check_item
+        WHERE check_id = #{checkId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, check_id, sku_id, location_id, system_qty, actual_qty, diff_qty,
+               created_at, updated_at
+        FROM stock_check_item
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_check_item (check_id, sku_id, location_id, system_qty, actual_qty, diff_qty)
+        VALUES (#{checkId}, #{skuId}, #{locationId}, #{systemQty}, #{actualQty}, #{diffQty})
+    </insert>
+
+    <update id="updateActualQty">
+        UPDATE stock_check_item
+        SET actual_qty = #{actualQty}, diff_qty = #{diffQty}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByCheckId">
+        DELETE FROM stock_check_item WHERE check_id = #{checkId}
+    </delete>
+
+</mapper>

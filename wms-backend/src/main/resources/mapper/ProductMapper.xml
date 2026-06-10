@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.product.mapper.ProductMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.product.entity.Product">
+        <id column="id" property="id"/>
+        <result column="spu_code" property="spuCode"/>
+        <result column="name" property="name"/>
+        <result column="shelf_id" property="shelfId"/>
+        <result column="main_image" property="mainImage"/>
+        <result column="description" property="description"/>
+        <result column="price" property="price"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByPage" resultMap="BaseResultMap">
+        SELECT p.id, p.spu_code, p.name, p.shelf_id, p.main_image, p.description,
+               p.price, p.status, p.created_at, p.updated_at
+        FROM product p
+        LEFT JOIN warehouse_shelf ws ON p.shelf_id = ws.id AND ws.deleted = 0
+        <where>
+            p.deleted = 0
+            <if test="keyword != null and keyword != ''">
+                AND (p.name LIKE CONCAT('%', #{keyword}, '%') OR p.spu_code LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="shelfId != null">
+                AND p.shelf_id = #{shelfId}
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+        </where>
+        ORDER BY p.id DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, spu_code, name, shelf_id, main_image, description,
+               price, status, created_at, updated_at
+        FROM product
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findBySpuCode" resultMap="BaseResultMap">
+        SELECT id, spu_code, name, shelf_id, main_image, description,
+               price, status, created_at, updated_at
+        FROM product
+        WHERE spu_code = #{spuCode} AND deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product (spu_code, name, shelf_id, main_image, description, price, status)
+        VALUES (#{spuCode}, #{name}, #{shelfId}, #{mainImage}, #{description}, #{price}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE product
+        <set>
+            <if test="spuCode != null">spu_code = #{spuCode},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="shelfId != null">shelf_id = #{shelfId},</if>
+            <if test="mainImage != null">main_image = #{mainImage},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM product WHERE id = #{id}
+    </delete>
+
+</mapper>

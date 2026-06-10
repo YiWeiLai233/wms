@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.outbound.mapper.OutboundOrderItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.outbound.entity.OutboundOrderItem">
+        <id column="id" property="id"/>
+        <result column="outbound_id" property="outboundId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="sku_code" property="skuCode"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="quantity" property="quantity"/>
+        <result column="picked_qty" property="pickedQty"/>
+        <result column="location_id" property="locationId"/>
+        <result column="scanned" property="scanned"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByOutboundId" resultMap="BaseResultMap">
+        SELECT id, outbound_id, sku_id, sku_code, sku_name, quantity, picked_qty,
+               location_id, scanned, created_at, updated_at
+        FROM outbound_order_item
+        WHERE outbound_id = #{outboundId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, outbound_id, sku_id, sku_code, sku_name, quantity, picked_qty,
+               location_id, scanned, created_at, updated_at
+        FROM outbound_order_item
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByOutboundIdAndSkuCode" resultMap="BaseResultMap">
+        SELECT id, outbound_id, sku_id, sku_code, sku_name, quantity, picked_qty,
+               location_id, scanned, created_at, updated_at
+        FROM outbound_order_item
+        WHERE outbound_id = #{outboundId} AND sku_code = #{skuCode}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO outbound_order_item (outbound_id, sku_id, sku_code, sku_name, quantity, location_id)
+        VALUES (#{outboundId}, #{skuId}, #{skuCode}, #{skuName}, #{quantity}, #{locationId})
+    </insert>
+
+    <update id="updatePickedQty">
+        UPDATE outbound_order_item
+        SET picked_qty = #{pickedQty}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateScanned">
+        UPDATE outbound_order_item
+        SET scanned = #{scanned}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateLocationId">
+        UPDATE outbound_order_item
+        SET location_id = #{locationId}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByOutboundId">
+        DELETE FROM outbound_order_item WHERE outbound_id = #{outboundId}
+    </delete>
+
+</mapper>

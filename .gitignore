@@ -1,0 +1,37 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.log
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+build/
+*.o
+*.so
+*.dylib
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Uploads
+uploads/
