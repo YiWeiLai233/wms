@@ -25,12 +25,6 @@ public class StockCheckItemVO {
     /** SKU名称 */
     private String skuName;
 
-    /** 库位ID */
-    private Long locationId;
-
-    /** 库位编码 */
-    private String locationCode;
-
     /** 系统库存数量 */
     private Integer systemQty;
 

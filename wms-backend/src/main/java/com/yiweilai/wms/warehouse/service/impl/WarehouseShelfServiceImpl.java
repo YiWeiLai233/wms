@@ -4,10 +4,8 @@ import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.warehouse.dto.WarehouseShelfSaveDTO;
 import com.yiweilai.wms.warehouse.entity.WarehouseShelf;
-import com.yiweilai.wms.warehouse.mapper.WarehouseLocationMapper;
 import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
 import com.yiweilai.wms.warehouse.service.WarehouseShelfService;
-import com.yiweilai.wms.warehouse.vo.WarehouseLocationVO;
 import com.yiweilai.wms.warehouse.vo.WarehouseShelfVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +25,6 @@ import java.util.stream.Collectors;
 public class WarehouseShelfServiceImpl implements WarehouseShelfService {
 
     private final WarehouseShelfMapper shelfMapper;
-    private final WarehouseLocationMapper locationMapper;
 
     @Override
     public List<WarehouseShelfVO> findByWarehouseId(Long warehouseId) {
@@ -43,19 +40,7 @@ public class WarehouseShelfServiceImpl implements WarehouseShelfService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "货架不存在");
         }
 
-        WarehouseShelfVO vo = convertToVO(shelf);
-
-        // 查询关联的库位
-        List<WarehouseLocationVO> locationList = locationMapper.findByShelfId(id).stream()
-                .map(location -> {
-                    WarehouseLocationVO locationVO = new WarehouseLocationVO();
-                    BeanUtils.copyProperties(location, locationVO);
-                    return locationVO;
-                })
-                .collect(Collectors.toList());
-        vo.setLocationList(locationList);
-
-        return vo;
+        return convertToVO(shelf);
     }
 
     @Override

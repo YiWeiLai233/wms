@@ -23,8 +23,6 @@ import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
-import com.yiweilai.wms.warehouse.entity.WarehouseLocation;
-import com.yiweilai.wms.warehouse.mapper.WarehouseLocationMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -50,13 +48,12 @@ public class ReturnServiceImpl implements ReturnService {
     private final ProductSkuMapper productSkuMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
-    private final WarehouseLocationMapper locationMapper;
 
     @Override
     public PageResult<ReturnOrderVO> findByPage(ReturnQueryDTO query) {
         PageHelper.startPage(query.getPage(), query.getSize());
         List<ReturnOrder> orders = returnOrderMapper.findByPage(
-                query.getReturnNo(), query.getOrderNo(),
+                query.getReturnNo(), query.getOrderNo(), query.getPlatformOrderNo(),
                 query.getStatus(), query.getWarehouseId());
 
         PageInfo<ReturnOrder> pageInfo = new PageInfo<>(orders);
@@ -160,7 +157,7 @@ public class ReturnServiceImpl implements ReturnService {
                 continue;
             }
             returnOrderItemMapper.updateQualityStatus(
-                    item.getId(), itemDTO.getQualityStatus(), itemDTO.getLocationId());
+                    item.getId(), itemDTO.getQualityStatus());
         }
 
         // 更新退货单状态为可售（如果有可售的）
@@ -190,11 +187,7 @@ public class ReturnServiceImpl implements ReturnService {
 
         // 入库
         for (ReturnOrderItem item : items) {
-            if (item.getLocationId() == null) {
-                continue;
-            }
-
-            addStock(item.getSkuId(), item.getLocationId(), item.getQuantity(),
+            addStock(item.getSkuId(), item.getQuantity(),
                     order.getReturnNo(), order.getWarehouseId(), item.getQualityStatus());
         }
 
@@ -208,17 +201,16 @@ public class ReturnServiceImpl implements ReturnService {
     /**
      * 增加库存
      */
-    private void addStock(Long skuId, Long locationId, int quantity,
+    private void addStock(Long skuId, int quantity,
                           String returnNo, Long warehouseId, String qualityStatus) {
         // 查询或创建库存记录
-        Stock stock = stockMapper.findBySkuAndLocation(skuId, locationId);
+        Stock stock = stockMapper.findBySkuAndWarehouse(skuId, warehouseId);
 
         if (stock == null) {
             // 新增库存记录
             stock = new Stock();
             stock.setSkuId(skuId);
             stock.setWarehouseId(warehouseId);
-            stock.setLocationId(locationId);
             stock.setQuantity(0);
             stock.setLockedQty(0);
             stock.setDefectiveQty(0);
@@ -247,7 +239,6 @@ public class ReturnServiceImpl implements ReturnService {
         log.setBizNo(returnNo);
         log.setSkuId(skuId);
         log.setWarehouseId(warehouseId);
-        log.setLocationId(locationId);
         log.setQuantityBefore(stock.getQuantity());
         log.setQuantityChange(quantity);
         log.setQuantityAfter(stock.getQuantity() + quantity);
@@ -264,14 +255,6 @@ public class ReturnServiceImpl implements ReturnService {
     private ReturnOrderItemVO convertToItemVO(ReturnOrderItem item) {
         ReturnOrderItemVO vo = new ReturnOrderItemVO();
         BeanUtils.copyProperties(item, vo);
-
-        // 查询库位编码
-        if (item.getLocationId() != null) {
-            WarehouseLocation location = locationMapper.findById(item.getLocationId());
-            if (location != null) {
-                vo.setLocationCode(location.getCode());
-            }
-        }
         return vo;
     }
 }

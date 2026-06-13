@@ -20,9 +20,18 @@ public class StockLogQueryDTO {
     /** 业务单号 */
     private String bizNo;
 
+    /** 平台订单号 */
+    private String platformOrderNo;
+
     /** SKU ID */
     private Long skuId;
 
     /** 仓库ID */
     private Long warehouseId;
+
+    /** 开始时间，格式 yyyy-MM-dd HH:mm:ss */
+    private String startTime;
+
+    /** 结束时间，格式 yyyy-MM-dd HH:mm:ss */
+    private String endTime;
 }

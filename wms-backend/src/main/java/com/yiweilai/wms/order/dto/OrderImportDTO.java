@@ -52,7 +52,6 @@ public class OrderImportDTO {
         private String skuCode;
 
         /** SKU名称 */
-        @NotBlank(message = "SKU名称不能为空")
         private String skuName;
 
         /** 数量 */

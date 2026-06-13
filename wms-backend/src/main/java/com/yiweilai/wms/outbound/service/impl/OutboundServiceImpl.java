@@ -24,18 +24,22 @@ import com.yiweilai.wms.product.entity.ProductBarcode;
 import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductBarcodeMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.express.entity.ExpressFeeStep;
+import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
+import com.yiweilai.wms.express.mapper.ExpressFeeTemplateMapper;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
-import com.yiweilai.wms.warehouse.entity.WarehouseLocation;
-import com.yiweilai.wms.warehouse.mapper.WarehouseLocationMapper;
+import com.yiweilai.wms.warehouse.entity.WarehouseShelf;
+import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -57,13 +61,15 @@ public class OutboundServiceImpl implements OutboundService {
     private final ProductBarcodeMapper productBarcodeMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
-    private final WarehouseLocationMapper locationMapper;
+    private final WarehouseShelfMapper shelfMapper;
+    private final ExpressFeeStepMapper feeStepMapper;
+    private final ExpressFeeTemplateMapper feeTemplateMapper;
 
     @Override
     public PageResult<OutboundOrderVO> findByPage(OutboundQueryDTO query) {
         PageHelper.startPage(query.getPage(), query.getSize());
         List<OutboundOrder> orders = outboundOrderMapper.findByPage(
-                query.getOutboundNo(), query.getOrderNo(),
+                query.getOutboundNo(), query.getOrderNo(), query.getPlatformOrderNo(), query.getTrackingNo(),
                 query.getStatus(), query.getWarehouseId());
 
         PageInfo<OutboundOrder> pageInfo = new PageInfo<>(orders);
@@ -191,7 +197,7 @@ public class OutboundServiceImpl implements OutboundService {
         int newPickedQty = currentPickedQty + 1;
         outboundOrderItemMapper.updatePickedQty(item.getId(), newPickedQty);
         outboundOrderItemMapper.updateScanned(item.getId(), newPickedQty >= item.getQuantity() ? 1 : 0);
-        outboundOrderItemMapper.updateLocationId(item.getId(), dto.getLocationId());
+        outboundOrderItemMapper.updateShelfId(item.getId(), dto.getShelfId());
 
         // 更新出库单状态为拣货中
         if ("WAIT_PICKING".equals(order.getStatus())) {
@@ -212,23 +218,29 @@ public class OutboundServiceImpl implements OutboundService {
             throw new BusinessException(ErrorCode.OUTBOUND_STATUS_ERROR, "出库单状态不允许确认出库");
         }
 
-        // 检查所有明细是否都已扫码
         List<OutboundOrderItem> items = outboundOrderItemMapper.findByOutboundId(dto.getOutboundId());
-        for (OutboundOrderItem item : items) {
-            int pickedQty = item.getPickedQty() == null ? 0 : item.getPickedQty();
-            if (pickedQty < item.getQuantity()) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "存在未扫码确认的商品: " + item.getSkuCode());
-            }
-            if (item.getLocationId() == null) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "商品未选择出库库位: " + item.getSkuCode());
-            }
-        }
 
         // 扣减库存
         for (OutboundOrderItem item : items) {
-            deductStock(item.getSkuId(), item.getLocationId(), item.getQuantity(),
-                    order.getOutboundNo(), order.getWarehouseId());
+            deductStock(item.getSkuId(), item.getQuantity(), order.getOutboundNo(), order.getWarehouseId());
         }
+
+        // 计算快递费用
+        BigDecimal shippingFee = dto.getShippingFee();
+        BigDecimal weight = dto.getEstimatedWeight();
+
+        // 如果提供了重量但没有提供费用，根据模板计算
+        if (shippingFee == null && weight != null && weight.compareTo(BigDecimal.ZERO) > 0) {
+            shippingFee = calculateFeeByTemplate(dto.getFeeTemplateId(), weight);
+        }
+
+        // 如果都没有提供，使用默认计算
+        if (shippingFee == null) {
+            shippingFee = calculateShippingFee(items);
+        }
+
+        // 更新快递信息
+        outboundOrderMapper.updateExpressInfo(dto.getOutboundId(), dto.getTrackingNo(), shippingFee);
 
         // 更新出库单状态为已发货
         outboundOrderMapper.updateStatus(dto.getOutboundId(), "SHIPPED");
@@ -240,32 +252,103 @@ public class OutboundServiceImpl implements OutboundService {
     }
 
     /**
+     * 根据模板计算快递费用
+     */
+    private BigDecimal calculateFeeByTemplate(Long templateId, BigDecimal weight) {
+        if (templateId == null) {
+            // 使用默认模板
+            var defaultTemplate = feeTemplateMapper.findDefault();
+            if (defaultTemplate != null) {
+                templateId = defaultTemplate.getId();
+            } else {
+                return null;
+            }
+        }
+
+        ExpressFeeStep step = feeStepMapper.findByTemplateIdAndWeight(templateId, weight);
+        if (step != null) {
+            return step.getFee();
+        }
+
+        return null;
+    }
+
+    /**
+     * 计算快递费用
+     * 首重1kg：12元，续重：5元/kg
+     */
+    private BigDecimal calculateShippingFee(List<OutboundOrderItem> items) {
+        // 计算总重量
+        BigDecimal totalWeight = BigDecimal.ZERO;
+        for (OutboundOrderItem item : items) {
+            ProductSku sku = productSkuMapper.findById(item.getSkuId());
+            if (sku != null && sku.getWeight() != null) {
+                totalWeight = totalWeight.add(sku.getWeight().multiply(new BigDecimal(item.getQuantity())));
+            }
+        }
+
+        // 如果没有重量信息，默认1kg
+        if (totalWeight.compareTo(BigDecimal.ZERO) == 0) {
+            totalWeight = new BigDecimal("1");
+        }
+
+        // 计算费用：首重12元，续重5元/kg
+        BigDecimal firstWeightFee = new BigDecimal("12");
+        BigDecimal additionalWeightFee = new BigDecimal("5");
+        BigDecimal firstWeight = new BigDecimal("1");
+
+        BigDecimal fee = firstWeightFee;
+        if (totalWeight.compareTo(firstWeight) > 0) {
+            BigDecimal additionalWeight = totalWeight.subtract(firstWeight);
+            // 向上取整
+            int additionalKg = additionalWeight.intValue();
+            if (additionalWeight.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) > 0) {
+                additionalKg++;
+            }
+            fee = fee.add(additionalWeightFee.multiply(new BigDecimal(additionalKg)));
+        }
+
+        return fee;
+    }
+
+    /**
      * 扣减库存（核心方法）
      */
-    private void deductStock(Long skuId, Long locationId, int quantity,
-                             String outboundNo, Long warehouseId) {
-        // 查询库存
-        Stock stock = stockMapper.findBySkuAndLocation(skuId, locationId);
-        if (stock == null) {
-            throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "库存记录不存在");
+    private void deductStock(Long skuId, int quantity, String outboundNo, Long warehouseId) {
+        int remaining = quantity;
+        List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
+        for (Stock stock : availableStocks) {
+            if (remaining <= 0) {
+                break;
+            }
+            int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
+            int deductQty = Math.min(beforeQty, remaining);
+            if (deductQty <= 0) {
+                continue;
+            }
+            int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
+            if (affected == 0) {
+                continue;
+            }
+            writeOutboundLog(skuId, warehouseId, beforeQty, deductQty, outboundNo);
+            remaining -= deductQty;
         }
 
-        // 扣减库存（防负数）
-        int affected = stockMapper.deductQuantity(stock.getId(), quantity);
-        if (affected == 0) {
+        if (remaining > 0) {
             throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "库存不足");
         }
+    }
 
-        // 写库存流水
+    private void writeOutboundLog(Long skuId, Long warehouseId, int beforeQty,
+                                  int deductQty, String outboundNo) {
         StockLog log = new StockLog();
         log.setBizType("OUTBOUND");
         log.setBizNo(outboundNo);
         log.setSkuId(skuId);
         log.setWarehouseId(warehouseId);
-        log.setLocationId(locationId);
-        log.setQuantityBefore(stock.getQuantity());
-        log.setQuantityChange(-quantity);
-        log.setQuantityAfter(stock.getQuantity() - quantity);
+        log.setQuantityBefore(beforeQty);
+        log.setQuantityChange(-deductQty);
+        log.setQuantityAfter(beforeQty - deductQty);
         log.setRemark("出库扣减");
         stockLogMapper.insert(log);
     }
@@ -280,11 +363,11 @@ public class OutboundServiceImpl implements OutboundService {
         OutboundOrderItemVO vo = new OutboundOrderItemVO();
         BeanUtils.copyProperties(item, vo);
 
-        // 查询库位编码
-        if (item.getLocationId() != null) {
-            WarehouseLocation location = locationMapper.findById(item.getLocationId());
-            if (location != null) {
-                vo.setLocationCode(location.getCode());
+        // 查询货架编码
+        if (item.getShelfId() != null) {
+            WarehouseShelf shelf = shelfMapper.findById(item.getShelfId());
+            if (shelf != null) {
+                vo.setShelfCode(shelf.getCode());
             }
         }
         return vo;

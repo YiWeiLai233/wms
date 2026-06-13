@@ -42,8 +42,6 @@ public class StockServiceImpl implements StockService {
                 query.getSkuName(),
                 query.getProductName(),
                 query.getWarehouseId(),
-                query.getLocationId(),
-                query.getLocationCode(),
                 query.getStockType());
 
         PageInfo<Stock> pageInfo = new PageInfo<>(stocks);
@@ -62,14 +60,13 @@ public class StockServiceImpl implements StockService {
     @Transactional(rollbackFor = Exception.class)
     public void adjust(StockAdjustDTO dto) {
         // 查询或创建库存记录
-        Stock stock = stockMapper.findBySkuAndLocation(dto.getSkuId(), dto.getLocationId());
+        Stock stock = stockMapper.findBySkuAndWarehouse(dto.getSkuId(), dto.getWarehouseId());
 
         if (stock == null) {
             // 新增库存记录
             stock = new Stock();
             stock.setSkuId(dto.getSkuId());
             stock.setWarehouseId(dto.getWarehouseId());
-            stock.setLocationId(dto.getLocationId());
             stock.setQuantity(dto.getQuantity());
             stock.setLockedQty(0);
             stock.setDefectiveQty(0);
@@ -77,7 +74,7 @@ public class StockServiceImpl implements StockService {
 
             // 写流水
             writeLog("ADJUST", "ADJUST_" + stock.getId(), dto.getSkuId(),
-                    dto.getWarehouseId(), dto.getLocationId(),
+                    dto.getWarehouseId(),
                     0, dto.getQuantity(), dto.getQuantity(), dto.getRemark());
         } else {
             // 调整库存
@@ -92,19 +89,18 @@ public class StockServiceImpl implements StockService {
 
             // 写流水
             writeLog("ADJUST", "ADJUST_" + stock.getId(), dto.getSkuId(),
-                    dto.getWarehouseId(), dto.getLocationId(),
+                    dto.getWarehouseId(),
                     beforeQty, dto.getQuantity(), afterQty, dto.getRemark());
         }
     }
 
     private void writeLog(String bizType, String bizNo, Long skuId, Long warehouseId,
-                          Long locationId, int before, int change, int after, String remark) {
+                          int before, int change, int after, String remark) {
         StockLog log = new StockLog();
         log.setBizType(bizType);
         log.setBizNo(bizNo);
         log.setSkuId(skuId);
         log.setWarehouseId(warehouseId);
-        log.setLocationId(locationId);
         log.setQuantityBefore(before);
         log.setQuantityChange(change);
         log.setQuantityAfter(after);

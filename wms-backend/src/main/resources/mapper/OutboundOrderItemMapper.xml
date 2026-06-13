@@ -8,39 +8,49 @@
         <result column="sku_id" property="skuId"/>
         <result column="sku_code" property="skuCode"/>
         <result column="sku_name" property="skuName"/>
+        <result column="size_value" property="sizeValue"/>
         <result column="quantity" property="quantity"/>
         <result column="picked_qty" property="pickedQty"/>
-        <result column="location_id" property="locationId"/>
+        <result column="shelf_id" property="shelfId"/>
         <result column="scanned" property="scanned"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
     <select id="findByOutboundId" resultMap="BaseResultMap">
-        SELECT id, outbound_id, sku_id, sku_code, sku_name, quantity, picked_qty,
-               location_id, scanned, created_at, updated_at
-        FROM outbound_order_item
-        WHERE outbound_id = #{outboundId}
-        ORDER BY id ASC
+        SELECT ooi.id, ooi.outbound_id, ooi.sku_id, ooi.sku_code, ooi.sku_name,
+               ps.size_value AS size_value,
+               ooi.quantity, ooi.picked_qty, ooi.shelf_id, ooi.scanned,
+               ooi.created_at, ooi.updated_at
+        FROM outbound_order_item ooi
+        LEFT JOIN product_sku ps ON ooi.sku_id = ps.id AND ps.deleted = 0
+        WHERE ooi.outbound_id = #{outboundId}
+        ORDER BY ooi.id ASC
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, outbound_id, sku_id, sku_code, sku_name, quantity, picked_qty,
-               location_id, scanned, created_at, updated_at
-        FROM outbound_order_item
-        WHERE id = #{id}
+        SELECT ooi.id, ooi.outbound_id, ooi.sku_id, ooi.sku_code, ooi.sku_name,
+               ps.size_value AS size_value,
+               ooi.quantity, ooi.picked_qty, ooi.shelf_id, ooi.scanned,
+               ooi.created_at, ooi.updated_at
+        FROM outbound_order_item ooi
+        LEFT JOIN product_sku ps ON ooi.sku_id = ps.id AND ps.deleted = 0
+        WHERE ooi.id = #{id}
     </select>
 
     <select id="findByOutboundIdAndSkuCode" resultMap="BaseResultMap">
-        SELECT id, outbound_id, sku_id, sku_code, sku_name, quantity, picked_qty,
-               location_id, scanned, created_at, updated_at
-        FROM outbound_order_item
-        WHERE outbound_id = #{outboundId} AND sku_code = #{skuCode}
+        SELECT ooi.id, ooi.outbound_id, ooi.sku_id, ooi.sku_code, ooi.sku_name,
+               ps.size_value AS size_value,
+               ooi.quantity, ooi.picked_qty, ooi.shelf_id, ooi.scanned,
+               ooi.created_at, ooi.updated_at
+        FROM outbound_order_item ooi
+        LEFT JOIN product_sku ps ON ooi.sku_id = ps.id AND ps.deleted = 0
+        WHERE ooi.outbound_id = #{outboundId} AND ooi.sku_code = #{skuCode}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO outbound_order_item (outbound_id, sku_id, sku_code, sku_name, quantity, location_id)
-        VALUES (#{outboundId}, #{skuId}, #{skuCode}, #{skuName}, #{quantity}, #{locationId})
+        INSERT INTO outbound_order_item (outbound_id, sku_id, sku_code, sku_name, quantity, shelf_id)
+        VALUES (#{outboundId}, #{skuId}, #{skuCode}, #{skuName}, #{quantity}, #{shelfId})
     </insert>
 
     <update id="updatePickedQty">
@@ -55,9 +65,9 @@
         WHERE id = #{id}
     </update>
 
-    <update id="updateLocationId">
+    <update id="updateShelfId">
         UPDATE outbound_order_item
-        SET location_id = #{locationId}
+        SET shelf_id = #{shelfId}
         WHERE id = #{id}
     </update>
 

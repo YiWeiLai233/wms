@@ -177,22 +177,6 @@ CREATE TABLE IF NOT EXISTS warehouse_shelf (
     KEY idx_area_id (area_id)
 ) ENGINE=InnoDB COMMENT='货架表';
 
--- 库位表
-CREATE TABLE IF NOT EXISTS warehouse_location (
-    id          BIGINT       PRIMARY KEY AUTO_INCREMENT COMMENT '库位ID',
-    shelf_id    BIGINT       NOT NULL COMMENT '货架ID',
-    code        VARCHAR(50)  NOT NULL COMMENT '库位编码',
-    name        VARCHAR(100) NOT NULL COMMENT '库位名称',
-    type        TINYINT      DEFAULT 1 COMMENT '类型：1-普通库位 2-退货库位 3-次品库位',
-    capacity    INT          DEFAULT NULL COMMENT '容量上限',
-    status      TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1-启用 0-禁用',
-    deleted     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
-    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    UNIQUE KEY uk_shelf_code (shelf_id, code),
-    KEY idx_shelf_id (shelf_id)
-) ENGINE=InnoDB COMMENT='库位表';
-
 -- ============================================================
 -- 4. 库存相关
 -- ============================================================
@@ -202,14 +186,13 @@ CREATE TABLE IF NOT EXISTS stock (
     id            BIGINT  PRIMARY KEY AUTO_INCREMENT COMMENT '库存ID',
     sku_id        BIGINT  NOT NULL COMMENT 'SKU ID',
     warehouse_id  BIGINT  NOT NULL COMMENT '仓库ID',
-    location_id   BIGINT  NOT NULL COMMENT '库位ID',
     quantity      INT     NOT NULL DEFAULT 0 COMMENT '可用数量',
     locked_qty    INT     NOT NULL DEFAULT 0 COMMENT '锁定数量',
     defective_qty INT     NOT NULL DEFAULT 0 COMMENT '次品数量',
     deleted       TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    UNIQUE KEY uk_sku_location (sku_id, location_id),
+    UNIQUE KEY uk_sku_warehouse (sku_id, warehouse_id),
     KEY idx_warehouse_id (warehouse_id),
     KEY idx_sku_id (sku_id)
 ) ENGINE=InnoDB COMMENT='当前库存表';
@@ -221,7 +204,6 @@ CREATE TABLE IF NOT EXISTS stock_log (
     biz_no         VARCHAR(50)  NOT NULL COMMENT '业务单号',
     sku_id         BIGINT       NOT NULL COMMENT 'SKU ID',
     warehouse_id   BIGINT       NOT NULL COMMENT '仓库ID',
-    location_id    BIGINT       NOT NULL COMMENT '库位ID',
     quantity_before INT         NOT NULL COMMENT '变动前数量',
     quantity_change INT         NOT NULL COMMENT '变动数量（正数入库，负数出库）',
     quantity_after  INT         NOT NULL COMMENT '变动后数量',
@@ -254,7 +236,6 @@ CREATE TABLE IF NOT EXISTS stock_check_item (
     id             BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '明细ID',
     check_id       BIGINT NOT NULL COMMENT '盘点单ID',
     sku_id         BIGINT NOT NULL COMMENT 'SKU ID',
-    location_id    BIGINT NOT NULL COMMENT '库位ID',
     system_qty     INT    NOT NULL COMMENT '系统库存数量',
     actual_qty     INT    DEFAULT NULL COMMENT '实际盘点数量',
     diff_qty       INT    DEFAULT NULL COMMENT '差异（实际-系统）',
@@ -339,7 +320,7 @@ CREATE TABLE IF NOT EXISTS outbound_order_item (
     sku_name       VARCHAR(200) NOT NULL COMMENT 'SKU名称',
     quantity       INT          NOT NULL COMMENT '应出数量',
     picked_qty     INT          DEFAULT 0 COMMENT '已拣数量',
-    location_id    BIGINT       DEFAULT NULL COMMENT '拣货库位ID',
+    shelf_id       BIGINT       DEFAULT NULL COMMENT '拣货货架ID',
     scanned        TINYINT      DEFAULT 0 COMMENT '是否已扫码确认：0-否 1-是',
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -380,7 +361,6 @@ CREATE TABLE IF NOT EXISTS return_order_item (
     sku_name       VARCHAR(200) NOT NULL COMMENT 'SKU名称',
     quantity       INT          NOT NULL COMMENT '退货数量',
     quality_status VARCHAR(30)  DEFAULT NULL COMMENT '质检状态：SELLABLE/DEFECTIVE/SCRAPPED',
-    location_id    BIGINT       DEFAULT NULL COMMENT '入库库位ID',
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     KEY idx_return_id (return_id),

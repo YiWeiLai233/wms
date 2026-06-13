@@ -15,6 +15,8 @@ import com.yiweilai.wms.order.mapper.SalesOrderMapper;
 import com.yiweilai.wms.order.service.OrderService;
 import com.yiweilai.wms.order.vo.OrderItemVO;
 import com.yiweilai.wms.order.vo.OrderVO;
+import com.yiweilai.wms.product.entity.ProductSku;
+import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -37,6 +39,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper orderItemMapper;
+    private final ProductSkuMapper productSkuMapper;
 
     @Override
     public PageResult<OrderVO> findByPage(OrderQueryDTO query) {
@@ -96,6 +99,7 @@ public class OrderServiceImpl implements OrderService {
         // 计算总金额
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (OrderImportDTO.OrderItemDTO itemDTO : dto.getItems()) {
+            normalizeOrderItem(itemDTO);
             BigDecimal itemTotal = itemDTO.getUnitPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity()));
             totalAmount = totalAmount.add(itemTotal);
         }
@@ -117,6 +121,29 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return order.getId();
+    }
+
+    private void normalizeOrderItem(OrderImportDTO.OrderItemDTO itemDTO) {
+        ProductSku sku = null;
+        if (itemDTO.getSkuId() != null) {
+            sku = productSkuMapper.findById(itemDTO.getSkuId());
+        }
+        if (sku == null && itemDTO.getSkuCode() != null && !itemDTO.getSkuCode().isBlank()) {
+            sku = productSkuMapper.findBySkuCode(itemDTO.getSkuCode().trim());
+        }
+        if (sku == null) {
+            throw new BusinessException(ErrorCode.SKU_NOT_FOUND, "未找到对应的SKU: " + itemDTO.getSkuCode());
+        }
+
+        itemDTO.setSkuId(sku.getId());
+        itemDTO.setSkuCode(sku.getSkuCode());
+        itemDTO.setSkuName(sku.getName());
+        if (itemDTO.getQuantity() == null || itemDTO.getQuantity() <= 0) {
+            itemDTO.setQuantity(1);
+        }
+        if (itemDTO.getUnitPrice() == null) {
+            itemDTO.setUnitPrice(BigDecimal.ZERO);
+        }
     }
 
     @Override

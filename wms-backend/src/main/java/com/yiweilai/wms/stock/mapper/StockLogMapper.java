@@ -17,8 +17,11 @@ public interface StockLogMapper {
      */
     List<StockLog> findByPage(@Param("bizType") String bizType,
                               @Param("bizNo") String bizNo,
+                              @Param("platformOrderNo") String platformOrderNo,
                               @Param("skuId") Long skuId,
-                              @Param("warehouseId") Long warehouseId);
+                              @Param("warehouseId") Long warehouseId,
+                              @Param("startTime") String startTime,
+                              @Param("endTime") String endTime);
 
     /**
      * 新增流水

@@ -24,14 +24,17 @@ public class OutboundOrderItem {
     /** SKU名称 */
     private String skuName;
 
+    /** 码数 */
+    private String sizeValue;
+
     /** 应出数量 */
     private Integer quantity;
 
     /** 已拣数量 */
     private Integer pickedQty;
 
-    /** 拣货库位ID */
-    private Long locationId;
+    /** 拣货货架ID */
+    private Long shelfId;
 
     /** 是否已扫码确认：0-否 1-是 */
     private Integer scanned;

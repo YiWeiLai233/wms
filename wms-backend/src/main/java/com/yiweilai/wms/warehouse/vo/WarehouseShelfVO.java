@@ -3,7 +3,6 @@ package com.yiweilai.wms.warehouse.vo;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 货架返回对象
@@ -28,9 +27,6 @@ public class WarehouseShelfVO {
 
     /** 状态：1-启用 0-禁用 */
     private Integer status;
-
-    /** 库位列表 */
-    private List<WarehouseLocationVO> locationList;
 
     /** 创建时间 */
     private LocalDateTime createdAt;

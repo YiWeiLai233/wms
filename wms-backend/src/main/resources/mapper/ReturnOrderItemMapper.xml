@@ -8,26 +8,32 @@
         <result column="sku_id" property="skuId"/>
         <result column="sku_code" property="skuCode"/>
         <result column="sku_name" property="skuName"/>
+        <result column="size_value" property="sizeValue"/>
         <result column="quantity" property="quantity"/>
         <result column="quality_status" property="qualityStatus"/>
-        <result column="location_id" property="locationId"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
     <select id="findByReturnId" resultMap="BaseResultMap">
-        SELECT id, return_id, sku_id, sku_code, sku_name, quantity, quality_status,
-               location_id, created_at, updated_at
-        FROM return_order_item
-        WHERE return_id = #{returnId}
-        ORDER BY id ASC
+        SELECT roi.id, roi.return_id, roi.sku_id, roi.sku_code, roi.sku_name,
+               ps.size_value AS size_value,
+               roi.quantity, roi.quality_status,
+               roi.created_at, roi.updated_at
+        FROM return_order_item roi
+        LEFT JOIN product_sku ps ON roi.sku_id = ps.id AND ps.deleted = 0
+        WHERE roi.return_id = #{returnId}
+        ORDER BY roi.id ASC
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, return_id, sku_id, sku_code, sku_name, quantity, quality_status,
-               location_id, created_at, updated_at
-        FROM return_order_item
-        WHERE id = #{id}
+        SELECT roi.id, roi.return_id, roi.sku_id, roi.sku_code, roi.sku_name,
+               ps.size_value AS size_value,
+               roi.quantity, roi.quality_status,
+               roi.created_at, roi.updated_at
+        FROM return_order_item roi
+        LEFT JOIN product_sku ps ON roi.sku_id = ps.id AND ps.deleted = 0
+        WHERE roi.id = #{id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -37,7 +43,7 @@
 
     <update id="updateQualityStatus">
         UPDATE return_order_item
-        SET quality_status = #{qualityStatus}, location_id = #{locationId}
+        SET quality_status = #{qualityStatus}
         WHERE id = #{id}
     </update>
 

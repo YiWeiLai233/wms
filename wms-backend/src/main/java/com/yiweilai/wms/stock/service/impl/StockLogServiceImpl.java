@@ -30,7 +30,13 @@ public class StockLogServiceImpl implements StockLogService {
     public PageResult<StockLogVO> findByPage(StockLogQueryDTO query) {
         PageHelper.startPage(query.getPage(), query.getSize());
         List<StockLog> logs = stockLogMapper.findByPage(
-                query.getBizType(), query.getBizNo(), query.getSkuId(), query.getWarehouseId());
+                query.getBizType(),
+                query.getBizNo(),
+                query.getPlatformOrderNo(),
+                query.getSkuId(),
+                query.getWarehouseId(),
+                query.getStartTime(),
+                query.getEndTime());
 
         PageInfo<StockLog> pageInfo = new PageInfo<>(logs);
 

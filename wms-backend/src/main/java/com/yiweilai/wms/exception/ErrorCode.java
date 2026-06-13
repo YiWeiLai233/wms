@@ -31,8 +31,6 @@ public enum ErrorCode {
 
     // 仓库模块 3xxx
     WAREHOUSE_NOT_FOUND(3001, "仓库不存在"),
-    LOCATION_NOT_FOUND(3002, "库位不存在"),
-    LOCATION_IN_USE(3003, "库位正在使用中"),
 
     // 库存模块 4xxx
     STOCK_NOT_ENOUGH(4001, "库存不足"),

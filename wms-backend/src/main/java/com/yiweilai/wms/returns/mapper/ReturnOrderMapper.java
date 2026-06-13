@@ -17,6 +17,7 @@ public interface ReturnOrderMapper {
      */
     List<ReturnOrder> findByPage(@Param("returnNo") String returnNo,
                                  @Param("orderNo") String orderNo,
+                                 @Param("platformOrderNo") String platformOrderNo,
                                  @Param("status") String status,
                                  @Param("warehouseId") Long warehouseId);
 

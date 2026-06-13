@@ -21,11 +21,17 @@ public class StockLog {
     /** SKU ID */
     private Long skuId;
 
+    /** SKU编码 */
+    private String skuCode;
+
+    /** 平台订单号 */
+    private String platformOrderNo;
+
     /** 仓库ID */
     private Long warehouseId;
 
-    /** 库位ID */
-    private Long locationId;
+    /** 仓库名称 */
+    private String warehouseName;
 
     /** 变动前数量 */
     private Integer quantityBefore;

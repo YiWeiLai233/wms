@@ -20,6 +20,12 @@ public class OutboundQueryDTO {
     /** 订单号 */
     private String orderNo;
 
+    /** 平台订单号 */
+    private String platformOrderNo;
+
+    /** 快递单号 */
+    private String trackingNo;
+
     /** 状态 */
     private String status;
 

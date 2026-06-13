@@ -21,6 +21,9 @@ public class ReturnOrder {
     /** 原订单号 */
     private String orderNo;
 
+    /** 平台订单号 */
+    private String platformOrderNo;
+
     /** 仓库ID */
     private Long warehouseId;
 

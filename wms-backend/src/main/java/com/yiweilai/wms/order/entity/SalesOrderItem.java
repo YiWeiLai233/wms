@@ -25,6 +25,9 @@ public class SalesOrderItem {
     /** SKU名称 */
     private String skuName;
 
+    /** 码数 */
+    private String sizeValue;
+
     /** 数量 */
     private Integer quantity;
 

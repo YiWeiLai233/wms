@@ -7,8 +7,10 @@
         <result column="biz_type" property="bizType"/>
         <result column="biz_no" property="bizNo"/>
         <result column="sku_id" property="skuId"/>
+        <result column="sku_code" property="skuCode"/>
+        <result column="platform_order_no" property="platformOrderNo"/>
         <result column="warehouse_id" property="warehouseId"/>
-        <result column="location_id" property="locationId"/>
+        <result column="warehouse_name" property="warehouseName"/>
         <result column="quantity_before" property="quantityBefore"/>
         <result column="quantity_change" property="quantityChange"/>
         <result column="quantity_after" property="quantityAfter"/>
@@ -19,32 +21,50 @@
     </resultMap>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT id, biz_type, biz_no, sku_id, warehouse_id, location_id,
-               quantity_before, quantity_change, quantity_after,
-               operator_id, operator_name, remark, created_at
-        FROM stock_log
+        SELECT sl.id, sl.biz_type, sl.biz_no, sl.sku_id,
+               ps.sku_code AS sku_code,
+               COALESCE(out_order.platform_order_no, return_order.platform_order_no) AS platform_order_no,
+               sl.warehouse_id, w.name AS warehouse_name,
+               sl.quantity_before, sl.quantity_change, sl.quantity_after,
+               sl.operator_id, sl.operator_name, sl.remark, sl.created_at
+        FROM stock_log sl
+        LEFT JOIN product_sku ps ON sl.sku_id = ps.id AND ps.deleted = 0
+        LEFT JOIN warehouse w ON sl.warehouse_id = w.id AND w.deleted = 0
+        LEFT JOIN outbound_order oo ON sl.biz_no = oo.outbound_no AND oo.deleted = 0
+        LEFT JOIN sales_order out_order ON oo.order_id = out_order.id AND out_order.deleted = 0
+        LEFT JOIN return_order ro ON sl.biz_no = ro.return_no AND ro.deleted = 0
+        LEFT JOIN sales_order return_order ON ro.order_id = return_order.id AND return_order.deleted = 0
         <where>
             <if test="bizType != null and bizType != ''">
-                AND biz_type = #{bizType}
+                AND sl.biz_type = #{bizType}
             </if>
             <if test="bizNo != null and bizNo != ''">
-                AND biz_no = #{bizNo}
+                AND sl.biz_no LIKE CONCAT('%', #{bizNo}, '%')
+            </if>
+            <if test="platformOrderNo != null and platformOrderNo != ''">
+                AND COALESCE(out_order.platform_order_no, return_order.platform_order_no) LIKE CONCAT('%', #{platformOrderNo}, '%')
             </if>
             <if test="skuId != null">
-                AND sku_id = #{skuId}
+                AND sl.sku_id = #{skuId}
             </if>
             <if test="warehouseId != null">
-                AND warehouse_id = #{warehouseId}
+                AND sl.warehouse_id = #{warehouseId}
+            </if>
+            <if test="startTime != null and startTime != ''">
+                AND sl.created_at &gt;= #{startTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND sl.created_at &lt;= #{endTime}
             </if>
         </where>
-        ORDER BY id DESC
+        ORDER BY sl.id DESC
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO stock_log (biz_type, biz_no, sku_id, warehouse_id, location_id,
+        INSERT INTO stock_log (biz_type, biz_no, sku_id, warehouse_id,
                                quantity_before, quantity_change, quantity_after,
                                operator_id, operator_name, remark)
-        VALUES (#{bizType}, #{bizNo}, #{skuId}, #{warehouseId}, #{locationId},
+        VALUES (#{bizType}, #{bizNo}, #{skuId}, #{warehouseId},
                 #{quantityBefore}, #{quantityChange}, #{quantityAfter},
                 #{operatorId}, #{operatorName}, #{remark})
     </insert>

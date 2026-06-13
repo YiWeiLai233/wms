@@ -29,12 +29,6 @@ public class StockQueryDTO {
     /** 仓库ID */
     private Long warehouseId;
 
-    /** 库位ID */
-    private Long locationId;
-
-    /** 库位编码（模糊查询） */
-    private String locationCode;
-
     /** 库存类型：all-全部, normal-正常, low-低库存, out-缺货 */
     private String stockType;
 }

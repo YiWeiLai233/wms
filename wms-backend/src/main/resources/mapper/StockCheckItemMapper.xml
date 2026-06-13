@@ -6,7 +6,6 @@
         <id column="id" property="id"/>
         <result column="check_id" property="checkId"/>
         <result column="sku_id" property="skuId"/>
-        <result column="location_id" property="locationId"/>
         <result column="system_qty" property="systemQty"/>
         <result column="actual_qty" property="actualQty"/>
         <result column="diff_qty" property="diffQty"/>
@@ -15,7 +14,7 @@
     </resultMap>
 
     <select id="findByCheckId" resultMap="BaseResultMap">
-        SELECT id, check_id, sku_id, location_id, system_qty, actual_qty, diff_qty,
+        SELECT id, check_id, sku_id, system_qty, actual_qty, diff_qty,
                created_at, updated_at
         FROM stock_check_item
         WHERE check_id = #{checkId}
@@ -23,15 +22,15 @@
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, check_id, sku_id, location_id, system_qty, actual_qty, diff_qty,
+        SELECT id, check_id, sku_id, system_qty, actual_qty, diff_qty,
                created_at, updated_at
         FROM stock_check_item
         WHERE id = #{id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO stock_check_item (check_id, sku_id, location_id, system_qty, actual_qty, diff_qty)
-        VALUES (#{checkId}, #{skuId}, #{locationId}, #{systemQty}, #{actualQty}, #{diffQty})
+        INSERT INTO stock_check_item (check_id, sku_id, system_qty, actual_qty, diff_qty)
+        VALUES (#{checkId}, #{skuId}, #{systemQty}, #{actualQty}, #{diffQty})
     </insert>
 
     <update id="updateActualQty">

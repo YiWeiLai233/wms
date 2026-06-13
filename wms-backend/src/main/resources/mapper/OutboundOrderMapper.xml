@@ -7,12 +7,15 @@
         <result column="outbound_no" property="outboundNo"/>
         <result column="order_id" property="orderId"/>
         <result column="order_no" property="orderNo"/>
+        <result column="platform_order_no" property="platformOrderNo"/>
         <result column="warehouse_id" property="warehouseId"/>
         <result column="warehouse_name" property="warehouseName"/>
         <result column="status" property="status"/>
         <result column="picker_id" property="pickerId"/>
         <result column="picker_name" property="pickerName"/>
         <result column="remark" property="remark"/>
+        <result column="tracking_no" property="trackingNo"/>
+        <result column="shipping_fee" property="shippingFee"/>
         <result column="shipped_at" property="shippedAt"/>
         <result column="deleted" property="deleted"/>
         <result column="created_at" property="createdAt"/>
@@ -20,10 +23,14 @@
     </resultMap>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no, oo.warehouse_id,
+        SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
+               so.platform_order_no AS platform_order_no,
+               oo.warehouse_id,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
-               oo.remark, oo.shipped_at, oo.deleted, oo.created_at, oo.updated_at
+               oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
+               oo.deleted, oo.created_at, oo.updated_at
         FROM outbound_order oo
+        LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON oo.warehouse_id = w.id
         WHERE oo.deleted = 0
         <if test="outboundNo != null and outboundNo != ''">
@@ -31,6 +38,12 @@
         </if>
         <if test="orderNo != null and orderNo != ''">
             AND oo.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="platformOrderNo != null and platformOrderNo != ''">
+            AND so.platform_order_no LIKE CONCAT('%', #{platformOrderNo}, '%')
+        </if>
+        <if test="trackingNo != null and trackingNo != ''">
+            AND oo.tracking_no LIKE CONCAT('%', #{trackingNo}, '%')
         </if>
         <if test="status != null and status != ''">
             AND oo.status = #{status}
@@ -42,19 +55,27 @@
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no, oo.warehouse_id,
+        SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
+               so.platform_order_no AS platform_order_no,
+               oo.warehouse_id,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
-               oo.remark, oo.shipped_at, oo.deleted, oo.created_at, oo.updated_at
+               oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
+               oo.deleted, oo.created_at, oo.updated_at
         FROM outbound_order oo
+        LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON oo.warehouse_id = w.id
         WHERE oo.id = #{id} AND oo.deleted = 0
     </select>
 
     <select id="findByOrderId" resultMap="BaseResultMap">
-        SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no, oo.warehouse_id,
+        SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
+               so.platform_order_no AS platform_order_no,
+               oo.warehouse_id,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
-               oo.remark, oo.shipped_at, oo.deleted, oo.created_at, oo.updated_at
+               oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
+               oo.deleted, oo.created_at, oo.updated_at
         FROM outbound_order oo
+        LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON oo.warehouse_id = w.id
         WHERE oo.order_id = #{orderId} AND oo.deleted = 0
     </select>
@@ -77,6 +98,12 @@
     <update id="updateShippedAt">
         UPDATE outbound_order
         SET shipped_at = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateExpressInfo">
+        UPDATE outbound_order
+        SET tracking_no = #{trackingNo}, shipping_fee = #{shippingFee}
         WHERE id = #{id} AND deleted = 0
     </update>
 

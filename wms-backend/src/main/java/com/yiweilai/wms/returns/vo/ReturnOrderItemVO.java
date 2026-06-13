@@ -25,17 +25,14 @@ public class ReturnOrderItemVO {
     /** SKU名称 */
     private String skuName;
 
+    /** 码数 */
+    private String sizeValue;
+
     /** 退货数量 */
     private Integer quantity;
 
     /** 质检状态 */
     private String qualityStatus;
-
-    /** 入库库位ID */
-    private Long locationId;
-
-    /** 库位编码 */
-    private String locationCode;
 
     /** 创建时间 */
     private LocalDateTime createdAt;

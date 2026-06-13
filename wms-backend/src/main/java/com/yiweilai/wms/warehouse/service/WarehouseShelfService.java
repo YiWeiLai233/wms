@@ -16,7 +16,7 @@ public interface WarehouseShelfService {
     List<WarehouseShelfVO> findByWarehouseId(Long warehouseId);
 
     /**
-     * 根据ID查询货架详情（含库位）
+     * 根据ID查询货架详情
      */
     WarehouseShelfVO getById(Long id);
 

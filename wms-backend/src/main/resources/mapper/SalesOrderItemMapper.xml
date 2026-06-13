@@ -8,6 +8,7 @@
         <result column="sku_id" property="skuId"/>
         <result column="sku_code" property="skuCode"/>
         <result column="sku_name" property="skuName"/>
+        <result column="size_value" property="sizeValue"/>
         <result column="quantity" property="quantity"/>
         <result column="unit_price" property="unitPrice"/>
         <result column="total_price" property="totalPrice"/>
@@ -15,10 +16,13 @@
     </resultMap>
 
     <select id="findByOrderId" resultMap="BaseResultMap">
-        SELECT id, order_id, sku_id, sku_code, sku_name, quantity, unit_price, total_price, created_at
-        FROM sales_order_item
-        WHERE order_id = #{orderId}
-        ORDER BY id ASC
+        SELECT soi.id, soi.order_id, soi.sku_id, soi.sku_code, soi.sku_name,
+               ps.size_value AS size_value,
+               soi.quantity, soi.unit_price, soi.total_price, soi.created_at
+        FROM sales_order_item soi
+        LEFT JOIN product_sku ps ON soi.sku_id = ps.id AND ps.deleted = 0
+        WHERE soi.order_id = #{orderId}
+        ORDER BY soi.id ASC
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

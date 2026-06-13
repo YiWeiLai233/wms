@@ -18,9 +18,6 @@ public class StockCheckItem {
     /** SKU ID */
     private Long skuId;
 
-    /** 库位ID */
-    private Long locationId;
-
     /** 系统库存数量 */
     private Integer systemQty;
 

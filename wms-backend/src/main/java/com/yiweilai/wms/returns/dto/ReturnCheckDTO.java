@@ -33,9 +33,5 @@ public class ReturnCheckDTO {
         /** 质检状态：SELLABLE/DEFECTIVE/SCRAPPED */
         @NotBlank(message = "质检状态不能为空")
         private String qualityStatus;
-
-        /** 入库库位ID */
-        @NotNull(message = "入库库位不能为空")
-        private Long locationId;
     }
 }

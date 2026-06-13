@@ -7,6 +7,7 @@
         <result column="return_no" property="returnNo"/>
         <result column="order_id" property="orderId"/>
         <result column="order_no" property="orderNo"/>
+        <result column="platform_order_no" property="platformOrderNo"/>
         <result column="warehouse_id" property="warehouseId"/>
         <result column="warehouse_name" property="warehouseName"/>
         <result column="status" property="status"/>
@@ -20,10 +21,13 @@
     </resultMap>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT ro.id, ro.return_no, ro.order_id, ro.order_no, ro.warehouse_id,
+        SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
+               so.platform_order_no AS platform_order_no,
+               ro.warehouse_id,
                w.name AS warehouse_name, ro.status, ro.reason, ro.remark,
                ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
         FROM return_order ro
+        LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON ro.warehouse_id = w.id
         WHERE ro.deleted = 0
         <if test="returnNo != null and returnNo != ''">
@@ -31,6 +35,9 @@
         </if>
         <if test="orderNo != null and orderNo != ''">
             AND ro.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="platformOrderNo != null and platformOrderNo != ''">
+            AND so.platform_order_no LIKE CONCAT('%', #{platformOrderNo}, '%')
         </if>
         <if test="status != null and status != ''">
             AND ro.status = #{status}
@@ -42,10 +49,13 @@
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT ro.id, ro.return_no, ro.order_id, ro.order_no, ro.warehouse_id,
+        SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
+               so.platform_order_no AS platform_order_no,
+               ro.warehouse_id,
                w.name AS warehouse_name, ro.status, ro.reason, ro.remark,
                ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
         FROM return_order ro
+        LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON ro.warehouse_id = w.id
         WHERE ro.id = #{id} AND ro.deleted = 0
     </select>

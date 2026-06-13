@@ -20,15 +20,19 @@ public interface StockMapper {
                            @Param("skuName") String skuName,
                            @Param("productName") String productName,
                            @Param("warehouseId") Long warehouseId,
-                           @Param("locationId") Long locationId,
-                           @Param("locationCode") String locationCode,
                            @Param("stockType") String stockType);
 
     /**
-     * 根据SKU和库位查询库存
+     * 根据SKU和仓库查询库存
      */
-    Stock findBySkuAndLocation(@Param("skuId") Long skuId,
-                               @Param("locationId") Long locationId);
+    Stock findBySkuAndWarehouse(@Param("skuId") Long skuId,
+                                @Param("warehouseId") Long warehouseId);
+
+    /**
+     * 查询某仓库下 SKU 的可用库存记录，用于直接出库扣减。
+     */
+    List<Stock> findAvailableBySkuAndWarehouse(@Param("skuId") Long skuId,
+                                               @Param("warehouseId") Long warehouseId);
 
     /**
      * 根据ID查询

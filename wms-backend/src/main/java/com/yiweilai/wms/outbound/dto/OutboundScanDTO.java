@@ -18,7 +18,7 @@ public class OutboundScanDTO {
     @NotBlank(message = "扫码内容不能为空")
     private String scanCode;
 
-    /** 拣货库位ID */
-    @NotNull(message = "拣货库位不能为空")
-    private Long locationId;
+    /** 拣货货架ID */
+    @NotNull(message = "拣货货架不能为空")
+    private Long shelfId;
 }

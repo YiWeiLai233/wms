@@ -34,12 +34,6 @@ public class StockVO {
     /** 仓库名称 */
     private String warehouseName;
 
-    /** 库位ID */
-    private Long locationId;
-
-    /** 库位编码 */
-    private String locationCode;
-
     /** 可用数量 */
     private Integer quantity;
 

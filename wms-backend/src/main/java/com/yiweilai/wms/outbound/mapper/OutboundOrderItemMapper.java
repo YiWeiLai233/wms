@@ -46,10 +46,10 @@ public interface OutboundOrderItemMapper {
                       @Param("scanned") Integer scanned);
 
     /**
-     * 更新拣货库位
+     * 更新拣货货架
      */
-    int updateLocationId(@Param("id") Long id,
-                         @Param("locationId") Long locationId);
+    int updateShelfId(@Param("id") Long id,
+                      @Param("shelfId") Long shelfId);
 
     /**
      * 根据出库单ID删除明细

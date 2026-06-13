@@ -28,11 +28,10 @@ public interface ReturnOrderItemMapper {
     int insert(ReturnOrderItem item);
 
     /**
-     * 更新质检状态和库位
+     * 更新质检状态
      */
     int updateQualityStatus(@Param("id") Long id,
-                            @Param("qualityStatus") String qualityStatus,
-                            @Param("locationId") Long locationId);
+                            @Param("qualityStatus") String qualityStatus);
 
     /**
      * 根据退货单ID删除明细

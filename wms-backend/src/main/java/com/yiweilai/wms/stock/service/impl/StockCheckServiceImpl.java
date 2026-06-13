@@ -53,12 +53,11 @@ public class StockCheckServiceImpl implements StockCheckService {
         checkMapper.insert(check);
 
         // 查询该仓库所有库存，生成盘点明细
-        List<Stock> stocks = stockMapper.findByPage(null, null, null, null, dto.getWarehouseId(), null, null, null);
+        List<Stock> stocks = stockMapper.findByPage(null, null, null, null, dto.getWarehouseId(), null);
         for (Stock stock : stocks) {
             StockCheckItem item = new StockCheckItem();
             item.setCheckId(check.getId());
             item.setSkuId(stock.getSkuId());
-            item.setLocationId(stock.getLocationId());
             item.setSystemQty(stock.getQuantity());
             checkItemMapper.insert(item);
         }
@@ -117,8 +116,10 @@ public class StockCheckServiceImpl implements StockCheckService {
 
             // 如果有差异，调整库存并写流水
             if (diffQty != 0) {
-                Stock stock = stockMapper.findBySkuAndLocation(item.getSkuId(), item.getLocationId());
-                if (stock != null) {
+                // 查找该SKU在仓库的库存记录
+                List<Stock> stocks = stockMapper.findAvailableBySkuAndWarehouse(item.getSkuId(), check.getWarehouseId());
+                if (stocks != null && !stocks.isEmpty()) {
+                    Stock stock = stocks.get(0);
                     int beforeQty = stock.getQuantity();
                     int afterQty = beforeQty + diffQty;
 
@@ -129,7 +130,6 @@ public class StockCheckServiceImpl implements StockCheckService {
                     log.setBizNo("CHK_" + check.getId());
                     log.setSkuId(item.getSkuId());
                     log.setWarehouseId(check.getWarehouseId());
-                    log.setLocationId(item.getLocationId());
                     log.setQuantityBefore(beforeQty);
                     log.setQuantityChange(diffQty);
                     log.setQuantityAfter(afterQty);

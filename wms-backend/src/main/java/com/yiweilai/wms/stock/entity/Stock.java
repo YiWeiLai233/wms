@@ -29,11 +29,6 @@ public class Stock {
 
     private String warehouseName;
 
-    /** 库位ID */
-    private Long locationId;
-
-    private String locationCode;
-
     /** 可用数量 */
     private Integer quantity;
 

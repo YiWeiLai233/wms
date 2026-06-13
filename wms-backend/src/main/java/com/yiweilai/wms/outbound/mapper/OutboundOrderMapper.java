@@ -4,6 +4,7 @@ import com.yiweilai.wms.outbound.entity.OutboundOrder;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -17,6 +18,8 @@ public interface OutboundOrderMapper {
      */
     List<OutboundOrder> findByPage(@Param("outboundNo") String outboundNo,
                                    @Param("orderNo") String orderNo,
+                                   @Param("platformOrderNo") String platformOrderNo,
+                                   @Param("trackingNo") String trackingNo,
                                    @Param("status") String status,
                                    @Param("warehouseId") Long warehouseId);
 
@@ -52,4 +55,11 @@ public interface OutboundOrderMapper {
      * 更新发货时间
      */
     int updateShippedAt(@Param("id") Long id);
+
+    /**
+     * 更新快递信息
+     */
+    int updateExpressInfo(@Param("id") Long id,
+                          @Param("trackingNo") String trackingNo,
+                          @Param("shippingFee") BigDecimal shippingFee);
 }

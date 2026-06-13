@@ -25,17 +25,14 @@ public class StockLogVO {
     /** SKU编码 */
     private String skuCode;
 
+    /** 平台订单号 */
+    private String platformOrderNo;
+
     /** 仓库ID */
     private Long warehouseId;
 
     /** 仓库名称 */
     private String warehouseName;
-
-    /** 库位ID */
-    private Long locationId;
-
-    /** 库位编码 */
-    private String locationCode;
 
     /** 变动前数量 */
     private Integer quantityBefore;

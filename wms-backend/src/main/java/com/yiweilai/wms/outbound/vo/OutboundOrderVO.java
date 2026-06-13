@@ -2,6 +2,7 @@ package com.yiweilai.wms.outbound.vo;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,6 +24,9 @@ public class OutboundOrderVO {
     /** 关联订单号 */
     private String orderNo;
 
+    /** 平台订单号 */
+    private String platformOrderNo;
+
     /** 仓库ID */
     private Long warehouseId;
 
@@ -40,6 +44,12 @@ public class OutboundOrderVO {
 
     /** 备注 */
     private String remark;
+
+    /** 快递单号 */
+    private String trackingNo;
+
+    /** 快递费用 */
+    private BigDecimal shippingFee;
 
     /** 发货时间 */
     private LocalDateTime shippedAt;
