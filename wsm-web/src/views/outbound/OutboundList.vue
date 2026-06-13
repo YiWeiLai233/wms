@@ -183,18 +183,18 @@
         <el-form-item label="快递单号">
           <el-input v-model="confirmForm.trackingNo" placeholder="请输入快递单号（选填）" />
         </el-form-item>
-        <el-form-item label="快递公司">
-          <el-select v-model="confirmForm.expressCompanyId" placeholder="选择快递公司" clearable style="width: 100%" @change="handleCompanyChange">
+        <el-form-item label="快递公司" required>
+          <el-select v-model="confirmForm.expressCompanyId" placeholder="请选择快递公司" style="width: 100%" @change="handleCompanyChange">
             <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="费用模板">
-          <el-select v-model="confirmForm.feeTemplateId" placeholder="选择费用模板" clearable style="width: 100%">
+        <el-form-item label="费用模板" required>
+          <el-select v-model="confirmForm.feeTemplateId" placeholder="请选择费用模板" style="width: 100%">
             <el-option v-for="t in templateList" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="预估重量(kg)">
-          <el-input-number v-model="confirmForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" @change="handleWeightChange" />
+          <el-input-number v-model="confirmForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" />
         </el-form-item>
         <el-form-item label="快递费用">
           <el-input-number v-model="confirmForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
@@ -210,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { confirmOutbound, createOutbound, getOutboundDetail, getOutboundList, scanOutbound } from '@/api/outbound'
@@ -366,9 +366,19 @@ const confirmForm = reactive({
   trackingNo: '',
   expressCompanyId: undefined as number | undefined,
   feeTemplateId: undefined as number | undefined,
-  estimatedWeight: 0,
+  estimatedWeight: undefined as number | undefined,
   shippingFee: undefined as number | undefined,
 })
+
+// 重量或模板变化时自动计算快递费
+watch(
+  () => [confirmForm.estimatedWeight, confirmForm.feeTemplateId],
+  () => {
+    if (confirmForm.estimatedWeight && confirmForm.estimatedWeight > 0 && confirmForm.feeTemplateId) {
+      calculateFeeByTemplate()
+    }
+  }
+)
 
 async function openConfirmDialog(row: OutboundOrder) {
   confirmForm.outboundId = row.id
@@ -412,14 +422,8 @@ async function handleCompanyChange(companyId: number) {
   }
 }
 
-async function handleWeightChange() {
-  if (confirmForm.estimatedWeight > 0 && confirmForm.feeTemplateId) {
-    await calculateFeeByTemplate()
-  }
-}
-
 async function calculateFeeByTemplate() {
-  if (!confirmForm.feeTemplateId || confirmForm.estimatedWeight <= 0) return
+  if (!confirmForm.feeTemplateId || !confirmForm.estimatedWeight || confirmForm.estimatedWeight <= 0) return
 
   try {
     const res = await getTemplateDetail(confirmForm.feeTemplateId)
@@ -450,6 +454,14 @@ async function calculateFeeByTemplate() {
 }
 
 async function handleConfirm() {
+  if (!confirmForm.expressCompanyId) {
+    ElMessage.warning('请选择快递公司')
+    return
+  }
+  if (!confirmForm.feeTemplateId) {
+    ElMessage.warning('请选择费用模板')
+    return
+  }
   try {
     await ElMessageBox.confirm('确认出库后将扣减库存，确定继续吗？', '确认出库', { type: 'warning' })
   } catch {
