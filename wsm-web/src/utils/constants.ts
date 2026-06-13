@@ -26,6 +26,7 @@ export const RETURN_STATUS_MAP: Record<string, { label: string; color: string }>
   COMPLETED: { label: '已入库', color: 'success' },
   CHECKED: { label: '已质检', color: '' },
   CONFIRMED: { label: '已入库', color: 'success' },
+  CANCELLED: { label: '已取消', color: 'danger' },
 }
 
 export const QUALITY_STATUS_MAP: Record<string, { label: string; color: string }> = {

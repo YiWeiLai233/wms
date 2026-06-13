@@ -22,6 +22,7 @@ export interface ReturnOrder {
   warehouseName: string
   status: string
   reason: string
+  trackingNo?: string
   remark: string
   items?: ReturnItem[]
   createdAt: string
@@ -38,7 +39,7 @@ export function getReturnDetail(id: number) {
 }
 
 // 创建退货单
-export function createReturn(data: { orderId: number; reason: string; remark?: string; items: { skuId: number; quantity: number }[] }) {
+export function createReturn(data: { orderId: number; reason: string; trackingNo?: string; remark?: string; items: { skuId: number; quantity: number }[] }) {
   return request.post<any, ApiResponse<number>>('/returns/create', data)
 }
 
@@ -50,4 +51,14 @@ export function checkReturn(data: { returnId: number; items: { itemId: number; q
 // 确认退货入库
 export function confirmReturn(returnId: number) {
   return request.post<any, ApiResponse<void>>('/returns/confirm', { returnId })
+}
+
+// 取消退货单
+export function cancelReturn(id: number) {
+  return request.post<any, ApiResponse<void>>(`/returns/${id}/cancel`)
+}
+
+// 按订单ID取消退货单
+export function cancelReturnByOrderId(orderId: number) {
+  return request.post<any, ApiResponse<void>>(`/returns/cancel-by-order/${orderId}`)
 }

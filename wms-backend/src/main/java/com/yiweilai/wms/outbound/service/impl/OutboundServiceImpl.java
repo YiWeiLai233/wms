@@ -28,6 +28,10 @@ import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import com.yiweilai.wms.express.entity.ExpressFeeStep;
 import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
 import com.yiweilai.wms.express.mapper.ExpressFeeTemplateMapper;
+import com.yiweilai.wms.returns.entity.ReturnOrder;
+import com.yiweilai.wms.returns.entity.ReturnOrderItem;
+import com.yiweilai.wms.returns.mapper.ReturnOrderItemMapper;
+import com.yiweilai.wms.returns.mapper.ReturnOrderMapper;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
@@ -70,6 +74,8 @@ public class OutboundServiceImpl implements OutboundService {
     private final WarehouseShelfMapper shelfMapper;
     private final ExpressFeeStepMapper feeStepMapper;
     private final ExpressFeeTemplateMapper feeTemplateMapper;
+    private final ReturnOrderMapper returnOrderMapper;
+    private final ReturnOrderItemMapper returnOrderItemMapper;
 
     @Override
     public PageResult<OutboundOrderVO> findByPage(OutboundQueryDTO query) {
@@ -281,6 +287,39 @@ public class OutboundServiceImpl implements OutboundService {
         // 更新订单状态为已发货
         salesOrderMapper.updateStatus(order.getOrderId(), "SHIPPED");
         salesOrderMapper.updateShippedAt(order.getOrderId());
+
+        // 自动创建退货单（待质检状态）
+        SalesOrder salesOrder = salesOrderMapper.findById(order.getOrderId());
+        createAutoReturnOrder(salesOrder, items);
+    }
+
+    /**
+     * 发货后自动创建退货单
+     */
+    private void createAutoReturnOrder(SalesOrder salesOrder, List<OutboundOrderItem> items) {
+        String returnNo = "RT" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+
+        ReturnOrder returnOrder = new ReturnOrder();
+        returnOrder.setReturnNo(returnNo);
+        returnOrder.setOrderId(salesOrder.getId());
+        returnOrder.setOrderNo(salesOrder.getOrderNo());
+        returnOrder.setWarehouseId(salesOrder.getWarehouseId());
+        returnOrder.setStatus("PENDING_CHECK");
+        returnOrder.setReason("发货后自动创建");
+        returnOrderMapper.insert(returnOrder);
+
+        for (OutboundOrderItem item : items) {
+            ReturnOrderItem returnItem = new ReturnOrderItem();
+            returnItem.setReturnId(returnOrder.getId());
+            returnItem.setSkuId(item.getSkuId());
+            returnItem.setSkuCode(item.getSkuCode());
+            returnItem.setSkuName(item.getSkuName());
+            returnItem.setQuantity(item.getQuantity());
+            returnOrderItemMapper.insert(returnItem);
+        }
+
+        // 更新订单状态为退货中
+        salesOrderMapper.updateStatus(salesOrder.getId(), "RETURNING");
     }
 
     /**

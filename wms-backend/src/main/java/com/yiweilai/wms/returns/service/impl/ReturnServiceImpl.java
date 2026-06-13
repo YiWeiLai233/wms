@@ -115,6 +115,7 @@ public class ReturnServiceImpl implements ReturnService {
         returnOrder.setStatus("PENDING_CHECK");
         returnOrder.setReason(dto.getReason());
         returnOrder.setRemark(dto.getRemark());
+        returnOrder.setTrackingNo(dto.getTrackingNo());
         returnOrderMapper.insert(returnOrder);
 
         // 创建退货明细
@@ -270,6 +271,43 @@ public class ReturnServiceImpl implements ReturnService {
         log.setQuantityAfter(stock.getQuantity() + quantity);
         log.setRemark("退货入库");
         stockLogMapper.insert(log);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancel(Long returnId) {
+        ReturnOrder returnOrder = returnOrderMapper.findById(returnId);
+        if (returnOrder == null) {
+            throw new BusinessException(ErrorCode.RETURN_NOT_FOUND);
+        }
+
+        doCancel(returnOrder);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelByOrderId(Long orderId) {
+        ReturnOrder returnOrder = returnOrderMapper.findLatestByOrderId(orderId);
+        if (returnOrder == null) {
+            throw new BusinessException(ErrorCode.RETURN_NOT_FOUND, "该订单没有退货单");
+        }
+
+        doCancel(returnOrder);
+    }
+
+    private void doCancel(ReturnOrder returnOrder) {
+        // 只有待质检、可售、次品、报废状态可以取消
+        String status = returnOrder.getStatus();
+        if (!"PENDING_CHECK".equals(status) && !"SELLABLE".equals(status)
+                && !"DEFECTIVE".equals(status) && !"SCRAPPED".equals(status)) {
+            throw new BusinessException(ErrorCode.RETURN_STATUS_ERROR, "当前状态不允许取消退货");
+        }
+
+        // 更新退货单状态为已取消
+        returnOrderMapper.updateStatus(returnOrder.getId(), "CANCELLED");
+
+        // 更新订单状态回已发货（允许重新创建退货）
+        salesOrderMapper.updateStatus(returnOrder.getOrderId(), "SHIPPED");
     }
 
     private ReturnOrderVO convertToVO(ReturnOrder order) {

@@ -35,4 +35,14 @@ public interface ReturnService {
      * 确认退货入库
      */
     void confirm(Long returnId);
+
+    /**
+     * 取消退货单
+     */
+    void cancel(Long returnId);
+
+    /**
+     * 按订单ID取消退货单
+     */
+    void cancelByOrderId(Long orderId);
 }

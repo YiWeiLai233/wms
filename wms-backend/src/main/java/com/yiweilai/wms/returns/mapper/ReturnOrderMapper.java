@@ -36,4 +36,9 @@ public interface ReturnOrderMapper {
      */
     int updateStatus(@Param("id") Long id,
                      @Param("status") String status);
+
+    /**
+     * 根据订单ID查询最新的退货单
+     */
+    ReturnOrder findLatestByOrderId(@Param("orderId") Long orderId);
 }

@@ -35,6 +35,9 @@ public class ReturnOrder {
     /** 退货原因 */
     private String reason;
 
+    /** 客户退货快递单号 */
+    private String trackingNo;
+
     /** 备注 */
     private String remark;
 

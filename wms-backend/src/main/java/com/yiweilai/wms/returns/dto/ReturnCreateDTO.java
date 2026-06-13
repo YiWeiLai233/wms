@@ -23,6 +23,9 @@ public class ReturnCreateDTO {
     @NotBlank(message = "退货原因不能为空")
     private String reason;
 
+    /** 客户退货快递单号 */
+    private String trackingNo;
+
     /** 备注 */
     private String remark;
 

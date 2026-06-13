@@ -12,6 +12,7 @@
         <result column="warehouse_name" property="warehouseName"/>
         <result column="status" property="status"/>
         <result column="reason" property="reason"/>
+        <result column="tracking_no" property="trackingNo"/>
         <result column="remark" property="remark"/>
         <result column="operator_id" property="operatorId"/>
         <result column="operator_name" property="operatorName"/>
@@ -24,7 +25,7 @@
         SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
                so.platform_order_no AS platform_order_no,
                ro.warehouse_id,
-               w.name AS warehouse_name, ro.status, ro.reason, ro.remark,
+               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.remark,
                ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
         FROM return_order ro
         LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0
@@ -52,7 +53,7 @@
         SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
                so.platform_order_no AS platform_order_no,
                ro.warehouse_id,
-               w.name AS warehouse_name, ro.status, ro.reason, ro.remark,
+               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.remark,
                ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
         FROM return_order ro
         LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0
@@ -61,12 +62,26 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO return_order (return_no, order_id, order_no, warehouse_id, status, reason, remark)
-        VALUES (#{returnNo}, #{orderId}, #{orderNo}, #{warehouseId}, #{status}, #{reason}, #{remark})
+        INSERT INTO return_order (return_no, order_id, order_no, warehouse_id, status, reason, tracking_no, remark)
+        VALUES (#{returnNo}, #{orderId}, #{orderNo}, #{warehouseId}, #{status}, #{reason}, #{trackingNo}, #{remark})
     </insert>
 
     <update id="updateStatus">
         UPDATE return_order SET status = #{status} WHERE id = #{id} AND deleted = 0
     </update>
+
+    <select id="findLatestByOrderId" resultMap="BaseResultMap">
+        SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
+               so.platform_order_no AS platform_order_no,
+               ro.warehouse_id,
+               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.remark,
+               ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
+        FROM return_order ro
+        LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0
+        LEFT JOIN warehouse w ON ro.warehouse_id = w.id
+        WHERE ro.order_id = #{orderId} AND ro.deleted = 0 AND ro.status != 'CANCELLED'
+        ORDER BY ro.id DESC
+        LIMIT 1
+    </select>
 
 </mapper>

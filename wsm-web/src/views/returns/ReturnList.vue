@@ -46,11 +46,14 @@
           </template>
         </el-table-column>
         <el-table-column prop="reason" label="退货原因" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="trackingNo" label="客户快递单号" width="140">
+          <template #default="{ row }">{{ row.trackingNo || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
             <el-button v-if="row.status === 'PENDING_CHECK'" type="warning" link icon="Stamp" @click="openCheckDialog(row)">
@@ -59,6 +62,15 @@
             <el-button v-if="canConfirmReturn(row.status)" type="success" link icon="Check" @click="openConfirmDialog(row)">
               确认入库
             </el-button>
+            <el-popconfirm
+              v-if="canCancelReturn(row.status)"
+              title="确定取消退货吗？取消后订单将恢复为已发货状态"
+              @confirm="handleCancelReturn(row.id)"
+            >
+              <template #reference>
+                <el-button type="danger" link icon="Close">取消退货</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -164,9 +176,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { checkReturn, confirmReturn, getReturnDetail, getReturnList } from '@/api/returns'
+import { cancelReturn, checkReturn, confirmReturn, getReturnDetail, getReturnList } from '@/api/returns'
 import type { ReturnOrder } from '@/api/returns'
 import { getWarehouseList } from '@/api/warehouse'
 import type { Warehouse } from '@/api/warehouse'
@@ -175,6 +188,7 @@ import { formatDateTime } from '@/utils/format'
 import { QUALITY_STATUS_MAP, RETURN_STATUS_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
 
+const route = useRoute()
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<ReturnOrder>(getReturnList)
 
 const warehouses = ref<Warehouse[]>([])
@@ -204,10 +218,28 @@ onMounted(async () => {
   } catch {
     warehouses.value = []
   }
+  // 从URL参数预填搜索条件
+  const queryOrderNo = route.query.orderNo
+  if (queryOrderNo) {
+    searchParams.orderNo = queryOrderNo
+    handleSearch()
+  }
 })
 
 function canConfirmReturn(status: string) {
   return status === 'SELLABLE' || status === 'DEFECTIVE' || status === 'SCRAPPED'
+}
+
+function canCancelReturn(status: string) {
+  return status === 'PENDING_CHECK' || status === 'SELLABLE' || status === 'DEFECTIVE' || status === 'SCRAPPED'
+}
+
+async function handleCancelReturn(id: number) {
+  try {
+    await cancelReturn(id)
+    ElMessage.success('退货已取消')
+    fetchData()
+  } catch {}
 }
 
 async function viewDetail(row: ReturnOrder) {

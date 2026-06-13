@@ -63,4 +63,22 @@ public class ReturnController {
         returnService.confirm(dto.getReturnId());
         return Result.success();
     }
+
+    /**
+     * 取消退货单
+     */
+    @PostMapping("/{id}/cancel")
+    public Result<Void> cancel(@PathVariable Long id) {
+        returnService.cancel(id);
+        return Result.success();
+    }
+
+    /**
+     * 按订单ID取消退货单
+     */
+    @PostMapping("/cancel-by-order/{orderId}")
+    public Result<Void> cancelByOrderId(@PathVariable Long orderId) {
+        returnService.cancelByOrderId(orderId);
+        return Result.success();
+    }
 }
