@@ -42,4 +42,9 @@ public interface WarehouseMapper {
      * 删除
      */
     int deleteById(@Param("id") Long id);
+
+    /**
+     * 根据仓库类型查询（启用状态）
+     */
+    Warehouse findByType(@Param("warehouseType") String warehouseType);
 }

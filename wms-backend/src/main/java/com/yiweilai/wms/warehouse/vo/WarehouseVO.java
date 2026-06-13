@@ -32,6 +32,9 @@ public class WarehouseVO {
     /** 状态：1-启用 0-禁用 */
     private Integer status;
 
+    /** 仓库类型：NORMAL-普通仓 DEFECTIVE-次品仓 SCRAP-报废仓 */
+    private String warehouseType;
+
     /** 库区列表 */
     private List<WarehouseAreaVO> areaList;
 

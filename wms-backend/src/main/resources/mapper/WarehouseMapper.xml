@@ -10,13 +10,14 @@
         <result column="contact" property="contact"/>
         <result column="phone" property="phone"/>
         <result column="status" property="status"/>
+        <result column="warehouse_type" property="warehouseType"/>
         <result column="deleted" property="deleted"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT id, code, name, address, contact, phone, status, deleted, created_at, updated_at
+        SELECT id, code, name, address, contact, phone, status, warehouse_type, deleted, created_at, updated_at
         FROM warehouse
         WHERE deleted = 0
         <if test="keyword != null and keyword != ''">
@@ -29,20 +30,27 @@
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, code, name, address, contact, phone, status, deleted, created_at, updated_at
+        SELECT id, code, name, address, contact, phone, status, warehouse_type, deleted, created_at, updated_at
         FROM warehouse
         WHERE id = #{id} AND deleted = 0
     </select>
 
     <select id="findByCode" resultMap="BaseResultMap">
-        SELECT id, code, name, address, contact, phone, status, deleted, created_at, updated_at
+        SELECT id, code, name, address, contact, phone, status, warehouse_type, deleted, created_at, updated_at
         FROM warehouse
         WHERE code = #{code} AND deleted = 0
     </select>
 
+    <select id="findByType" resultMap="BaseResultMap">
+        SELECT id, code, name, address, contact, phone, status, warehouse_type, deleted, created_at, updated_at
+        FROM warehouse
+        WHERE warehouse_type = #{warehouseType} AND status = 1 AND deleted = 0
+        LIMIT 1
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO warehouse (code, name, address, contact, phone, status)
-        VALUES (#{code}, #{name}, #{address}, #{contact}, #{phone}, #{status})
+        INSERT INTO warehouse (code, name, address, contact, phone, status, warehouse_type)
+        VALUES (#{code}, #{name}, #{address}, #{contact}, #{phone}, #{status}, #{warehouseType})
     </insert>
 
     <update id="update">
@@ -54,6 +62,7 @@
             <if test="contact != null">contact = #{contact},</if>
             <if test="phone != null">phone = #{phone},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="warehouseType != null">warehouse_type = #{warehouseType},</if>
         </set>
         WHERE id = #{id} AND deleted = 0
     </update>

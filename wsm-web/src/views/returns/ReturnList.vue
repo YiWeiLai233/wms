@@ -56,7 +56,7 @@
             <el-button v-if="row.status === 'PENDING_CHECK'" type="warning" link icon="Stamp" @click="openCheckDialog(row)">
               质检
             </el-button>
-            <el-button v-if="canConfirmReturn(row.status)" type="success" link icon="Check" @click="handleConfirmReturn(row.id)">
+            <el-button v-if="canConfirmReturn(row.status)" type="success" link icon="Check" @click="openConfirmDialog(row)">
               确认入库
             </el-button>
           </template>
@@ -134,6 +134,31 @@
         <el-button type="primary" :loading="checking" @click="handleCheck">提交质检</el-button>
       </template>
     </el-dialog>
+
+    <!-- 确认入库弹窗 -->
+    <el-dialog v-model="confirmDialogVisible" title="确认退货入库" width="520px" destroy-on-close>
+      <div class="mb-4">
+        <p class="text-sm text-gray-600 mb-3">退货商品将按以下规则入库：</p>
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="可售商品">
+            <el-tag type="success" size="small">原发货仓</el-tag>
+            <span class="ml-2 text-gray-500">{{ confirmInfo.sellableWarehouse }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="次品">
+            <el-tag type="warning" size="small">次品仓</el-tag>
+            <span class="ml-2 text-gray-500">{{ confirmInfo.defectiveWarehouse }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="报废">
+            <el-tag type="danger" size="small">报废仓</el-tag>
+            <span class="ml-2 text-gray-500">{{ confirmInfo.scrapWarehouse }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <el-button @click="confirmDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="confirming" @click="handleConfirmReturn">确认入库</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -161,6 +186,15 @@ const checkFormRef = ref<FormInstance>()
 const checkForm = ref({
   returnId: 0,
   items: [] as { itemId: number; skuName: string; sizeValue?: string; quantity: number; qualityStatus: string }[],
+})
+
+const confirmDialogVisible = ref(false)
+const confirming = ref(false)
+const confirmReturnId = ref(0)
+const confirmInfo = ref({
+  sellableWarehouse: '',
+  defectiveWarehouse: '',
+  scrapWarehouse: '',
 })
 
 onMounted(async () => {
@@ -218,17 +252,28 @@ async function handleCheck() {
   }
 }
 
-async function handleConfirmReturn(id: number) {
-  try {
-    await ElMessageBox.confirm('确认退货入库后将增加库存，确定继续吗？', '确认入库', { type: 'warning' })
-  } catch {
-    return
+async function openConfirmDialog(row: ReturnOrder) {
+  confirmReturnId.value = row.id
+  // 查找各类仓库名称
+  const defective = warehouses.value.find((w) => w.warehouseType === 'DEFECTIVE')
+  const scrap = warehouses.value.find((w) => w.warehouseType === 'SCRAP')
+  confirmInfo.value = {
+    sellableWarehouse: row.warehouseName || '原发货仓',
+    defectiveWarehouse: defective ? defective.name : '⚠️ 未配置（请先在仓库管理中创建次品仓）',
+    scrapWarehouse: scrap ? scrap.name : '⚠️ 未配置（请先在仓库管理中创建报废仓）',
   }
+  confirmDialogVisible.value = true
+}
 
+async function handleConfirmReturn() {
+  confirming.value = true
   try {
-    await confirmReturn(id)
+    await confirmReturn(confirmReturnId.value)
     ElMessage.success('退货入库成功')
+    confirmDialogVisible.value = false
     fetchData()
-  } catch {}
+  } catch {} finally {
+    confirming.value = false
+  }
 }
 </script>

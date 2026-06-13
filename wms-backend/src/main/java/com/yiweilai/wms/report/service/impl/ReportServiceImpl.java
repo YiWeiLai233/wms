@@ -102,6 +102,26 @@ public class ReportServiceImpl implements ReportService {
         }
         vo.setOrderStatusDistribution(statusDistribution);
 
+        // 本月出货量TOP10 SKU
+        String monthStart = LocalDate.now().withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        List<DashboardVO.SkuRank> topSkus = jdbcTemplate.query(
+                "SELECT oi.sku_id, oi.sku_code, oi.sku_name, SUM(oi.quantity) AS total_quantity " +
+                "FROM outbound_order_item oi " +
+                "JOIN outbound_order o ON oi.outbound_id = o.id AND o.deleted = 0 " +
+                "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? " +
+                "GROUP BY oi.sku_id, oi.sku_code, oi.sku_name " +
+                "ORDER BY total_quantity DESC " +
+                "LIMIT 10",
+                (rs, rowNum) -> {
+                    DashboardVO.SkuRank rank = new DashboardVO.SkuRank();
+                    rank.setSkuId(rs.getLong("sku_id"));
+                    rank.setSkuCode(rs.getString("sku_code"));
+                    rank.setSkuName(rs.getString("sku_name"));
+                    rank.setTotalQuantity(rs.getLong("total_quantity"));
+                    return rank;
+                }, monthStart);
+        vo.setTopSkus(topSkus);
+
         return vo;
     }
 

@@ -9,6 +9,7 @@ export interface DashboardData {
   stockAlertCount: number
   orderTrend: { date: string; count: number }[]
   orderStatusDistribution: { status: string; statusName: string; count: number }[]
+  topSkus: { skuId: number; skuCode: string; skuName: string; totalQuantity: number }[]
 }
 
 export interface StockReport {

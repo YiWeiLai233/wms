@@ -11,6 +11,7 @@ export interface Warehouse {
   contact: string
   phone: string
   status: number
+  warehouseType: string
   createdAt: string
 }
 
