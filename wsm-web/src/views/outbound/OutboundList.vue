@@ -221,6 +221,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { cancelOutbound, confirmOutbound, createOutbound, getOutboundDetail, getOutboundList, scanOutbound } from '@/api/outbound'
@@ -236,6 +237,7 @@ import { formatDateTime } from '@/utils/format'
 import { OUTBOUND_STATUS_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
 
+const route = useRoute()
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<OutboundOrder>(getOutboundList)
 
 const warehouses = ref<Warehouse[]>([])
@@ -280,6 +282,12 @@ onMounted(async () => {
     warehouses.value = res.data.list || []
   } catch {
     warehouses.value = []
+  }
+  // 从URL参数预填搜索条件
+  const queryOrderNo = route.query.orderNo
+  if (queryOrderNo) {
+    searchParams.orderNo = queryOrderNo
+    handleSearch()
   }
   // 加载快递公司列表
   try {
