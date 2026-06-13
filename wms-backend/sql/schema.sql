@@ -302,12 +302,16 @@ CREATE TABLE IF NOT EXISTS outbound_order (
     picker_id       BIGINT       DEFAULT NULL COMMENT '拣货人ID',
     picker_name     VARCHAR(50)  DEFAULT NULL COMMENT '拣货人姓名',
     remark          VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    tracking_no     VARCHAR(50)  DEFAULT NULL COMMENT '快递单号',
+    express_company_id BIGINT    DEFAULT NULL COMMENT '快递公司ID',
+    shipping_fee    DECIMAL(10,2) DEFAULT NULL COMMENT '快递费用',
     shipped_at      DATETIME     DEFAULT NULL COMMENT '发货时间',
     deleted         TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     UNIQUE KEY uk_outbound_no (outbound_no),
     KEY idx_order_id (order_id),
+    KEY idx_express_company_id (express_company_id),
     KEY idx_status (status)
 ) ENGINE=InnoDB COMMENT='出库单表';
 

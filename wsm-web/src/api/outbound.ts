@@ -28,6 +28,8 @@ export interface OutboundOrder {
   pickerName: string | null
   remark: string
   trackingNo: string | null
+  expressCompanyId: number | null
+  expressCompanyName: string | null
   shippingFee: number | null
   items?: OutboundItem[]
   createdAt: string

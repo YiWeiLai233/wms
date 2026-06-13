@@ -15,6 +15,8 @@
         <result column="picker_name" property="pickerName"/>
         <result column="remark" property="remark"/>
         <result column="tracking_no" property="trackingNo"/>
+        <result column="express_company_id" property="expressCompanyId"/>
+        <result column="express_company_name" property="expressCompanyName"/>
         <result column="shipping_fee" property="shippingFee"/>
         <result column="shipped_at" property="shippedAt"/>
         <result column="deleted" property="deleted"/>
@@ -25,13 +27,14 @@
     <select id="findByPage" resultMap="BaseResultMap">
         SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
                so.platform_order_no AS platform_order_no,
-               oo.warehouse_id,
+               oo.warehouse_id, oo.express_company_id, ec.name AS express_company_name,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
                oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
                oo.deleted, oo.created_at, oo.updated_at
         FROM outbound_order oo
         LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON oo.warehouse_id = w.id
+        LEFT JOIN express_company ec ON oo.express_company_id = ec.id AND ec.deleted = 0
         WHERE oo.deleted = 0
         <if test="outboundNo != null and outboundNo != ''">
             AND oo.outbound_no LIKE CONCAT('%', #{outboundNo}, '%')
@@ -57,26 +60,28 @@
     <select id="findById" resultMap="BaseResultMap">
         SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
                so.platform_order_no AS platform_order_no,
-               oo.warehouse_id,
+               oo.warehouse_id, oo.express_company_id, ec.name AS express_company_name,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
                oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
                oo.deleted, oo.created_at, oo.updated_at
         FROM outbound_order oo
         LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON oo.warehouse_id = w.id
+        LEFT JOIN express_company ec ON oo.express_company_id = ec.id AND ec.deleted = 0
         WHERE oo.id = #{id} AND oo.deleted = 0
     </select>
 
     <select id="findByOrderId" resultMap="BaseResultMap">
         SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
                so.platform_order_no AS platform_order_no,
-               oo.warehouse_id,
+               oo.warehouse_id, oo.express_company_id, ec.name AS express_company_name,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
                oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
                oo.deleted, oo.created_at, oo.updated_at
         FROM outbound_order oo
         LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0
         LEFT JOIN warehouse w ON oo.warehouse_id = w.id
+        LEFT JOIN express_company ec ON oo.express_company_id = ec.id AND ec.deleted = 0
         WHERE oo.order_id = #{orderId} AND oo.deleted = 0
     </select>
 
@@ -103,7 +108,7 @@
 
     <update id="updateExpressInfo">
         UPDATE outbound_order
-        SET tracking_no = #{trackingNo}, shipping_fee = #{shippingFee}
+        SET express_company_id = #{expressCompanyId}, tracking_no = #{trackingNo}, shipping_fee = #{shippingFee}
         WHERE id = #{id} AND deleted = 0
     </update>
 

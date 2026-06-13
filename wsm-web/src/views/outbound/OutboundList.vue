@@ -45,6 +45,9 @@
         <el-table-column prop="trackingNo" label="快递单号" width="140">
           <template #default="{ row }">{{ row.trackingNo || '-' }}</template>
         </el-table-column>
+        <el-table-column prop="expressCompanyName" label="快递公司" width="110">
+          <template #default="{ row }">{{ row.expressCompanyName || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="shippingFee" label="快递费" width="90" align="right">
           <template #default="{ row }">{{ row.shippingFee ? `¥${row.shippingFee.toFixed(2)}` : '-' }}</template>
         </el-table-column>
@@ -117,6 +120,7 @@
             {{ OUTBOUND_STATUS_MAP[detail.status]?.label || detail.status }}
           </el-tag>
         </el-descriptions-item>
+        <el-descriptions-item label="快递公司">{{ detail.expressCompanyName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="快递单号">{{ detail.trackingNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="快递费用">{{ detail.shippingFee ? `¥${detail.shippingFee.toFixed(2)}` : '-' }}</el-descriptions-item>
         <el-descriptions-item label="备注">{{ detail.remark || '-' }}</el-descriptions-item>

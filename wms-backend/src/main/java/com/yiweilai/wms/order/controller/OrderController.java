@@ -118,27 +118,24 @@ public class OrderController {
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
 
-                String[] parts = line.split(",");
-                if (parts.length < 8) {
+                String[] parts = line.split(",", -1);
+                int minColumns = legacyTemplate ? 8 : 6;
+                if (parts.length < minColumns) {
                     continue;
                 }
 
-                String orderNo = parts[0].trim();
-                String receiverName = legacyTemplate ? parts[2].trim() : parts[1].trim();
-                String receiverPhone = legacyTemplate ? parts[3].trim() : parts[2].trim();
-                String receiverAddress = legacyTemplate ? parts[4].trim() : parts[3].trim();
+                String orderNo = getCsvValue(parts, 0);
+                String receiverName = legacyTemplate ? getCsvValue(parts, 2) : getCsvValue(parts, 1);
+                String receiverPhone = legacyTemplate ? getCsvValue(parts, 3) : getCsvValue(parts, 2);
+                String receiverAddress = legacyTemplate ? getCsvValue(parts, 4) : getCsvValue(parts, 3);
                 String remark = legacyTemplate
-                        ? (parts.length > 6 ? parts[6].trim() : "")
-                        : (parts.length > 4 ? parts[4].trim() : "");
+                        ? getCsvValue(parts, 6)
+                        : getCsvValue(parts, 4);
                 String skuCode = legacyTemplate
-                        ? (parts.length > 7 ? parts[7].trim() : "")
-                        : (parts.length > 5 ? parts[5].trim() : "");
-                int quantity = legacyTemplate
-                        ? (parts.length > 9 ? Integer.parseInt(parts[9].trim()) : 1)
-                        : (parts.length > 6 ? Integer.parseInt(parts[6].trim()) : 1);
-                BigDecimal unitPrice = legacyTemplate
-                        ? (parts.length > 10 ? new BigDecimal(parts[10].trim()) : BigDecimal.ZERO)
-                        : (parts.length > 7 ? new BigDecimal(parts[7].trim()) : BigDecimal.ZERO);
+                        ? getCsvValue(parts, 7)
+                        : getCsvValue(parts, 5);
+                int quantity = parseInteger(legacyTemplate ? getCsvValue(parts, 9) : getCsvValue(parts, 6), 1);
+                BigDecimal unitPrice = parseBigDecimal(legacyTemplate ? getCsvValue(parts, 10) : getCsvValue(parts, 7), BigDecimal.ZERO);
 
                 // 如果是新订单号，创建新的订单
                 if (!orderNo.equals(lastOrderNo)) {
@@ -257,6 +254,24 @@ public class OrderController {
             default:
                 return "";
         }
+    }
+
+    private String getCsvValue(String[] parts, int index) {
+        return index < parts.length ? parts[index].trim() : "";
+    }
+
+    private int parseInteger(String value, int defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        return Integer.parseInt(value.trim());
+    }
+
+    private BigDecimal parseBigDecimal(String value, BigDecimal defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        return new BigDecimal(value.trim());
     }
 
     /**

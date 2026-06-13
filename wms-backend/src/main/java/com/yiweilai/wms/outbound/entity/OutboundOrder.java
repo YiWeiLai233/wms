@@ -45,6 +45,12 @@ public class OutboundOrder {
     /** 快递单号 */
     private String trackingNo;
 
+    /** 快递公司ID */
+    private Long expressCompanyId;
+
+    /** 快递公司名称 */
+    private String expressCompanyName;
+
     /** 快递费用 */
     private BigDecimal shippingFee;
 

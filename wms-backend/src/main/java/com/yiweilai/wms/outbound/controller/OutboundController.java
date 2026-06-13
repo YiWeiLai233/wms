@@ -2,6 +2,7 @@ package com.yiweilai.wms.outbound.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.outbound.dto.OutboundBatchCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundConfirmDTO;
 import com.yiweilai.wms.outbound.dto.OutboundCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundQueryDTO;
@@ -11,6 +12,8 @@ import com.yiweilai.wms.outbound.vo.OutboundOrderVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 出库 Controller
@@ -44,6 +47,14 @@ public class OutboundController {
     @PostMapping("/create")
     public Result<Long> create(@Valid @RequestBody OutboundCreateDTO dto) {
         return Result.success(outboundService.create(dto));
+    }
+
+    /**
+     * 批量创建出库单
+     */
+    @PostMapping("/create-batch")
+    public Result<List<Long>> createBatch(@Valid @RequestBody OutboundBatchCreateDTO dto) {
+        return Result.success(outboundService.createBatch(dto));
     }
 
     /**

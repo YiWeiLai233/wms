@@ -5,6 +5,7 @@ import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
+import com.yiweilai.wms.outbound.dto.OutboundBatchCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundConfirmDTO;
 import com.yiweilai.wms.outbound.dto.OutboundCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundQueryDTO;
@@ -41,9 +42,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 出库 Service 实现
@@ -52,6 +56,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OutboundServiceImpl implements OutboundService {
+
+    private static final AtomicLong OUTBOUND_NO_SEQUENCE = new AtomicLong();
 
     private final OutboundOrderMapper outboundOrderMapper;
     private final OutboundOrderItemMapper outboundOrderItemMapper;
@@ -105,8 +111,29 @@ public class OutboundServiceImpl implements OutboundService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(OutboundCreateDTO dto) {
+        return createForOrder(dto.getOrderId(), dto.getRemark());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<Long> createBatch(OutboundBatchCreateDTO dto) {
+        if (dto.getOrderIds() == null || dto.getOrderIds().isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "订单ID列表不能为空");
+        }
+
+        List<Long> outboundIds = new ArrayList<>();
+        for (Long orderId : new LinkedHashSet<>(dto.getOrderIds())) {
+            if (orderId == null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "订单ID不能为空");
+            }
+            outboundIds.add(createForOrder(orderId, dto.getRemark()));
+        }
+        return outboundIds;
+    }
+
+    private Long createForOrder(Long orderId, String remark) {
         // 查询订单
-        SalesOrder order = salesOrderMapper.findById(dto.getOrderId());
+        SalesOrder order = salesOrderMapper.findById(orderId);
         if (order == null) {
             throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
         }
@@ -117,13 +144,13 @@ public class OutboundServiceImpl implements OutboundService {
         }
 
         // 检查是否已有出库单
-        OutboundOrder existing = outboundOrderMapper.findByOrderId(dto.getOrderId());
+        OutboundOrder existing = outboundOrderMapper.findByOrderId(orderId);
         if (existing != null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已有出库单");
         }
 
         // 生成出库单号
-        String outboundNo = "OB" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+        String outboundNo = generateOutboundNo();
 
         // 创建出库单
         OutboundOrder outboundOrder = new OutboundOrder();
@@ -132,7 +159,7 @@ public class OutboundServiceImpl implements OutboundService {
         outboundOrder.setOrderNo(order.getOrderNo());
         outboundOrder.setWarehouseId(order.getWarehouseId());
         outboundOrder.setStatus("WAIT_PICKING");
-        outboundOrder.setRemark(dto.getRemark());
+        outboundOrder.setRemark(remark);
         outboundOrderMapper.insert(outboundOrder);
 
         // 创建出库明细（从订单明细复制）
@@ -151,6 +178,12 @@ public class OutboundServiceImpl implements OutboundService {
         salesOrderMapper.updateStatus(order.getId(), "OUTBOUNDING");
 
         return outboundOrder.getId();
+    }
+
+    private String generateOutboundNo() {
+        return "OB"
+                + new SimpleDateFormat("yyyyMMddHHmmssSSS").format(new Date())
+                + String.format("%06d", OUTBOUND_NO_SEQUENCE.incrementAndGet());
     }
 
     @Override
@@ -240,7 +273,7 @@ public class OutboundServiceImpl implements OutboundService {
         }
 
         // 更新快递信息
-        outboundOrderMapper.updateExpressInfo(dto.getOutboundId(), dto.getTrackingNo(), shippingFee);
+        outboundOrderMapper.updateExpressInfo(dto.getOutboundId(), dto.getExpressCompanyId(), dto.getTrackingNo(), shippingFee);
 
         // 更新出库单状态为已发货
         outboundOrderMapper.updateStatus(dto.getOutboundId(), "SHIPPED");

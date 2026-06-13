@@ -1,11 +1,14 @@
 package com.yiweilai.wms.outbound.service;
 
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.outbound.dto.OutboundBatchCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundConfirmDTO;
 import com.yiweilai.wms.outbound.dto.OutboundCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundQueryDTO;
 import com.yiweilai.wms.outbound.dto.OutboundScanDTO;
 import com.yiweilai.wms.outbound.vo.OutboundOrderVO;
+
+import java.util.List;
 
 /**
  * 出库 Service
@@ -26,6 +29,11 @@ public interface OutboundService {
      * 创建出库单
      */
     Long create(OutboundCreateDTO dto);
+
+    /**
+     * 批量创建出库单
+     */
+    List<Long> createBatch(OutboundBatchCreateDTO dto);
 
     /**
      * 扫码核对

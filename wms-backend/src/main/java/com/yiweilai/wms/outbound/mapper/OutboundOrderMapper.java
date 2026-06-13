@@ -60,6 +60,7 @@ public interface OutboundOrderMapper {
      * 更新快递信息
      */
     int updateExpressInfo(@Param("id") Long id,
+                          @Param("expressCompanyId") Long expressCompanyId,
                           @Param("trackingNo") String trackingNo,
                           @Param("shippingFee") BigDecimal shippingFee);
 }
