@@ -5,6 +5,7 @@ export const ORDER_STATUS_MAP: Record<string, { label: string; color: string; ef
   SHIPPED: { label: '已发货', color: 'success' },
   FINISHED: { label: '已完成', color: 'success', effect: 'dark' },
   CANCELLED: { label: '已取消', color: 'danger' },
+  OUTBOUND_FAILED: { label: '出库失败', color: 'danger' },
   RETURNING: { label: '退货中', color: 'danger', effect: 'dark' },
   RETURNED: { label: '已退货', color: 'info', effect: 'dark' },
 }
@@ -14,6 +15,7 @@ export const OUTBOUND_STATUS_MAP: Record<string, { label: string; color: string 
   PICKING: { label: '拣货中', color: '' },
   PICKED: { label: '已拣货', color: 'success' },
   SHIPPED: { label: '已发货', color: 'success' },
+  CANCELLED: { label: '已取消', color: 'danger' },
 }
 
 export const RETURN_STATUS_MAP: Record<string, { label: string; color: string }> = {

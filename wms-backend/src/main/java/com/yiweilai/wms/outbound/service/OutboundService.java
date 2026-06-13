@@ -44,4 +44,9 @@ public interface OutboundService {
      * 确认出库（扣减库存）
      */
     void confirm(OutboundConfirmDTO dto);
+
+    /**
+     * 取消出库单
+     */
+    void cancel(Long id);
 }

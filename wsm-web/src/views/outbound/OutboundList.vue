@@ -36,32 +36,32 @@
 
     <div class="card">
       <el-table :data="tableData" v-loading="loading" stripe border>
-        <el-table-column prop="outboundNo" label="出库单号" width="160" />
-        <el-table-column prop="orderNo" label="订单号" width="140" />
-        <el-table-column prop="platformOrderNo" label="平台单号" width="160" show-overflow-tooltip>
+        <el-table-column prop="outboundNo" label="出库单号" min-width="160" />
+        <el-table-column prop="orderNo" label="订单号" min-width="140" />
+        <el-table-column prop="platformOrderNo" label="平台单号" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.platformOrderNo || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="warehouseName" label="仓库" width="120" />
-        <el-table-column prop="trackingNo" label="快递单号" width="140">
-          <template #default="{ row }">{{ row.trackingNo || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="expressCompanyName" label="快递公司" width="110">
+        <el-table-column prop="warehouseName" label="仓库" min-width="100" />
+        <el-table-column prop="expressCompanyName" label="快递公司" min-width="100">
           <template #default="{ row }">{{ row.expressCompanyName || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="shippingFee" label="快递费" width="90" align="right">
+        <el-table-column prop="trackingNo" label="快递单号" min-width="140">
+          <template #default="{ row }">{{ row.trackingNo || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="shippingFee" label="快递费" min-width="90" align="right">
           <template #default="{ row }">{{ row.shippingFee ? `¥${row.shippingFee.toFixed(2)}` : '-' }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="90" align="center">
+        <el-table-column prop="status" label="状态" min-width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="(OUTBOUND_STATUS_MAP[row.status]?.color as any) || 'info'" size="small">
-              {{ OUTBOUND_STATUS_MAP[row.status]?.label || row.status }}
+              {{ row.status === 'WAIT_PICKING' && row.orderRemark?.includes('刷单') ? '刷单' : (OUTBOUND_STATUS_MAP[row.status]?.label || row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="170">
+        <el-table-column prop="createdAt" label="创建时间" min-width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" min-width="250" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
             <el-button
@@ -73,6 +73,15 @@
             >
               出库
             </el-button>
+            <el-popconfirm
+              v-if="row.status === 'WAIT_PICKING' || row.status === 'PICKING'"
+              title="确定取消该出库单吗？取消后订单将标记为出库失败"
+              @confirm="handleCancel(row.id)"
+            >
+              <template #reference>
+                <el-button type="danger" link icon="Close">取消</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -123,7 +132,8 @@
         <el-descriptions-item label="快递公司">{{ detail.expressCompanyName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="快递单号">{{ detail.trackingNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="快递费用">{{ detail.shippingFee ? `¥${detail.shippingFee.toFixed(2)}` : '-' }}</el-descriptions-item>
-        <el-descriptions-item label="备注">{{ detail.remark || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="出库备注">{{ detail.remark || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="订单备注">{{ detail.orderRemark || '-' }}</el-descriptions-item>
       </el-descriptions>
 
       <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">出库明细</h4>
@@ -213,7 +223,7 @@
 import { reactive, ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { confirmOutbound, createOutbound, getOutboundDetail, getOutboundList, scanOutbound } from '@/api/outbound'
+import { cancelOutbound, confirmOutbound, createOutbound, getOutboundDetail, getOutboundList, scanOutbound } from '@/api/outbound'
 import type { OutboundOrder } from '@/api/outbound'
 import { getOrderList } from '@/api/order'
 import type { Order } from '@/api/order'
@@ -450,6 +460,14 @@ async function calculateFeeByTemplate() {
         }
       }
     }
+  } catch {}
+}
+
+async function handleCancel(id: number) {
+  try {
+    await cancelOutbound(id)
+    ElMessage.success('出库单已取消')
+    fetchData()
   } catch {}
 }
 

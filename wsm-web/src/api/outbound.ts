@@ -27,6 +27,7 @@ export interface OutboundOrder {
   pickerId: number | null
   pickerName: string | null
   remark: string
+  orderRemark?: string
   trackingNo: string | null
   expressCompanyId: number | null
   expressCompanyName: string | null
@@ -65,4 +66,9 @@ export function confirmOutbound(data: {
   shippingFee?: number
 }) {
   return request.post<any, ApiResponse<void>>('/outbound/confirm', data)
+}
+
+// 取消出库单
+export function cancelOutbound(id: number) {
+  return request.post<any, ApiResponse<void>>(`/outbound/${id}/cancel`)
 }

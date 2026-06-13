@@ -573,7 +573,7 @@ onMounted(async () => {
   }
 })
 
-function openImportDialog() {
+async function openImportDialog() {
   Object.assign(importForm, {
     platformOrderNo: '',
     warehouseId: undefined,
@@ -584,6 +584,11 @@ function openImportDialog() {
     items: [],
   })
   selectedSkuGroupKey.value = ''
+  // 刷新SKU列表以获取最新库存
+  try {
+    const skuRes = await getAllSkuList({ page: 1, size: 1000 })
+    skuList.value = skuRes.data.list || []
+  } catch {}
   importDialogVisible.value = true
 }
 
@@ -666,6 +671,11 @@ async function handleImport() {
     ElMessage.success('导入成功')
     importDialogVisible.value = false
     fetchData()
+    // 刷新SKU列表以更新库存数量
+    try {
+      const skuRes = await getAllSkuList({ page: 1, size: 1000 })
+      skuList.value = skuRes.data.list || []
+    } catch {}
   } catch {} finally {
     importing.value = false
   }

@@ -174,6 +174,8 @@ public class OutboundServiceImpl implements OutboundService {
             outboundOrderItemMapper.insert(outboundItem);
         }
 
+        // 库存在订单导入时已扣减，此处不再扣减
+
         // 更新订单状态为出库中
         salesOrderMapper.updateStatus(order.getId(), "OUTBOUNDING");
 
@@ -253,10 +255,7 @@ public class OutboundServiceImpl implements OutboundService {
 
         List<OutboundOrderItem> items = outboundOrderItemMapper.findByOutboundId(dto.getOutboundId());
 
-        // 扣减库存
-        for (OutboundOrderItem item : items) {
-            deductStock(item.getSkuId(), item.getQuantity(), order.getOutboundNo(), order.getWarehouseId());
-        }
+        // 库存在创建出库单时已扣减，此处不再重复扣减
 
         // 计算快递费用
         BigDecimal shippingFee = dto.getShippingFee();
@@ -345,30 +344,34 @@ public class OutboundServiceImpl implements OutboundService {
     }
 
     /**
-     * 扣减库存（核心方法）
+     * 扣减库存（核心方法，每次扣减前重新查询避免数据过期）
      */
     private void deductStock(Long skuId, int quantity, String outboundNo, Long warehouseId) {
         int remaining = quantity;
-        List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
-        for (Stock stock : availableStocks) {
-            if (remaining <= 0) {
+        while (remaining > 0) {
+            List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
+            if (availableStocks.isEmpty()) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
+            }
+
+            boolean deducted = false;
+            for (Stock stock : availableStocks) {
+                int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
+                int deductQty = Math.min(beforeQty, remaining);
+                if (deductQty <= 0) continue;
+
+                int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
+                if (affected == 0) continue;
+
+                writeOutboundLog(skuId, warehouseId, beforeQty, deductQty, outboundNo);
+                remaining -= deductQty;
+                deducted = true;
                 break;
             }
-            int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
-            int deductQty = Math.min(beforeQty, remaining);
-            if (deductQty <= 0) {
-                continue;
-            }
-            int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
-            if (affected == 0) {
-                continue;
-            }
-            writeOutboundLog(skuId, warehouseId, beforeQty, deductQty, outboundNo);
-            remaining -= deductQty;
-        }
 
-        if (remaining > 0) {
-            throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "库存不足");
+            if (!deducted) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
+            }
         }
     }
 
@@ -383,6 +386,66 @@ public class OutboundServiceImpl implements OutboundService {
         log.setQuantityChange(-deductQty);
         log.setQuantityAfter(beforeQty - deductQty);
         log.setRemark("出库扣减");
+        stockLogMapper.insert(log);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancel(Long id) {
+        OutboundOrder order = outboundOrderMapper.findById(id);
+        if (order == null) {
+            throw new BusinessException(ErrorCode.OUTBOUND_NOT_FOUND);
+        }
+        if ("SHIPPED".equals(order.getStatus())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "已发货的出库单不能取消");
+        }
+        if ("CANCELLED".equals(order.getStatus())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "出库单已取消");
+        }
+
+        // 恢复库存
+        List<OutboundOrderItem> items = outboundOrderItemMapper.findByOutboundId(id);
+        for (OutboundOrderItem item : items) {
+            restoreStock(item.getSkuId(), item.getQuantity(), order.getOutboundNo(), order.getWarehouseId());
+        }
+
+        // 更新出库单状态为已取消
+        outboundOrderMapper.updateStatus(id, "CANCELLED");
+
+        // 更新关联订单状态为出库失败
+        salesOrderMapper.updateStatus(order.getOrderId(), "OUTBOUND_FAILED");
+    }
+
+    /**
+     * 恢复库存（取消出库时调用）
+     */
+    private void restoreStock(Long skuId, int quantity, String outboundNo, Long warehouseId) {
+        Stock stock = stockMapper.findBySkuAndWarehouse(skuId, warehouseId);
+        int beforeQty;
+        if (stock != null) {
+            beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
+            stockMapper.addQuantity(stock.getId(), quantity);
+        } else {
+            beforeQty = 0;
+            stock = new Stock();
+            stock.setSkuId(skuId);
+            stock.setWarehouseId(warehouseId);
+            stock.setQuantity(quantity);
+            stock.setLockedQty(0);
+            stock.setDefectiveQty(0);
+            stockMapper.insert(stock);
+        }
+
+        // 写库存流水
+        StockLog log = new StockLog();
+        log.setBizType("RETURN");
+        log.setBizNo(outboundNo);
+        log.setSkuId(skuId);
+        log.setWarehouseId(warehouseId);
+        log.setQuantityBefore(beforeQty);
+        log.setQuantityChange(quantity);
+        log.setQuantityAfter(beforeQty + quantity);
+        log.setRemark("取消出库恢复库存");
         stockLogMapper.insert(log);
     }
 

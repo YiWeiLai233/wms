@@ -45,6 +45,9 @@ public class OutboundOrderVO {
     /** 备注 */
     private String remark;
 
+    /** 关联订单备注 */
+    private String orderRemark;
+
     /** 快递单号 */
     private String trackingNo;
 

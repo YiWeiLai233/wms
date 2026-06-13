@@ -8,6 +8,7 @@
         <result column="order_id" property="orderId"/>
         <result column="order_no" property="orderNo"/>
         <result column="platform_order_no" property="platformOrderNo"/>
+        <result column="order_remark" property="orderRemark"/>
         <result column="warehouse_id" property="warehouseId"/>
         <result column="warehouse_name" property="warehouseName"/>
         <result column="status" property="status"/>
@@ -26,7 +27,7 @@
 
     <select id="findByPage" resultMap="BaseResultMap">
         SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
-               so.platform_order_no AS platform_order_no,
+               so.platform_order_no AS platform_order_no, so.remark AS order_remark,
                oo.warehouse_id, oo.express_company_id, ec.name AS express_company_name,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
                oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
@@ -59,7 +60,7 @@
 
     <select id="findById" resultMap="BaseResultMap">
         SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
-               so.platform_order_no AS platform_order_no,
+               so.platform_order_no AS platform_order_no, so.remark AS order_remark,
                oo.warehouse_id, oo.express_company_id, ec.name AS express_company_name,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
                oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,
@@ -73,7 +74,7 @@
 
     <select id="findByOrderId" resultMap="BaseResultMap">
         SELECT oo.id, oo.outbound_no, oo.order_id, oo.order_no,
-               so.platform_order_no AS platform_order_no,
+               so.platform_order_no AS platform_order_no, so.remark AS order_remark,
                oo.warehouse_id, oo.express_company_id, ec.name AS express_company_name,
                w.name AS warehouse_name, oo.status, oo.picker_id, oo.picker_name,
                oo.remark, oo.tracking_no, oo.shipping_fee, oo.shipped_at,

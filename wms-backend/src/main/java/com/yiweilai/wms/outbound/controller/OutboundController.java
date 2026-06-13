@@ -74,4 +74,13 @@ public class OutboundController {
         outboundService.confirm(dto);
         return Result.success();
     }
+
+    /**
+     * 取消出库单
+     */
+    @PostMapping("/{id}/cancel")
+    public Result<Void> cancel(@PathVariable Long id) {
+        outboundService.cancel(id);
+        return Result.success();
+    }
 }

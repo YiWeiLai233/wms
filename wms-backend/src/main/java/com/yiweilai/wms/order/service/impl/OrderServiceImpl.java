@@ -17,6 +17,10 @@ import com.yiweilai.wms.order.vo.OrderItemVO;
 import com.yiweilai.wms.order.vo.OrderVO;
 import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.stock.entity.Stock;
+import com.yiweilai.wms.stock.entity.StockLog;
+import com.yiweilai.wms.stock.mapper.StockLogMapper;
+import com.yiweilai.wms.stock.mapper.StockMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -40,6 +44,8 @@ public class OrderServiceImpl implements OrderService {
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper orderItemMapper;
     private final ProductSkuMapper productSkuMapper;
+    private final StockMapper stockMapper;
+    private final StockLogMapper stockLogMapper;
 
     @Override
     public PageResult<OrderVO> findByPage(OrderQueryDTO query) {
@@ -107,7 +113,7 @@ public class OrderServiceImpl implements OrderService {
 
         orderMapper.insert(order);
 
-        // 创建订单明细
+        // 创建订单明细并扣减库存
         for (OrderImportDTO.OrderItemDTO itemDTO : dto.getItems()) {
             SalesOrderItem item = new SalesOrderItem();
             item.setOrderId(order.getId());
@@ -118,6 +124,9 @@ public class OrderServiceImpl implements OrderService {
             item.setUnitPrice(itemDTO.getUnitPrice());
             item.setTotalPrice(itemDTO.getUnitPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity())));
             orderItemMapper.insert(item);
+
+            // 订单导入时扣减库存
+            deductStock(itemDTO.getSkuId(), itemDTO.getQuantity(), orderNo, dto.getWarehouseId());
         }
 
         return order.getId();
@@ -170,6 +179,39 @@ public class OrderServiceImpl implements OrderService {
         if ("SHIPPED".equals(targetStatus)) {
             orderMapper.updateShippedAt(dto.getOrderId());
         }
+
+        // 如果取消订单，恢复库存
+        if ("CANCELLED".equals(targetStatus)) {
+            restoreStockForOrder(order);
+        }
+    }
+
+    /**
+     * 取消订单时恢复库存
+     */
+    private void restoreStockForOrder(SalesOrder order) {
+        List<SalesOrderItem> items = orderItemMapper.findByOrderId(order.getId());
+        for (SalesOrderItem item : items) {
+            Stock stock = stockMapper.findBySkuAndWarehouse(item.getSkuId(), order.getWarehouseId());
+            int beforeQty;
+            if (stock != null) {
+                beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
+                stockMapper.addQuantity(stock.getId(), item.getQuantity());
+            } else {
+                beforeQty = 0;
+            }
+
+            StockLog log = new StockLog();
+            log.setBizType("RETURN");
+            log.setBizNo(order.getOrderNo());
+            log.setSkuId(item.getSkuId());
+            log.setWarehouseId(order.getWarehouseId());
+            log.setQuantityBefore(beforeQty);
+            log.setQuantityChange(item.getQuantity());
+            log.setQuantityAfter(beforeQty + item.getQuantity());
+            log.setRemark("取消订单恢复库存");
+            stockLogMapper.insert(log);
+        }
     }
 
     private boolean isValidTransition(String current, String target) {
@@ -182,6 +224,48 @@ public class OrderServiceImpl implements OrderService {
             case "RETURNING" -> "RETURNED".equals(target);
             default -> false;
         };
+    }
+
+    /**
+     * 扣减库存（每次扣减前重新查询，避免同SKU多次扣减时数据过期）
+     */
+    private void deductStock(Long skuId, int quantity, String orderNo, Long warehouseId) {
+        int remaining = quantity;
+        while (remaining > 0) {
+            List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
+            if (availableStocks.isEmpty()) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
+            }
+
+            boolean deducted = false;
+            for (Stock stock : availableStocks) {
+                int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
+                int deductQty = Math.min(beforeQty, remaining);
+                if (deductQty <= 0) continue;
+
+                int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
+                if (affected == 0) continue;
+
+                StockLog log = new StockLog();
+                log.setBizType("OUTBOUND");
+                log.setBizNo(orderNo);
+                log.setSkuId(skuId);
+                log.setWarehouseId(warehouseId);
+                log.setQuantityBefore(beforeQty);
+                log.setQuantityChange(-deductQty);
+                log.setQuantityAfter(beforeQty - deductQty);
+                log.setRemark("订单导入扣减库存");
+                stockLogMapper.insert(log);
+
+                remaining -= deductQty;
+                deducted = true;
+                break; // 扣成功了就跳出 for 循环，重新查询最新库存
+            }
+
+            if (!deducted) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
+            }
+        }
     }
 
     private OrderVO convertToVO(SalesOrder order) {
