@@ -164,6 +164,65 @@
         />
       </div>
     </div>
+
+    <!-- 入库快递记录 -->
+    <div class="card mt-4">
+      <h3 class="text-lg font-semibold mb-4">入库快递记录</h3>
+      <el-form :model="returnSearch" inline class="mb-4">
+        <el-form-item label="快递单号">
+          <el-input v-model="returnSearch.trackingNo" placeholder="客户快递单号" clearable style="width: 160px" @keyup.enter="handleReturnSearch" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="returnSearch.status" placeholder="全部" clearable style="width: 120px">
+            <el-option v-for="(v, k) in RETURN_STATUS_MAP" :key="k" :label="v.label" :value="k" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="Search" @click="handleReturnSearch">搜索</el-button>
+          <el-button icon="Refresh" @click="handleReturnReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table :data="returnList" v-loading="returnLoading" stripe border>
+        <el-table-column prop="returnNo" label="退货单号" width="160" />
+        <el-table-column prop="orderNo" label="订单号" width="140" />
+        <el-table-column prop="trackingNo" label="客户快递单号" width="150">
+          <template #default="{ row }">
+            <span v-if="row.trackingNo" class="font-mono">{{ row.trackingNo }}</span>
+            <span v-else class="text-gray-400">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="warehouseName" label="仓库" width="120" />
+        <el-table-column prop="reason" label="退货原因" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag :type="(RETURN_STATUS_MAP[row.status]?.color as any) || 'info'" size="small">
+              {{ RETURN_STATUS_MAP[row.status]?.label || row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="创建时间" width="170">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="row.trackingNo" type="primary" link icon="Search" @click="quickQuery(row.trackingNo)">查询</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="mt-4 flex justify-end">
+        <el-pagination
+          v-model:current-page="returnPagination.page"
+          v-model:page-size="returnPagination.size"
+          :total="returnPagination.total"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="(p: number) => { returnPagination.page = p; fetchReturnList() }"
+          @size-change="(s: number) => { returnPagination.size = s; returnPagination.page = 1; fetchReturnList() }"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -172,11 +231,13 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getOutboundList } from '@/api/outbound'
 import type { OutboundOrder } from '@/api/outbound'
+import { getReturnList } from '@/api/returns'
+import type { ReturnOrder } from '@/api/returns'
 import { getCompanyList, getTemplateListByCompany, calculateFee } from '@/api/express'
 import type { ExpressCompany, ExpressFeeTemplate } from '@/api/express'
 import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
-import { OUTBOUND_STATUS_MAP } from '@/utils/constants'
+import { OUTBOUND_STATUS_MAP, RETURN_STATUS_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
 import request from '@/api/request'
 
@@ -202,6 +263,41 @@ interface FeeResult {
 }
 
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<OutboundOrder>(getOutboundList)
+
+const returnSearch = reactive({ trackingNo: '', status: '' })
+const returnLoading = ref(false)
+const returnList = ref<ReturnOrder[]>([])
+const returnPagination = reactive({ page: 1, size: 10, total: 0 })
+
+async function fetchReturnList() {
+  returnLoading.value = true
+  try {
+    const res = await getReturnList({
+      page: returnPagination.page,
+      size: returnPagination.size,
+      trackingNo: returnSearch.trackingNo || undefined,
+      status: returnSearch.status || undefined,
+    })
+    returnList.value = res.data.list || []
+    returnPagination.total = res.data.total || 0
+  } catch {
+    returnList.value = []
+  } finally {
+    returnLoading.value = false
+  }
+}
+
+function handleReturnSearch() {
+  returnPagination.page = 1
+  fetchReturnList()
+}
+
+function handleReturnReset() {
+  returnSearch.trackingNo = ''
+  returnSearch.status = ''
+  returnPagination.page = 1
+  fetchReturnList()
+}
 
 const companyList = ref<ExpressCompany[]>([])
 const templateList = ref<ExpressFeeTemplate[]>([])
@@ -335,6 +431,7 @@ async function handleCalculateFee() {
 
 onMounted(async () => {
   fetchData()
+  fetchReturnList()
   // 加载快递公司列表
   try {
     const res = await getCompanyList()
