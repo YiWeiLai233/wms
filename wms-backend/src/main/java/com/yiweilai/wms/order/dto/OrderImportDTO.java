@@ -2,6 +2,7 @@ package com.yiweilai.wms.order.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ public class OrderImportDTO {
     private String platformOrderNo;
 
     /** 仓库ID */
+    @NotNull(message = "仓库不能为空")
     private Long warehouseId;
 
     /** 收件人姓名 */

@@ -56,15 +56,30 @@
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="340" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
             <el-button v-if="row.orderStatus === 'WAIT_OUTBOUND'" type="success" link icon="TopRight" @click="createOutboundOrder(row)">
               创建出库单
             </el-button>
+            <el-button v-if="row.orderStatus === 'OUTBOUNDING'" type="primary" link icon="TopRight" @click="router.push({ path: '/outbound/list', query: { orderNo: row.orderNo } })">
+              出库管理
+            </el-button>
             <el-button v-if="row.orderStatus === 'SHIPPED'" type="warning" link icon="BottomLeft" @click="openReturnDialog(row)">
               退货
             </el-button>
+            <el-button v-if="row.orderStatus === 'RETURNING'" type="warning" link icon="BottomLeft" @click="router.push({ path: '/returns/list', query: { orderNo: row.orderNo } })">
+              退货管理
+            </el-button>
+            <el-popconfirm
+              v-if="row.orderStatus === 'RETURNING'"
+              title="确定取消退货吗？取消后订单将恢复为已发货状态"
+              @confirm="handleCancelReturn(row)"
+            >
+              <template #reference>
+                <el-button type="danger" link icon="Close">取消退货</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -122,8 +137,8 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="仓库">
-              <el-select v-model="importForm.warehouseId" placeholder="选择仓库" style="width: 100%">
+            <el-form-item label="仓库" prop="warehouseId">
+              <el-select v-model="importForm.warehouseId" placeholder="选择仓库" style="width: 100%" @change="handleImportWarehouseChange">
                 <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
               </el-select>
             </el-form-item>
@@ -144,7 +159,7 @@
 
         <el-divider content-position="left">订单明细</el-divider>
         <div class="mb-3">
-          <el-select v-model="selectedSkuGroupKey" placeholder="选择 SKU / 商品" filterable clearable style="width: 100%">
+          <el-select v-model="selectedSkuGroupKey" placeholder="请先选择仓库" filterable clearable style="width: 100%" :disabled="!importForm.warehouseId">
             <el-option
               v-for="group in skuGroups"
               :key="group.key"
@@ -207,6 +222,9 @@
       <el-form ref="returnFormRef" :model="returnForm" :rules="returnRules" label-width="90px">
         <el-form-item label="退货原因" prop="reason">
           <el-input v-model="returnForm.reason" placeholder="请输入退货原因" />
+        </el-form-item>
+        <el-form-item label="客户快递单号">
+          <el-input v-model="returnForm.trackingNo" placeholder="客户退回的快递单号（选填）" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="returnForm.remark" type="textarea" :rows="2" />
@@ -286,13 +304,14 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { getOrderDetail, getOrderList, importOrder } from '@/api/order'
 import type { Order } from '@/api/order'
 import { createOutbound } from '@/api/outbound'
-import { createReturn } from '@/api/returns'
+import { createReturn, cancelReturnByOrderId } from '@/api/returns'
 import { getAllSkuList } from '@/api/product'
 import type { Sku } from '@/api/product'
 import { getWarehouseList } from '@/api/warehouse'
@@ -301,6 +320,8 @@ import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { ORDER_STATUS_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
+
+const router = useRouter()
 
 interface ReturnItemForm {
   checked: boolean
@@ -352,6 +373,7 @@ const importForm = reactive({
 const selectedSkuGroupKey = ref('')
 
 const importRules: FormRules = {
+  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
   receiverName: [{ required: true, message: '请输入收件人', trigger: 'blur' }],
   receiverPhone: [{ required: true, message: '请输入电话', trigger: 'blur' }],
   receiverAddress: [{ required: true, message: '请输入地址', trigger: 'blur' }],
@@ -363,6 +385,7 @@ const returnFormRef = ref<FormInstance>()
 const returnForm = reactive({
   orderId: 0,
   reason: '',
+  trackingNo: '',
   remark: '',
   items: [] as ReturnItemForm[],
 })
@@ -589,11 +612,32 @@ async function openImportDialog() {
   importDialogVisible.value = true
 }
 
+async function handleImportWarehouseChange(warehouseId: number) {
+  // 清空已选明细
+  importForm.items = []
+  selectedSkuGroupKey.value = ''
+  // 根据仓库重新加载SKU库存
+  if (warehouseId) {
+    try {
+      const res = await getAllSkuList({ page: 1, size: 1000, warehouseId })
+      skuList.value = res.data.list || []
+    } catch {}
+  }
+}
+
 async function viewDetail(row: Order) {
   try {
     const res = await getOrderDetail(row.id)
     detail.value = res.data
     detailVisible.value = true
+  } catch {}
+}
+
+async function handleCancelReturn(row: Order) {
+  try {
+    await cancelReturnByOrderId(row.id)
+    ElMessage.success('退货已取消')
+    fetchData()
   } catch {}
 }
 
@@ -643,6 +687,7 @@ async function handleReturn() {
     await createReturn({
       orderId: returnForm.orderId,
       reason: returnForm.reason,
+      trackingNo: returnForm.trackingNo || undefined,
       remark: returnForm.remark,
       items,
     })
