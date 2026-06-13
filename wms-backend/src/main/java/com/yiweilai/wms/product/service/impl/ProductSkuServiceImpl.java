@@ -57,7 +57,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     @Override
     public PageResult<ProductSkuListVO> findByPage(ProductSkuQueryDTO query) {
         PageHelper.startPage(query.getPage(), query.getSize());
-        List<ProductSku> skuList = skuMapper.findByPage(query.getKeyword(), query.getStatus());
+        List<ProductSku> skuList = skuMapper.findByPage(query.getKeyword(), query.getStatus(), query.getWarehouseId());
 
         PageInfo<ProductSku> pageInfo = new PageInfo<>(skuList);
 

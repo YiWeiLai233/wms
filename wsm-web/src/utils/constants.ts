@@ -81,13 +81,20 @@ export const MENU_LIST: MenuItem[] = [
     title: '库存管理',
     icon: 'Search',
     children: [
+      { title: '库存查询', path: '/stock/query' },
       { title: '库存流水', path: '/stock/log' },
       { title: '盘点管理', path: '/stock/check' },
     ],
   },
-  { title: '订单管理', icon: 'Document', path: '/order/list' },
-  { title: '出库管理', icon: 'TopRight', path: '/outbound/list' },
-  { title: '退货管理', icon: 'BottomLeft', path: '/returns/list' },
+  {
+    title: '订单中心',
+    icon: 'Document',
+    children: [
+      { title: '订单管理', path: '/order/list' },
+      { title: '出库管理', path: '/outbound/list' },
+      { title: '退货管理', path: '/returns/list' },
+    ],
+  },
   {
     title: '快递管理',
     icon: 'Van',

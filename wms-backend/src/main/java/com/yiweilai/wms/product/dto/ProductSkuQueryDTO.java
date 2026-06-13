@@ -19,4 +19,7 @@ public class ProductSkuQueryDTO {
 
     /** 状态：0-禁用 1-启用 */
     private Integer status;
+
+    /** 仓库ID（筛选指定仓库库存） */
+    private Long warehouseId;
 }

@@ -11,6 +11,12 @@
         <el-form-item label="关键词">
           <el-input v-model="searchParams.keyword" placeholder="SKU编码/名称" clearable style="width: 200px" @keyup.enter="handleSearch" />
         </el-form-item>
+        <el-form-item label="仓库">
+          <el-select v-model="searchParams.warehouseId" placeholder="全部仓库" clearable style="width: 140px" @change="handleSearch">
+            <el-option label="全部仓库" :value="undefined" />
+            <el-option v-for="w in warehouseOptions" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="货架">
           <el-select v-model="searchParams.shelfId" placeholder="全部货架" clearable style="width: 150px">
             <el-option v-for="s in shelfList" :key="s.id" :label="`${s.code} - ${s.categoryName}`" :value="s.id" />
@@ -33,6 +39,14 @@
       <el-table :data="skuMatrixRows" v-loading="loading" stripe border>
         <el-table-column prop="skuCode" label="SKU 编码" width="150" show-overflow-tooltip />
         <el-table-column prop="skuName" label="SKU 名称" min-width="150" show-overflow-tooltip />
+        <el-table-column label="仓库" width="120" align="center">
+          <template #default>
+            <el-tag v-if="searchParams.warehouseId" type="primary" size="small">
+              {{ warehouseOptions.find(w => w.id === searchParams.warehouseId)?.name }}
+            </el-tag>
+            <el-tag v-else type="info" size="small">全部</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column v-for="size in sizeColumns" :key="size" :label="size" width="72" align="center">
           <template #default="{ row }">
             <el-tag v-if="getSizeStock(row, size) !== undefined" :type="getStockTagType(getSizeStock(row, size))" size="small">
@@ -139,7 +153,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="matrixDetailVisible" :title="`${matrixDetailRow?.skuName || 'SKU'} 码数库存`" width="820px">
+    <el-dialog v-model="matrixDetailVisible" :title="`${matrixDetailRow?.skuName || 'SKU'} 码数库存${searchParams.warehouseId ? ' - ' + warehouseOptions.find(w => w.id === searchParams.warehouseId)?.name : ''}`" width="820px">
       <el-table :data="matrixDetailRow?.skus || []" border size="small">
         <el-table-column prop="sizeValue" label="码数" width="80" align="center" />
         <el-table-column prop="skuCode" label="SKU编码" width="150" show-overflow-tooltip />
@@ -396,7 +410,7 @@ onMounted(async () => {
 
   try {
     const wRes = await getWarehouseList({ page: 1, size: 100 })
-    warehouseOptions.value = wRes.data.list || []
+    warehouseOptions.value = (wRes.data.list || []).filter((w: any) => w.warehouseType === 'NORMAL')
     for (const w of warehouseOptions.value) {
       try {
         const sRes = await getShelfList(w.id)
@@ -508,7 +522,14 @@ async function handleInbound() {
     })
     ElMessage.success('入库成功')
     inboundDialogVisible.value = false
-    fetchData()
+    // 立即更新详情弹窗中的库存数量
+    if (inboundSku.value) {
+      const skuInDetail = matrixDetailRow.value?.skus.find((s) => s.id === inboundSku.value!.id)
+      if (skuInDetail) {
+        skuInDetail.availableQty = (skuInDetail.availableQty ?? 0) + inboundForm.quantity
+      }
+    }
+    await fetchData()
   } catch {} finally {
     inbounding.value = false
   }

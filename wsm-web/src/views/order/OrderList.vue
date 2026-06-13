@@ -107,16 +107,13 @@
           <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
         </el-table-column>
         <el-table-column prop="quantity" label="数量" width="80" align="center" />
-        <el-table-column prop="unitPrice" label="单价" width="90" align="right">
-          <template #default="{ row }">¥{{ row.unitPrice?.toFixed(2) }}</template>
-        </el-table-column>
         <el-table-column prop="totalPrice" label="小计" width="90" align="right">
           <template #default="{ row }">¥{{ row.totalPrice?.toFixed(2) }}</template>
         </el-table-column>
       </el-table>
     </el-dialog>
 
-    <el-dialog v-model="importDialogVisible" title="导入订单" width="680px" destroy-on-close>
+    <el-dialog v-model="importDialogVisible" title="导入订单" width="900px" destroy-on-close>
       <el-form ref="importFormRef" :model="importForm" :rules="importRules" label-width="90px">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -156,7 +153,7 @@
             />
           </el-select>
         </div>
-        <el-table v-if="selectedSkuGroup" :data="selectedSkuGroup.skus" border size="small" class="mb-3" max-height="260">
+        <el-table v-if="selectedSkuGroup" :data="selectedSkuGroup.skus" border size="small" class="mb-3" max-height="350">
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
             <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
           </el-table-column>
@@ -560,7 +557,7 @@ async function handleFileImport() {
 onMounted(async () => {
   try {
     const res = await getWarehouseList({ page: 1, size: 100 })
-    warehouses.value = res.data.list || []
+    warehouses.value = (res.data.list || []).filter((w: any) => w.warehouseType === 'NORMAL')
   } catch {
     warehouses.value = []
   }

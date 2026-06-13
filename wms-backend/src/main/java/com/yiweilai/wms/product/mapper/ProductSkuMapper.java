@@ -20,7 +20,7 @@ public interface ProductSkuMapper {
     /**
      * 分页查询SKU
      */
-    List<ProductSku> findByPage(@Param("keyword") String keyword, @Param("status") Integer status);
+    List<ProductSku> findByPage(@Param("keyword") String keyword, @Param("status") Integer status, @Param("warehouseId") Long warehouseId);
 
     /**
      * 根据ID查询

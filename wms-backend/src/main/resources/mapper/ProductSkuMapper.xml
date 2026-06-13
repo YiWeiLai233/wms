@@ -77,6 +77,9 @@
                    SUM(quantity + locked_qty + defective_qty) AS total_qty
             FROM stock
             WHERE deleted = 0
+            <if test="warehouseId != null">
+                AND warehouse_id = #{warehouseId}
+            </if>
             GROUP BY sku_id
         ) inv ON inv.sku_id = s.id
         WHERE s.deleted = 0

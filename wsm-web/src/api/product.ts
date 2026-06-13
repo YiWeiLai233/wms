@@ -95,7 +95,7 @@ export function getSkuList(productId: number) {
 }
 
 // 所有 SKU 列表
-export function getAllSkuList(params?: PageParams & { keyword?: string; status?: number }) {
+export function getAllSkuList(params?: PageParams & { keyword?: string; status?: number; warehouseId?: number }) {
   return request.get<any, ApiResponse<PageResult<Sku & { productName?: string; shelfCode?: string; categoryName?: string }>>>('/skus', { params })
 }
 
