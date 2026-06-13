@@ -3,8 +3,10 @@ package com.yiweilai.wms.report.controller;
 import com.yiweilai.wms.common.Result;
 import com.yiweilai.wms.report.service.ReportService;
 import com.yiweilai.wms.report.vo.DashboardVO;
+import com.yiweilai.wms.report.vo.ExpressFeeReportVO;
 import com.yiweilai.wms.report.vo.OutboundReportVO;
 import com.yiweilai.wms.report.vo.StockReportVO;
+import org.springframework.web.bind.annotation.RequestParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,5 +44,16 @@ public class ReportController {
     @GetMapping("/outbound")
     public Result<OutboundReportVO> getOutboundReport() {
         return Result.success(reportService.getOutboundReport());
+    }
+
+    /**
+     * 快递费用统计（按日期范围）
+     */
+    @GetMapping("/express-fee")
+    public Result<ExpressFeeReportVO> getExpressFeeReport(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) Long expressCompanyId) {
+        return Result.success(reportService.getExpressFeeReport(startTime, endTime, expressCompanyId));
     }
 }

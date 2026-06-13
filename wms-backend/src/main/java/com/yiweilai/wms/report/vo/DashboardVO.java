@@ -31,6 +31,9 @@ public class DashboardVO {
     /** 订单状态分布 */
     private List<StatusCount> orderStatusDistribution;
 
+    /** 本月出货量TOP10 SKU */
+    private List<SkuRank> topSkus;
+
     /**
      * 每日数量
      */
@@ -48,5 +51,16 @@ public class DashboardVO {
         private String status;
         private String statusName;
         private Long count;
+    }
+
+    /**
+     * SKU出货排名
+     */
+    @Data
+    public static class SkuRank {
+        private Long skuId;
+        private String skuCode;
+        private String skuName;
+        private Long totalQuantity;
     }
 }

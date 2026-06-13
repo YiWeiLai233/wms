@@ -2,6 +2,7 @@ package com.yiweilai.wms.report.service.impl;
 
 import com.yiweilai.wms.report.service.ReportService;
 import com.yiweilai.wms.report.vo.DashboardVO;
+import com.yiweilai.wms.report.vo.ExpressFeeReportVO;
 import com.yiweilai.wms.report.vo.OutboundReportVO;
 import com.yiweilai.wms.report.vo.StockReportVO;
 import com.yiweilai.wms.stock.mapper.StockMapper;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -101,6 +103,26 @@ public class ReportServiceImpl implements ReportService {
             statusDistribution.add(statusCount);
         }
         vo.setOrderStatusDistribution(statusDistribution);
+
+        // 本月出货量TOP10 SKU
+        String monthStart = LocalDate.now().withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        List<DashboardVO.SkuRank> topSkus = jdbcTemplate.query(
+                "SELECT oi.sku_id, oi.sku_code, oi.sku_name, SUM(oi.quantity) AS total_quantity " +
+                "FROM outbound_order_item oi " +
+                "JOIN outbound_order o ON oi.outbound_id = o.id AND o.deleted = 0 " +
+                "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? " +
+                "GROUP BY oi.sku_id, oi.sku_code, oi.sku_name " +
+                "ORDER BY total_quantity DESC " +
+                "LIMIT 10",
+                (rs, rowNum) -> {
+                    DashboardVO.SkuRank rank = new DashboardVO.SkuRank();
+                    rank.setSkuId(rs.getLong("sku_id"));
+                    rank.setSkuCode(rs.getString("sku_code"));
+                    rank.setSkuName(rs.getString("sku_name"));
+                    rank.setTotalQuantity(rs.getLong("total_quantity"));
+                    return rank;
+                }, monthStart);
+        vo.setTopSkus(topSkus);
 
         return vo;
     }
@@ -197,6 +219,59 @@ public class ReportServiceImpl implements ReportService {
         }
         vo.setOutboundTrend(outboundTrend);
 
+        return vo;
+    }
+
+    @Override
+    public ExpressFeeReportVO getExpressFeeReport(String startTime, String endTime, Long expressCompanyId) {
+        ExpressFeeReportVO vo = new ExpressFeeReportVO();
+
+        // 构建查询条件
+        StringBuilder where = new StringBuilder("WHERE oo.deleted = 0 AND oo.status = 'SHIPPED' AND oo.shipping_fee IS NOT NULL");
+        List<Object> params = new ArrayList<>();
+
+        if (startTime != null && !startTime.isEmpty()) {
+            where.append(" AND oo.shipped_at >= ?");
+            params.add(startTime);
+        }
+        if (endTime != null && !endTime.isEmpty()) {
+            where.append(" AND oo.shipped_at <= ?");
+            params.add(endTime + " 23:59:59");
+        }
+        if (expressCompanyId != null) {
+            where.append(" AND oo.express_company_id = ?");
+            params.add(expressCompanyId);
+        }
+
+        // 查询汇总
+        String summarySql = "SELECT COALESCE(SUM(oo.shipping_fee), 0) AS total_fee, COUNT(*) AS total_count " +
+                "FROM outbound_order oo " + where;
+        Map<String, Object> summary = jdbcTemplate.queryForMap(summarySql, params.toArray());
+        vo.setTotalFee(summary.get("total_fee") != null ? new BigDecimal(summary.get("total_fee").toString()) : BigDecimal.ZERO);
+        vo.setTotalCount(summary.get("total_count") != null ? ((Number) summary.get("total_count")).longValue() : 0L);
+
+        // 查询明细
+        String detailSql = "SELECT oo.id AS outbound_id, oo.outbound_no, oo.order_no, " +
+                "oo.express_company_id, ec.name AS express_company_name, " +
+                "oo.tracking_no, oo.shipping_fee, oo.shipped_at " +
+                "FROM outbound_order oo " +
+                "LEFT JOIN express_company ec ON oo.express_company_id = ec.id AND ec.deleted = 0 " +
+                where + " ORDER BY oo.shipped_at DESC";
+
+        List<ExpressFeeReportVO.ExpressFeeItem> items = jdbcTemplate.query(detailSql, (rs, rowNum) -> {
+            ExpressFeeReportVO.ExpressFeeItem item = new ExpressFeeReportVO.ExpressFeeItem();
+            item.setOutboundId(rs.getLong("outbound_id"));
+            item.setOutboundNo(rs.getString("outbound_no"));
+            item.setOrderNo(rs.getString("order_no"));
+            item.setExpressCompanyId(rs.getLong("express_company_id"));
+            item.setExpressCompanyName(rs.getString("express_company_name"));
+            item.setTrackingNo(rs.getString("tracking_no"));
+            item.setShippingFee(rs.getBigDecimal("shipping_fee"));
+            item.setShippedAt(rs.getString("shipped_at"));
+            return item;
+        }, params.toArray());
+
+        vo.setItems(items);
         return vo;
     }
 }

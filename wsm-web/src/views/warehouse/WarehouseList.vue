@@ -33,6 +33,13 @@
         <el-table-column prop="address" label="地址" min-width="200" show-overflow-tooltip />
         <el-table-column prop="contact" label="联系人" width="100" />
         <el-table-column prop="phone" label="联系电话" width="130" />
+        <el-table-column prop="warehouseType" label="仓库类型" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="WAREHOUSE_TYPE_MAP[row.warehouseType]?.color as any" size="small">
+              {{ WAREHOUSE_TYPE_MAP[row.warehouseType]?.label || row.warehouseType }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
@@ -97,6 +104,13 @@
         <el-form-item label="电话" prop="phone">
           <el-input v-model="form.phone" placeholder="联系电话" />
         </el-form-item>
+        <el-form-item label="类型" prop="warehouseType">
+          <el-select v-model="form.warehouseType" style="width: 100%">
+            <el-option label="普通仓" value="NORMAL" />
+            <el-option label="次品仓" value="DEFECTIVE" />
+            <el-option label="报废仓" value="SCRAP" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
         </el-form-item>
@@ -123,6 +137,12 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const router = useRouter()
 
+const WAREHOUSE_TYPE_MAP: Record<string, { label: string; color: string }> = {
+  NORMAL: { label: '普通仓', color: 'success' },
+  DEFECTIVE: { label: '次品仓', color: 'warning' },
+  SCRAP: { label: '报废仓', color: 'danger' },
+}
+
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<Warehouse>(getWarehouseList)
 
 const dialogVisible = ref(false)
@@ -138,6 +158,7 @@ const form = reactive<Partial<Warehouse>>({
   contact: '',
   phone: '',
   status: 1,
+  warehouseType: 'NORMAL',
 })
 
 const rules: FormRules = {
@@ -147,7 +168,7 @@ const rules: FormRules = {
 
 function openDialog(row?: Warehouse) {
   isEdit.value = !!row
-  Object.assign(form, row || { id: undefined, code: '', name: '', address: '', contact: '', phone: '', status: 1 })
+  Object.assign(form, row || { id: undefined, code: '', name: '', address: '', contact: '', phone: '', status: 1, warehouseType: 'NORMAL' })
   dialogVisible.value = true
 }
 

@@ -1,6 +1,7 @@
 package com.yiweilai.wms.report.service;
 
 import com.yiweilai.wms.report.vo.DashboardVO;
+import com.yiweilai.wms.report.vo.ExpressFeeReportVO;
 import com.yiweilai.wms.report.vo.OutboundReportVO;
 import com.yiweilai.wms.report.vo.StockReportVO;
 
@@ -23,4 +24,9 @@ public interface ReportService {
      * 获取出库报表
      */
     OutboundReportVO getOutboundReport();
+
+    /**
+     * 快递费用统计
+     */
+    ExpressFeeReportVO getExpressFeeReport(String startTime, String endTime, Long expressCompanyId);
 }

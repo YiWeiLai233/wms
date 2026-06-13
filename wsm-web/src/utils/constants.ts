@@ -93,6 +93,7 @@ export const MENU_LIST: MenuItem[] = [
       { title: '快递查询', path: '/express/query' },
       { title: '快递公司管理', path: '/express/companies' },
       { title: '费用模板管理', path: '/express/fee-templates' },
+      { title: '快递费用统计', path: '/express/fee-report' },
     ],
   },
   {

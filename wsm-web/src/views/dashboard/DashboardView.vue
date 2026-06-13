@@ -37,6 +37,18 @@
         </div>
       </el-col>
     </el-row>
+
+    <!-- 本月出货TOP10 -->
+    <el-row :gutter="20" class="mt-4">
+      <el-col :span="24">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="text-base font-semibold text-gray-800">本月出货量 TOP 10 SKU</h3>
+          </div>
+          <v-chart class="bar-chart" :option="barOption" autoresize />
+        </div>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -45,14 +57,14 @@ import { ref, computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart, PieChart } from 'echarts/charts'
+import { LineChart, PieChart, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { getDashboard } from '@/api/report'
 import type { DashboardData } from '@/api/report'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 
-use([CanvasRenderer, LineChart, PieChart, GridComponent, TooltipComponent, LegendComponent])
+use([CanvasRenderer, LineChart, PieChart, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
 const dashboard = ref<DashboardData>({
   todayOrderCount: 0,
@@ -62,6 +74,7 @@ const dashboard = ref<DashboardData>({
   stockAlertCount: 0,
   orderTrend: [],
   orderStatusDistribution: [],
+  topSkus: [],
 })
 
 const trendOption = computed(() => ({
@@ -122,6 +135,48 @@ const pieOption = computed(() => ({
   ],
 }))
 
+const barOption = computed(() => {
+  const skus = [...(dashboard.value.topSkus || [])].reverse()
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 140, right: 50, top: 10, bottom: 20 },
+    xAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: '#f3f4f6' } },
+      axisLabel: { color: '#6b7280' },
+    },
+    yAxis: {
+      type: 'category',
+      data: skus.map((i) => i.skuName),
+      axisLabel: { color: '#374151', fontSize: 12 },
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+    },
+    series: [
+      {
+        type: 'bar',
+        data: skus.map((i) => i.totalQuantity),
+        barWidth: '55%',
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: (params: any) => {
+            const reversedIndex = skus.length - 1 - params.dataIndex
+            const colors = ['#ef4444', '#f59e0b', '#f59e0b', '#3b82f6', '#3b82f6', '#3b82f6', '#10b981', '#10b981', '#10b981', '#10b981']
+            return colors[reversedIndex] || '#3b82f6'
+          },
+        },
+        label: {
+          show: true,
+          position: 'right',
+          fontSize: 12,
+          fontWeight: 'bold',
+          color: '#374151',
+        },
+      },
+    ],
+  }
+})
+
 onMounted(async () => {
   try {
     const res = await getDashboard()
@@ -135,6 +190,10 @@ onMounted(async () => {
 <style scoped lang="scss">
 .chart {
   height: 320px;
+  width: 100%;
+}
+.bar-chart {
+  height: 300px;
   width: 100%;
 }
 </style>

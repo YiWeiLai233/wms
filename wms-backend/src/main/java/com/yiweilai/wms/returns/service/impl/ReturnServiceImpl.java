@@ -23,6 +23,8 @@ import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
+import com.yiweilai.wms.warehouse.entity.Warehouse;
+import com.yiweilai.wms.warehouse.mapper.WarehouseMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -48,6 +50,7 @@ public class ReturnServiceImpl implements ReturnService {
     private final ProductSkuMapper productSkuMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final WarehouseMapper warehouseMapper;
 
     @Override
     public PageResult<ReturnOrderVO> findByPage(ReturnQueryDTO query) {
@@ -178,17 +181,40 @@ public class ReturnServiceImpl implements ReturnService {
             throw new BusinessException(ErrorCode.RETURN_NOT_FOUND);
         }
 
-        if (!"SELLABLE".equals(order.getStatus()) && !"DEFECTIVE".equals(order.getStatus())) {
+        if (!"SELLABLE".equals(order.getStatus()) && !"DEFECTIVE".equals(order.getStatus())
+                && !"SCRAPPED".equals(order.getStatus())) {
             throw new BusinessException(ErrorCode.RETURN_STATUS_ERROR, "退货单状态不允许确认入库");
         }
+
+        // 查询次品仓和报废仓
+        Warehouse defectiveWarehouse = warehouseMapper.findByType("DEFECTIVE");
+        Warehouse scrapWarehouse = warehouseMapper.findByType("SCRAP");
 
         // 查询退货明细
         List<ReturnOrderItem> items = returnOrderItemMapper.findByReturnId(returnId);
 
-        // 入库
+        // 按质检结果路由到对应仓库入库
         for (ReturnOrderItem item : items) {
+            String qualityStatus = item.getQualityStatus();
+            Long targetWarehouseId;
+
+            if ("DEFECTIVE".equals(qualityStatus)) {
+                if (defectiveWarehouse == null) {
+                    throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置次品仓，请先在仓库管理中创建类型为「次品仓」的仓库");
+                }
+                targetWarehouseId = defectiveWarehouse.getId();
+            } else if ("SCRAPPED".equals(qualityStatus)) {
+                if (scrapWarehouse == null) {
+                    throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置报废仓，请先在仓库管理中创建类型为「报废仓」的仓库");
+                }
+                targetWarehouseId = scrapWarehouse.getId();
+            } else {
+                // 可售商品退回原发货仓
+                targetWarehouseId = order.getWarehouseId();
+            }
+
             addStock(item.getSkuId(), item.getQuantity(),
-                    order.getReturnNo(), order.getWarehouseId(), item.getQualityStatus());
+                    order.getReturnNo(), targetWarehouseId, qualityStatus);
         }
 
         // 更新退货单状态
