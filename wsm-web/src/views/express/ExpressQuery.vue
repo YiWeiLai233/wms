@@ -10,7 +10,7 @@
         </el-form-item>
         <el-form-item label="快递公司">
           <el-select v-model="queryForm.carrier" placeholder="全部" clearable style="width: 150px">
-            <el-option v-for="item in carrierOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option v-for="c in companyList" :key="c.code" :label="c.name" :value="c.code" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -221,17 +221,6 @@ const feeForm = reactive({
 })
 
 const feeResult = ref<FeeResult | null>(null)
-
-const carrierOptions = [
-  { label: '顺丰速运', value: 'shunfeng' },
-  { label: '中通快递', value: 'zhongtong' },
-  { label: '圆通速递', value: 'yuantong' },
-  { label: '韵达快递', value: 'yunda' },
-  { label: '申通快递', value: 'shentong' },
-  { label: '百世快递', value: 'huitongkuaidi' },
-  { label: '极兔速递', value: 'jtexpress' },
-  { label: '邮政EMS', value: 'ems' },
-]
 
 function getStatusType(status: string): string {
   const map: Record<string, string> = {

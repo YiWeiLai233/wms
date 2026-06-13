@@ -123,6 +123,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/express/ExpressFeeTemplate.vue'),
         meta: { title: '费用模板管理', icon: 'Money' },
       },
+      {
+        path: 'express/fee-report',
+        name: 'ExpressFeeReport',
+        component: () => import('@/views/express/ExpressFeeReport.vue'),
+        meta: { title: '快递费用统计', icon: 'DataAnalysis' },
+      },
     ],
   },
   {
