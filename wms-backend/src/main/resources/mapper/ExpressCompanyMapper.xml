@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.express.mapper.ExpressCompanyMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.express.entity.ExpressCompany">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="code" property="code"/>
+        <result column="contact" property="contact"/>
+        <result column="phone" property="phone"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="BaseResultMap">
+        SELECT id, name, code, contact, phone, status, created_at, updated_at
+        FROM express_company
+        WHERE deleted = 0 AND status = 1
+        ORDER BY name ASC
+    </select>
+
+    <select id="findByPage" resultMap="BaseResultMap">
+        SELECT id, name, code, contact, phone, status, created_at, updated_at
+        FROM express_company
+        WHERE deleted = 0
+        <if test="name != null and name != ''">
+            AND name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, name, code, contact, phone, status, created_at, updated_at
+        FROM express_company
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findByCode" resultMap="BaseResultMap">
+        SELECT id, name, code, contact, phone, status, created_at, updated_at
+        FROM express_company
+        WHERE code = #{code} AND deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO express_company (name, code, contact, phone, status)
+        VALUES (#{name}, #{code}, #{contact}, #{phone}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE express_company
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="contact != null">contact = #{contact},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE express_company SET deleted = 1 WHERE id = #{id}
+    </update>
+
+</mapper>

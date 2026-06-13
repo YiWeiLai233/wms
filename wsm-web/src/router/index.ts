@@ -104,6 +104,25 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/returns/ReturnList.vue'),
         meta: { title: '退货管理', icon: 'BottomLeft' },
       },
+      // 快递管理
+      {
+        path: 'express/query',
+        name: 'ExpressQuery',
+        component: () => import('@/views/express/ExpressQuery.vue'),
+        meta: { title: '快递查询', icon: 'Van' },
+      },
+      {
+        path: 'express/companies',
+        name: 'ExpressCompanyList',
+        component: () => import('@/views/express/ExpressCompanyList.vue'),
+        meta: { title: '快递公司管理', icon: 'OfficeBuilding' },
+      },
+      {
+        path: 'express/fee-templates',
+        name: 'ExpressFeeTemplate',
+        component: () => import('@/views/express/ExpressFeeTemplate.vue'),
+        meta: { title: '费用模板管理', icon: 'Money' },
+      },
     ],
   },
   {

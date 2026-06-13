@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.express.mapper.ExpressFeeStepMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.express.entity.ExpressFeeStep">
+        <id column="id" property="id"/>
+        <result column="template_id" property="templateId"/>
+        <result column="min_weight" property="minWeight"/>
+        <result column="max_weight" property="maxWeight"/>
+        <result column="fee" property="fee"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findByTemplateId" resultMap="BaseResultMap">
+        SELECT id, template_id, min_weight, max_weight, fee, sort_order, created_at
+        FROM express_fee_step
+        WHERE template_id = #{templateId}
+        ORDER BY sort_order ASC, min_weight ASC
+    </select>
+
+    <select id="findByTemplateIdAndWeight" resultMap="BaseResultMap">
+        SELECT id, template_id, min_weight, max_weight, fee, sort_order, created_at
+        FROM express_fee_step
+        WHERE template_id = #{templateId}
+          AND min_weight &lt;= #{weight}
+          AND max_weight &gt; #{weight}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO express_fee_step (template_id, min_weight, max_weight, fee, sort_order)
+        VALUES (#{templateId}, #{minWeight}, #{maxWeight}, #{fee}, #{sortOrder})
+    </insert>
+
+    <delete id="deleteByTemplateId">
+        DELETE FROM express_fee_step WHERE template_id = #{templateId}
+    </delete>
+
+</mapper>
