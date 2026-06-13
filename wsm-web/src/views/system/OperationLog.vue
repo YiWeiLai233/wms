@@ -38,7 +38,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="params" label="请求参数" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="params" label="请求参数" min-width="120" show-overflow-tooltip />
         <el-table-column prop="ip" label="IP 地址" width="130" />
         <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
@@ -52,7 +52,7 @@
             <span :class="{ 'text-red-500': row.duration > 1000 }">{{ row.duration }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="errorMsg" label="错误信息" min-width="160" show-overflow-tooltip>
+        <el-table-column prop="errorMsg" label="错误信息" min-width="100" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.errorMsg" class="text-red-500">{{ row.errorMsg }}</span>
             <span v-else class="text-gray-400">-</span>

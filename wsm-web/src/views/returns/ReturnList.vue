@@ -10,6 +10,9 @@
         <el-form-item label="订单号">
           <el-input v-model="searchParams.orderNo" placeholder="订单号" clearable style="width: 160px" @keyup.enter="handleSearch" />
         </el-form-item>
+        <el-form-item label="平台单号">
+          <el-input v-model="searchParams.platformOrderNo" placeholder="平台订单号" clearable style="width: 160px" @keyup.enter="handleSearch" />
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchParams.status" placeholder="全部" clearable style="width: 140px">
             <el-option v-for="(v, k) in RETURN_STATUS_MAP" :key="k" :label="v.label" :value="k" />
@@ -31,6 +34,9 @@
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column prop="returnNo" label="退货单号" width="160" />
         <el-table-column prop="orderNo" label="订单号" width="160" />
+        <el-table-column prop="platformOrderNo" label="平台单号" width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.platformOrderNo || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="warehouseName" label="仓库" width="140" />
         <el-table-column prop="status" label="状态" width="120" align="center">
           <template #default="{ row }">
@@ -39,8 +45,8 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="reason" label="退货原因" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="reason" label="退货原因" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
@@ -74,6 +80,7 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="退货单号">{{ detail.returnNo }}</el-descriptions-item>
         <el-descriptions-item label="订单号">{{ detail.orderNo }}</el-descriptions-item>
+        <el-descriptions-item label="平台单号">{{ detail.platformOrderNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="仓库">{{ detail.warehouseName || detail.warehouseId }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="(RETURN_STATUS_MAP[detail.status]?.color as any) || 'info'" size="small">
@@ -87,7 +94,10 @@
       <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">退货明细</h4>
       <el-table :data="detail.items || []" border size="small">
         <el-table-column prop="skuCode" label="SKU编码" width="130" />
-        <el-table-column prop="skuName" label="SKU名称" min-width="160" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="quantity" label="退货数量" width="90" align="center" />
         <el-table-column prop="qualityStatus" label="质检结果" width="110" align="center">
           <template #default="{ row }">
@@ -97,16 +107,16 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="locationCode" label="入库库位" width="120">
-          <template #default="{ row }">{{ row.locationCode || row.locationId || '-' }}</template>
-        </el-table-column>
       </el-table>
     </el-dialog>
 
-    <el-dialog v-model="checkDialogVisible" title="退货质检" width="780px" destroy-on-close>
+    <el-dialog v-model="checkDialogVisible" title="退货质检" width="580px" destroy-on-close>
       <el-form ref="checkFormRef" :model="checkForm" label-width="80px">
         <el-table :data="checkForm.items" border size="small">
-          <el-table-column prop="skuName" label="SKU" min-width="180" />
+          <el-table-column prop="skuName" label="SKU" min-width="100" />
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" align="center" />
           <el-table-column label="质检结果" width="150">
             <template #default="{ row }">
@@ -114,13 +124,6 @@
                 <el-option label="可售" value="SELLABLE" />
                 <el-option label="次品" value="DEFECTIVE" />
                 <el-option label="报废" value="SCRAPPED" />
-              </el-select>
-            </template>
-          </el-table-column>
-          <el-table-column label="入库库位" min-width="220">
-            <template #default="{ row }">
-              <el-select v-model="row.locationId" placeholder="选择库位" filterable style="width: 200px">
-                <el-option v-for="l in locationOptions" :key="l.id" :label="`${l.code} - ${l.name}`" :value="l.id" />
               </el-select>
             </template>
           </el-table-column>
@@ -140,8 +143,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { checkReturn, confirmReturn, getReturnDetail, getReturnList } from '@/api/returns'
 import type { ReturnOrder } from '@/api/returns'
-import { getAreaList, getLocationList, getShelfList, getWarehouseList } from '@/api/warehouse'
-import type { Warehouse, WarehouseLocation } from '@/api/warehouse'
+import { getWarehouseList } from '@/api/warehouse'
+import type { Warehouse } from '@/api/warehouse'
 import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { QUALITY_STATUS_MAP, RETURN_STATUS_MAP } from '@/utils/constants'
@@ -155,10 +158,9 @@ const detail = ref<Partial<ReturnOrder>>({})
 const checkDialogVisible = ref(false)
 const checking = ref(false)
 const checkFormRef = ref<FormInstance>()
-const locationOptions = ref<WarehouseLocation[]>([])
 const checkForm = ref({
   returnId: 0,
-  items: [] as { itemId: number; skuName: string; quantity: number; qualityStatus: string; locationId?: number }[],
+  items: [] as { itemId: number; skuName: string; sizeValue?: string; quantity: number; qualityStatus: string }[],
 })
 
 onMounted(async () => {
@@ -185,42 +187,20 @@ async function viewDetail(row: ReturnOrder) {
 async function openCheckDialog(row: ReturnOrder) {
   const res = await getReturnDetail(row.id)
   const returnData = res.data
-  await loadLocationsForWarehouse(returnData.warehouseId)
   checkForm.value = {
     returnId: row.id,
     items: (returnData.items || []).map((item) => ({
       itemId: item.id,
       skuName: item.skuName || item.skuCode,
+      sizeValue: item.sizeValue,
       quantity: item.quantity,
       qualityStatus: item.qualityStatus || 'SELLABLE',
-      locationId: item.locationId,
     })),
   }
   checkDialogVisible.value = true
 }
 
-async function loadLocationsForWarehouse(warehouseId: number) {
-  locationOptions.value = []
-  try {
-    const areaRes = await getAreaList(warehouseId)
-    for (const area of areaRes.data || []) {
-      const shelfRes = await getShelfList(area.id)
-      for (const shelf of shelfRes.data || []) {
-        const locationRes = await getLocationList(shelf.id)
-        locationOptions.value.push(...(locationRes.data || []))
-      }
-    }
-  } catch {
-    locationOptions.value = []
-  }
-}
-
 async function handleCheck() {
-  if (checkForm.value.items.some((item) => !item.locationId)) {
-    ElMessage.warning('请为每个退货商品选择入库库位')
-    return
-  }
-
   checking.value = true
   try {
     await checkReturn({
@@ -228,7 +208,6 @@ async function handleCheck() {
       items: checkForm.value.items.map((item) => ({
         itemId: item.itemId,
         qualityStatus: item.qualityStatus,
-        locationId: item.locationId!,
       })),
     })
     ElMessage.success('质检完成')

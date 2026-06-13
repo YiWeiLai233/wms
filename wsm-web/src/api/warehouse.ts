@@ -35,17 +35,6 @@ export interface WarehouseShelf {
   createdAt?: string
 }
 
-export interface WarehouseLocation {
-  id: number
-  shelfId: number
-  code: string
-  name: string
-  type: number
-  capacity: number
-  status: number
-  createdAt?: string
-}
-
 // ==================== 仓库 API ====================
 
 export function getWarehouseList(params: PageParams & { keyword?: string; status?: number }) {
@@ -98,22 +87,4 @@ export function updateShelf(data: Partial<WarehouseShelf>) {
 
 export function deleteShelf(id: number) {
   return request.delete<any, ApiResponse<void>>(`/warehouse-shelves/${id}`)
-}
-
-// ==================== 库位 API ====================
-
-export function getLocationList(shelfId: number) {
-  return request.get<any, ApiResponse<WarehouseLocation[]>>(`/warehouse-locations/shelf/${shelfId}`)
-}
-
-export function createLocation(data: Partial<WarehouseLocation>) {
-  return request.post<any, ApiResponse<number>>('/warehouse-locations', data)
-}
-
-export function updateLocation(data: Partial<WarehouseLocation>) {
-  return request.put<any, ApiResponse<void>>('/warehouse-locations', data)
-}
-
-export function deleteLocation(id: number) {
-  return request.delete<any, ApiResponse<void>>(`/warehouse-locations/${id}`)
 }

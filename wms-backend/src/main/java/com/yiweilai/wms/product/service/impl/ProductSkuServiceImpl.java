@@ -18,16 +18,13 @@ import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
-import com.yiweilai.wms.warehouse.entity.WarehouseLocation;
 import com.yiweilai.wms.warehouse.entity.WarehouseShelf;
-import com.yiweilai.wms.warehouse.mapper.WarehouseLocationMapper;
 import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
 import com.yiweilai.wms.product.service.ProductSkuService;
 import com.yiweilai.wms.product.vo.ProductBarcodeVO;
 import com.yiweilai.wms.product.vo.ProductSkuListVO;
 import com.yiweilai.wms.product.vo.ProductSkuVO;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +36,6 @@ import java.util.stream.Collectors;
 /**
  * 商品SKU Service 实现
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductSkuServiceImpl implements ProductSkuService {
@@ -48,7 +44,6 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     private final ProductBarcodeMapper barcodeMapper;
     private final ProductMapper productMapper;
     private final WarehouseShelfMapper shelfMapper;
-    private final WarehouseLocationMapper locationMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
 
@@ -92,6 +87,11 @@ public class ProductSkuServiceImpl implements ProductSkuService {
         List<ProductSkuListVO> voList = skuList.stream().map(sku -> {
             ProductSkuListVO vo = new ProductSkuListVO();
             BeanUtils.copyProperties(sku, vo);
+            vo.setAvailableQty(defaultZero(sku.getAvailableQty()));
+            vo.setLockedQty(defaultZero(sku.getLockedQty()));
+            vo.setDefectiveQty(defaultZero(sku.getDefectiveQty()));
+            vo.setTotalQty(defaultZero(sku.getTotalQty()));
+            vo.setQuantity(vo.getAvailableQty());
 
             Product product = productMap.get(sku.getProductId());
             if (product != null) {
@@ -140,68 +140,78 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "SKU编码已存在");
         }
 
+        Integer initialQuantity = dto.getInitialQuantity() != null ? dto.getInitialQuantity() : dto.getQuantity();
+        if (initialQuantity == null) {
+            initialQuantity = 0;
+        }
+        if (initialQuantity < 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "Initial inbound quantity cannot be negative");
+        }
+
+        Product product = productMapper.findById(dto.getProductId());
+        if (product == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Product not found");
+        }
+        if (initialQuantity > 0) {
+            validateInboundLocation(dto);
+        }
+
         ProductSku sku = new ProductSku();
         BeanUtils.copyProperties(dto, sku);
+        sku.setQuantity(0);
         skuMapper.insert(sku);
 
         // 如果输入了数量，自动入库
-        if (dto.getQuantity() != null && dto.getQuantity() > 0) {
-            autoInbound(sku.getId(), dto.getProductId(), dto.getQuantity());
+        if (initialQuantity > 0) {
+            inboundInitialStock(sku.getId(), dto, initialQuantity);
         }
 
         return sku.getId();
     }
 
-    /**
-     * 自动入库逻辑
-     */
-    private void autoInbound(Long skuId, Long productId, Integer quantity) {
-        // 获取商品信息
-        Product product = productMapper.findById(productId);
-        if (product == null || product.getShelfId() == null) {
-            log.warn("商品不存在或未关联货架，跳过自动入库");
-            return;
+    private void validateInboundLocation(ProductSkuSaveDTO dto) {
+        if (dto.getWarehouseId() == null || dto.getShelfId() == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "Initial inbound requires warehouse and shelf");
+        }
+        WarehouseShelf shelf = shelfMapper.findById(dto.getShelfId());
+        if (shelf == null || !dto.getWarehouseId().equals(shelf.getWarehouseId())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "Shelf does not belong to selected warehouse");
+        }
+    }
+
+    private void inboundInitialStock(Long skuId, ProductSkuSaveDTO dto, int quantity) {
+        Stock stock = stockMapper.findBySkuAndWarehouse(skuId, dto.getWarehouseId());
+        int beforeQty = stock == null || stock.getQuantity() == null ? 0 : stock.getQuantity();
+        int afterQty = beforeQty + quantity;
+
+        if (stock == null) {
+            stock = new Stock();
+            stock.setSkuId(skuId);
+            stock.setWarehouseId(dto.getWarehouseId());
+            stock.setQuantity(quantity);
+            stock.setLockedQty(0);
+            stock.setDefectiveQty(0);
+            stockMapper.insert(stock);
+        } else {
+            stockMapper.updateQuantity(stock.getId(), afterQty);
         }
 
-        // 获取货架信息
-        WarehouseShelf shelf = shelfMapper.findById(product.getShelfId());
-        if (shelf == null) {
-            log.warn("货架不存在，跳过自动入库");
-            return;
-        }
-
-        // 获取货架下的第一个库位
-        List<WarehouseLocation> locations = locationMapper.findByShelfId(shelf.getId());
-        if (locations.isEmpty()) {
-            log.warn("货架下没有库位，跳过自动入库");
-            return;
-        }
-        WarehouseLocation location = locations.get(0);
-
-        // 创建库存记录
-        Stock stock = new Stock();
-        stock.setSkuId(skuId);
-        stock.setWarehouseId(shelf.getWarehouseId());
-        stock.setLocationId(location.getId());
-        stock.setQuantity(quantity);
-        stock.setLockedQty(0);
-        stock.setDefectiveQty(0);
-        stockMapper.insert(stock);
-
-        // 写入库存流水
         StockLog stockLog = new StockLog();
         stockLog.setBizType("INBOUND");
         stockLog.setBizNo("SKU_" + skuId);
         stockLog.setSkuId(skuId);
-        stockLog.setWarehouseId(shelf.getWarehouseId());
-        stockLog.setLocationId(location.getId());
-        stockLog.setQuantityBefore(0);
+        stockLog.setWarehouseId(dto.getWarehouseId());
+        stockLog.setQuantityBefore(beforeQty);
         stockLog.setQuantityChange(quantity);
-        stockLog.setQuantityAfter(quantity);
-        stockLog.setRemark("SKU创建自动入库");
+        stockLog.setQuantityAfter(afterQty);
+        stockLog.setRemark(dto.getInboundRemark() == null || dto.getInboundRemark().isBlank()
+                ? "SKU initial inbound"
+                : dto.getInboundRemark());
         stockLogMapper.insert(stockLog);
+    }
 
-        log.info("SKU {} 自动入库成功，数量：{}，库位：{}", skuId, quantity, location.getCode());
+    private int defaultZero(Integer value) {
+        return value == null ? 0 : value;
     }
 
     @Override
@@ -237,6 +247,11 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     private ProductSkuVO convertToVO(ProductSku sku) {
         ProductSkuVO vo = new ProductSkuVO();
         BeanUtils.copyProperties(sku, vo);
+        vo.setAvailableQty(defaultZero(sku.getAvailableQty()));
+        vo.setLockedQty(defaultZero(sku.getLockedQty()));
+        vo.setDefectiveQty(defaultZero(sku.getDefectiveQty()));
+        vo.setTotalQty(defaultZero(sku.getTotalQty()));
+        vo.setQuantity(vo.getAvailableQty());
 
         // 查询关联的条码
         List<ProductBarcodeVO> barcodeList = barcodeMapper.findBySkuId(sku.getId()).stream()

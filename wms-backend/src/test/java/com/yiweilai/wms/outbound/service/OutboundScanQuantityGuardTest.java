@@ -11,13 +11,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OutboundScanQuantityGuardTest {
 
     @Test
-    void scanAndConfirmRequirePickedQuantityToReachRequiredQuantity() throws Exception {
+    void confirmOutboundNoLongerRequiresPickedQuantityOrShelfSelection() throws Exception {
         String serviceSource = Files.readString(
                 Path.of("src/main/java/com/yiweilai/wms/outbound/service/impl/OutboundServiceImpl.java"),
                 StandardCharsets.UTF_8);
 
         assertThat(serviceSource)
-                .contains("newPickedQty >= item.getQuantity()")
-                .contains("pickedQty < item.getQuantity()");
+                .doesNotContain("pickedQty < item.getQuantity()")
+                .doesNotContain("商品未选择出库货架")
+                .contains("findAvailableBySkuAndWarehouse");
     }
 }

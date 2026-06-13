@@ -27,8 +27,23 @@ public class ProductSkuSaveDTO {
     @NotBlank(message = "SKU名称不能为空")
     private String name;
 
+    /** 码数，如 36、37、40 */
+    private String sizeValue;
+
     /** 数量 */
     private Integer quantity;
+
+    /** Initial inbound quantity used when creating a SKU. */
+    private Integer initialQuantity;
+
+    /** Initial inbound warehouse ID. */
+    private Long warehouseId;
+
+    /** Initial inbound shelf ID. */
+    private Long shelfId;
+
+    /** Initial inbound remark. */
+    private String inboundRemark;
 
     /** 成本价 */
     private BigDecimal costPrice;

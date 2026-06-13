@@ -10,8 +10,6 @@ export interface StockItem {
   productName: string
   warehouseId: number
   warehouseName: string
-  locationId: number
-  locationCode: string
   quantity: number
   lockedQty: number
   defectiveQty: number
@@ -24,12 +22,11 @@ export interface StockLog {
   id: number
   bizType: string
   bizNo: string
+  platformOrderNo?: string
   skuId: number
   skuCode: string
   warehouseId: number
   warehouseName: string
-  locationId: number
-  locationCode: string
   quantityBefore: number
   quantityChange: number
   quantityAfter: number
@@ -56,7 +53,6 @@ export interface StockCheckItem {
   skuId: number
   skuCode: string
   skuName: string
-  locationCode: string
   systemQty: number
   actualQty: number | null
   diffQty: number | null
@@ -69,20 +65,26 @@ export function queryStock(params: PageParams & {
   skuName?: string
   productName?: string
   warehouseId?: number
-  locationId?: number
-  locationCode?: string
   stockType?: string
 }) {
   return request.get<any, ApiResponse<PageResult<StockItem>>>('/stocks/query', { params })
 }
 
 // 库存调整
-export function adjustStock(data: { skuId: number; warehouseId: number; locationId: number; quantity: number; remark?: string }) {
+export function adjustStock(data: { skuId: number; warehouseId: number; quantity: number; remark?: string }) {
   return request.post<any, ApiResponse<void>>('/stocks/adjust', data)
 }
 
 // 库存流水
-export function getStockLogs(params: PageParams & { bizType?: string; bizNo?: string; skuId?: number; warehouseId?: number }) {
+export function getStockLogs(params: PageParams & {
+  bizType?: string
+  bizNo?: string
+  platformOrderNo?: string
+  skuId?: number
+  warehouseId?: number
+  startTime?: string
+  endTime?: string
+}) {
   return request.get<any, ApiResponse<PageResult<StockLog>>>('/stock-logs', { params })
 }
 

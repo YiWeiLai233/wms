@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StockMapperXmlTest {
 
     @Test
-    void stockQuerySelectsProductWarehouseAndLocationDisplayFields() throws Exception {
+    void stockQuerySelectsProductWarehouseDisplayFields() throws Exception {
         String mapperXml = Files.readString(
                 Path.of("src/main/resources/mapper/StockMapper.xml"),
                 StandardCharsets.UTF_8);
@@ -19,7 +19,7 @@ class StockMapperXmlTest {
         assertThat(mapperXml)
                 .contains("ps.sku_code AS sku_code")
                 .contains("ps.name AS sku_name")
-                .contains("w.name AS warehouse_name")
-                .contains("wl.code AS location_code");
+                .contains("w.name AS warehouse_name");
     }
+
 }

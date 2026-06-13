@@ -7,6 +7,7 @@
         <result column="product_id" property="productId"/>
         <result column="sku_code" property="skuCode"/>
         <result column="name" property="name"/>
+        <result column="size_value" property="sizeValue"/>
         <result column="quantity" property="quantity"/>
         <result column="cost_price" property="costPrice"/>
         <result column="sale_price" property="salePrice"/>
@@ -16,35 +17,68 @@
         <result column="status" property="status"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
+        <result column="available_qty" property="availableQty"/>
+        <result column="locked_qty" property="lockedQty"/>
+        <result column="defective_qty" property="defectiveQty"/>
+        <result column="total_qty" property="totalQty"/>
     </resultMap>
 
     <select id="findByProductId" resultMap="BaseResultMap">
-        SELECT id, product_id, sku_code, name, quantity, cost_price, sale_price, weight, volume, image,
-               status, created_at, updated_at
-        FROM product_sku
-        WHERE product_id = #{productId} AND deleted = 0
-        ORDER BY id ASC
+        SELECT s.id, s.product_id, s.sku_code, s.name, s.size_value, s.quantity,
+               s.cost_price, s.sale_price, s.weight, s.volume, s.image,
+               s.status, s.created_at, s.updated_at,
+               COALESCE(inv.available_qty, 0) AS available_qty,
+               COALESCE(inv.locked_qty, 0) AS locked_qty,
+               COALESCE(inv.defective_qty, 0) AS defective_qty,
+               COALESCE(inv.total_qty, 0) AS total_qty
+        FROM product_sku s
+        LEFT JOIN (
+            SELECT sku_id,
+                   SUM(quantity) AS available_qty,
+                   SUM(locked_qty) AS locked_qty,
+                   SUM(defective_qty) AS defective_qty,
+                   SUM(quantity + locked_qty + defective_qty) AS total_qty
+            FROM stock
+            WHERE deleted = 0
+            GROUP BY sku_id
+        ) inv ON inv.sku_id = s.id
+        WHERE s.product_id = #{productId} AND s.deleted = 0
+        ORDER BY CAST(s.size_value AS UNSIGNED), s.size_value, s.id ASC
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, product_id, sku_code, name, quantity, cost_price, sale_price, weight, volume, image,
+        SELECT id, product_id, sku_code, name, size_value, quantity, cost_price, sale_price, weight, volume, image,
                status, created_at, updated_at
         FROM product_sku
         WHERE id = #{id} AND deleted = 0
     </select>
 
     <select id="findBySkuCode" resultMap="BaseResultMap">
-        SELECT id, product_id, sku_code, name, quantity, cost_price, sale_price, weight, volume, image,
+        SELECT id, product_id, sku_code, name, size_value, quantity, cost_price, sale_price, weight, volume, image,
                status, created_at, updated_at
         FROM product_sku
         WHERE sku_code = #{skuCode} AND deleted = 0
     </select>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT s.id, s.product_id, s.sku_code, s.name, s.quantity, s.cost_price, s.sale_price,
-               s.weight, s.volume, s.image, s.status, s.created_at, s.updated_at
+        SELECT s.id, s.product_id, s.sku_code, s.name, s.size_value, s.quantity, s.cost_price, s.sale_price,
+               s.weight, s.volume, s.image, s.status, s.created_at, s.updated_at,
+               COALESCE(inv.available_qty, 0) AS available_qty,
+               COALESCE(inv.locked_qty, 0) AS locked_qty,
+               COALESCE(inv.defective_qty, 0) AS defective_qty,
+               COALESCE(inv.total_qty, 0) AS total_qty
         FROM product_sku s
         INNER JOIN product p ON s.product_id = p.id AND p.deleted = 0
+        LEFT JOIN (
+            SELECT sku_id,
+                   SUM(quantity) AS available_qty,
+                   SUM(locked_qty) AS locked_qty,
+                   SUM(defective_qty) AS defective_qty,
+                   SUM(quantity + locked_qty + defective_qty) AS total_qty
+            FROM stock
+            WHERE deleted = 0
+            GROUP BY sku_id
+        ) inv ON inv.sku_id = s.id
         WHERE s.deleted = 0
         <if test="keyword != null and keyword != ''">
             AND (s.name LIKE CONCAT('%', #{keyword}, '%') OR s.sku_code LIKE CONCAT('%', #{keyword}, '%'))
@@ -56,8 +90,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO product_sku (product_id, sku_code, name, quantity, cost_price, sale_price, weight, volume, image, status)
-        VALUES (#{productId}, #{skuCode}, #{name}, #{quantity}, #{costPrice}, #{salePrice}, #{weight}, #{volume}, #{image}, #{status})
+        INSERT INTO product_sku (product_id, sku_code, name, size_value, quantity, cost_price, sale_price, weight, volume, image, status)
+        VALUES (#{productId}, #{skuCode}, #{name}, #{sizeValue}, #{quantity}, #{costPrice}, #{salePrice}, #{weight}, #{volume}, #{image}, #{status})
     </insert>
 
     <update id="update">
@@ -65,6 +99,7 @@
         <set>
             <if test="skuCode != null">sku_code = #{skuCode},</if>
             <if test="name != null">name = #{name},</if>
+            <if test="sizeValue != null">size_value = #{sizeValue},</if>
             <if test="quantity != null">quantity = #{quantity},</if>
             <if test="costPrice != null">cost_price = #{costPrice},</if>
             <if test="salePrice != null">sale_price = #{salePrice},</if>

@@ -22,6 +22,9 @@ public class ProductSku {
     /** SKU名称 */
     private String name;
 
+    /** 码数，如 36、37、40 */
+    private String sizeValue;
+
     /** 数量 */
     private Integer quantity;
 
@@ -42,6 +45,18 @@ public class ProductSku {
 
     /** 状态：0-禁用 1-启用 */
     private Integer status;
+
+    /** Available inventory aggregated from stock. */
+    private Integer availableQty;
+
+    /** Locked inventory aggregated from stock. */
+    private Integer lockedQty;
+
+    /** Defective inventory aggregated from stock. */
+    private Integer defectiveQty;
+
+    /** Total inventory aggregated from stock. */
+    private Integer totalQty;
 
     /** 创建时间 */
     private LocalDateTime createdAt;

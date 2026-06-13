@@ -7,10 +7,9 @@ export interface ReturnItem {
   skuId: number
   skuCode: string
   skuName: string
+  sizeValue?: string
   quantity: number
   qualityStatus?: string
-  locationId?: number
-  locationCode?: string
 }
 
 export interface ReturnOrder {
@@ -18,6 +17,7 @@ export interface ReturnOrder {
   returnNo: string
   orderId: number
   orderNo: string
+  platformOrderNo?: string
   warehouseId: number
   warehouseName: string
   status: string
@@ -28,7 +28,7 @@ export interface ReturnOrder {
 }
 
 // 退货单列表
-export function getReturnList(params: PageParams & { returnNo?: string; orderNo?: string; status?: string; warehouseId?: number }) {
+export function getReturnList(params: PageParams & { returnNo?: string; orderNo?: string; platformOrderNo?: string; status?: string; warehouseId?: number }) {
   return request.get<any, ApiResponse<PageResult<ReturnOrder>>>('/returns/list', { params })
 }
 
@@ -43,7 +43,7 @@ export function createReturn(data: { orderId: number; reason: string; remark?: s
 }
 
 // 退货质检
-export function checkReturn(data: { returnId: number; items: { itemId: number; qualityStatus: string; locationId: number }[] }) {
+export function checkReturn(data: { returnId: number; items: { itemId: number; qualityStatus: string }[] }) {
   return request.post<any, ApiResponse<void>>('/returns/check', data)
 }
 

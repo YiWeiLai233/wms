@@ -40,7 +40,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
@@ -103,8 +103,7 @@
       <h4 class="mb-2 text-sm font-semibold text-gray-700">盘点明细</h4>
       <el-table :data="detail.items || []" border size="small" max-height="400">
         <el-table-column prop="skuCode" label="SKU编码" width="120" />
-        <el-table-column prop="skuName" label="SKU名称" min-width="160" />
-        <el-table-column prop="locationCode" label="库位" width="100" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
         <el-table-column prop="systemQty" label="系统数量" width="90" align="center" />
         <el-table-column prop="actualQty" label="实盘数量" width="90" align="center">
           <template #default="{ row }">
@@ -131,8 +130,7 @@
 
       <el-table :data="submitItems" border size="small" max-height="400">
         <el-table-column prop="skuCode" label="SKU编码" width="120" />
-        <el-table-column prop="skuName" label="SKU名称" min-width="160" />
-        <el-table-column prop="locationCode" label="库位" width="100" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
         <el-table-column prop="systemQty" label="系统数量" width="90" align="center" />
         <el-table-column label="实盘数量" width="140" align="center">
           <template #default="{ row }">

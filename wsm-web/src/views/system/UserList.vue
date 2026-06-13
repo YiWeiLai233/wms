@@ -32,7 +32,7 @@
         <el-table-column prop="username" label="用户名" width="120" />
         <el-table-column prop="realName" label="姓名" width="100" />
         <el-table-column prop="phone" label="手机号" width="130" />
-        <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="email" label="邮箱" min-width="100" show-overflow-tooltip />
         <el-table-column prop="roles" label="角色" width="160">
           <template #default="{ row }">
             <el-tag

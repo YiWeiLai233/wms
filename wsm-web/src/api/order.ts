@@ -7,6 +7,7 @@ export interface OrderItem {
   skuId: number
   skuCode: string
   skuName: string
+  sizeValue?: string
   quantity: number
   unitPrice: number
   totalPrice: number
@@ -35,7 +36,7 @@ export interface OrderImportData {
   receiverPhone: string
   receiverAddress: string
   remark?: string
-  items: { skuId?: number; skuCode: string; skuName: string; quantity: number; unitPrice: number }[]
+  items: { skuId?: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; unitPrice: number }[]
 }
 
 // 订单列表

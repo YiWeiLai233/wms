@@ -29,7 +29,7 @@
     <div class="card">
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column prop="code" label="仓库编码" width="120" />
-        <el-table-column prop="name" label="仓库名称" min-width="150" />
+        <el-table-column prop="name" label="仓库名称" min-width="100" />
         <el-table-column prop="address" label="地址" min-width="200" show-overflow-tooltip />
         <el-table-column prop="contact" label="联系人" width="100" />
         <el-table-column prop="phone" label="联系电话" width="130" />

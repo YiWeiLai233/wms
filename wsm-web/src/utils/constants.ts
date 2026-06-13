@@ -1,12 +1,12 @@
-export const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> = {
+export const ORDER_STATUS_MAP: Record<string, { label: string; color: string; effect?: string }> = {
   WAIT_PAY: { label: '待付款', color: 'info' },
   WAIT_OUTBOUND: { label: '待出库', color: 'warning' },
-  OUTBOUNDING: { label: '出库中', color: '' },
+  OUTBOUNDING: { label: '出库中', color: 'primary' },
   SHIPPED: { label: '已发货', color: 'success' },
-  FINISHED: { label: '已完成', color: 'success' },
+  FINISHED: { label: '已完成', color: 'success', effect: 'dark' },
   CANCELLED: { label: '已取消', color: 'danger' },
-  RETURNING: { label: '退货中', color: 'warning' },
-  RETURNED: { label: '已退货', color: 'info' },
+  RETURNING: { label: '退货中', color: 'danger', effect: 'dark' },
+  RETURNED: { label: '已退货', color: 'info', effect: 'dark' },
 }
 
 export const OUTBOUND_STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -36,12 +36,6 @@ export const AREA_TYPE_MAP: Record<number, { label: string; color: string }> = {
   1: { label: '普通区', color: 'success' },
   2: { label: '退货区', color: 'warning' },
   3: { label: '次品区', color: 'danger' },
-}
-
-export const LOCATION_TYPE_MAP: Record<number, { label: string; color: string }> = {
-  1: { label: '普通', color: 'success' },
-  2: { label: '退货', color: 'warning' },
-  3: { label: '次品', color: 'danger' },
 }
 
 export const STOCK_BIZ_TYPE_MAP: Record<string, { label: string; color: string }> = {
@@ -85,7 +79,6 @@ export const MENU_LIST: MenuItem[] = [
     title: '库存管理',
     icon: 'Search',
     children: [
-      { title: '库存查询', path: '/stock/query' },
       { title: '库存流水', path: '/stock/log' },
       { title: '盘点管理', path: '/stock/check' },
     ],
@@ -93,6 +86,15 @@ export const MENU_LIST: MenuItem[] = [
   { title: '订单管理', icon: 'Document', path: '/order/list' },
   { title: '出库管理', icon: 'TopRight', path: '/outbound/list' },
   { title: '退货管理', icon: 'BottomLeft', path: '/returns/list' },
+  {
+    title: '快递管理',
+    icon: 'Van',
+    children: [
+      { title: '快递查询', path: '/express/query' },
+      { title: '快递公司管理', path: '/express/companies' },
+      { title: '费用模板管理', path: '/express/fee-templates' },
+    ],
+  },
   {
     title: '系统管理',
     icon: 'Setting',

@@ -27,8 +27,23 @@ public class ProductSkuVO {
     /** SKU名称 */
     private String name;
 
+    /** 码数，如 36、37、40 */
+    private String sizeValue;
+
     /** 数量 */
     private Integer quantity;
+
+    /** 可用库存 */
+    private Integer availableQty;
+
+    /** 锁定库存 */
+    private Integer lockedQty;
+
+    /** 次品库存 */
+    private Integer defectiveQty;
+
+    /** 总库存 */
+    private Integer totalQty;
 
     /** 成本价 */
     private BigDecimal costPrice;

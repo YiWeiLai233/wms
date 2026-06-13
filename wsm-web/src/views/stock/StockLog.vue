@@ -14,7 +14,21 @@
           </el-select>
         </el-form-item>
         <el-form-item label="业务单号">
-          <el-input v-model="searchParams.bizNo" placeholder="单号" clearable style="width: 160px" @keyup.enter="handleSearch" />
+          <el-input v-model="searchParams.bizNo" placeholder="单号" clearable style="width: 160px" @keyup.enter="handleDateSearch" />
+        </el-form-item>
+        <el-form-item label="平台单号">
+          <el-input v-model="searchParams.platformOrderNo" placeholder="平台订单号" clearable style="width: 160px" @keyup.enter="handleDateSearch" />
+        </el-form-item>
+        <el-form-item label="时间范围">
+          <el-date-picker
+            v-model="dateRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            style="width: 360px"
+          />
         </el-form-item>
         <el-form-item label="仓库">
           <el-select v-model="searchParams.warehouseId" placeholder="全部" clearable style="width: 160px">
@@ -22,8 +36,8 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
-          <el-button icon="Refresh" @click="handleReset">重置</el-button>
+          <el-button type="primary" icon="Search" @click="handleDateSearch">搜索</el-button>
+          <el-button icon="Refresh" @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -39,9 +53,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="bizNo" label="业务单号" width="160" />
+        <el-table-column prop="platformOrderNo" label="平台单号" width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.platformOrderNo || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="skuCode" label="SKU编码" width="120" />
         <el-table-column prop="warehouseName" label="仓库" width="100" />
-        <el-table-column prop="locationCode" label="库位" width="100" />
         <el-table-column prop="quantityBefore" label="变动前" width="80" align="center" />
         <el-table-column prop="quantityChange" label="变动数量" width="90" align="center">
           <template #default="{ row }">
@@ -52,7 +68,7 @@
         </el-table-column>
         <el-table-column prop="quantityAfter" label="变动后" width="80" align="center" />
         <el-table-column prop="operatorName" label="操作人" width="90" />
-        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
@@ -87,6 +103,7 @@ import PageHeader from '@/components/PageHeader.vue'
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange } = useTable<StockLog>(getStockLogs)
 
 const warehouses = ref<Warehouse[]>([])
+const dateRange = ref<string[]>([])
 
 onMounted(async () => {
   try {
@@ -94,4 +111,17 @@ onMounted(async () => {
     warehouses.value = res.data.list || []
   } catch {}
 })
+
+function handleDateSearch() {
+  searchParams.startTime = dateRange.value?.[0]
+  searchParams.endTime = dateRange.value?.[1]
+  handleSearch()
+}
+
+function resetSearch() {
+  dateRange.value = []
+  searchParams.startTime = undefined
+  searchParams.endTime = undefined
+  handleReset()
+}
 </script>

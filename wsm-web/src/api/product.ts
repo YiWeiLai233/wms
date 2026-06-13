@@ -15,6 +15,19 @@ export interface Product {
   status: number
   createdAt: string
   updatedAt: string
+  skuList?: ProductSizeSku[]
+}
+
+export interface ProductSizeSku {
+  sizeValue: string
+  skuCode?: string
+  name?: string
+  quantity?: number
+  costPrice?: number
+  salePrice?: number
+  weight?: number
+  volume?: number
+  image?: string
 }
 
 export interface Sku {
@@ -24,10 +37,20 @@ export interface Sku {
   shelfCode: string
   skuCode: string
   name: string
+  sizeValue: string
   quantity: number
+  availableQty: number
+  lockedQty: number
+  defectiveQty: number
+  totalQty: number
+  initialQuantity?: number
+  warehouseId?: number
+  inboundRemark?: string
   costPrice: number
   salePrice: number
   weight: number
+  volume?: number
+  image?: string
   status: number
   barcodeList?: { id: number; skuId: number; barcode: string }[]
 }

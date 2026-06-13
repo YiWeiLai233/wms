@@ -19,10 +19,10 @@
 
     <!-- 表格 -->
     <div class="card">
-      <el-table :data="tableData" v-loading="loading" stripe border>
+      <el-table :data="tableData" v-loading="loading" stripe border row-key="id">
         <el-table-column prop="code" label="货架编码" width="120" />
-        <el-table-column prop="name" label="货架名称" min-width="150" />
-        <el-table-column prop="categoryName" label="商品分类" min-width="150" />
+        <el-table-column prop="name" label="货架名称" min-width="100" />
+        <el-table-column prop="categoryName" label="商品分类" min-width="100" />
         <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">

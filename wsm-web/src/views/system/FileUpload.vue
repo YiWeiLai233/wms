@@ -29,7 +29,7 @@
       <h3 class="text-sm font-semibold text-gray-700 mb-3">已上传文件</h3>
       <el-table :data="fileList" v-loading="loading" stripe border>
         <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="fileName" label="文件名" min-width="120" show-overflow-tooltip />
         <el-table-column prop="fileType" label="文件类型" width="130" />
         <el-table-column prop="fileSize" label="文件大小" width="100" align="right">
           <template #default="{ row }">{{ formatSize(row.fileSize) }}</template>
