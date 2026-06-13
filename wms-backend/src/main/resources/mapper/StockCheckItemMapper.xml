@@ -13,12 +13,35 @@
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
+    <resultMap id="VOResultMap" type="com.yiweilai.wms.stock.vo.StockCheckItemVO">
+        <id column="id" property="id"/>
+        <result column="check_id" property="checkId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="sku_code" property="skuCode"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="system_qty" property="systemQty"/>
+        <result column="actual_qty" property="actualQty"/>
+        <result column="diff_qty" property="diffQty"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
     <select id="findByCheckId" resultMap="BaseResultMap">
         SELECT id, check_id, sku_id, system_qty, actual_qty, diff_qty,
                created_at, updated_at
         FROM stock_check_item
         WHERE check_id = #{checkId}
         ORDER BY id ASC
+    </select>
+
+    <select id="findVOByCheckId" resultMap="VOResultMap">
+        SELECT sci.id, sci.check_id, sci.sku_id, ps.sku_code, ps.name AS sku_name,
+               sci.system_qty, sci.actual_qty, sci.diff_qty,
+               sci.created_at, sci.updated_at
+        FROM stock_check_item sci
+        LEFT JOIN product_sku ps ON ps.id = sci.sku_id AND ps.deleted = 0
+        WHERE sci.check_id = #{checkId}
+        ORDER BY sci.id ASC
     </select>
 
     <select id="findById" resultMap="BaseResultMap">

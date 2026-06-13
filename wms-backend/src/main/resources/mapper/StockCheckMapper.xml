@@ -15,11 +15,26 @@
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
-    <select id="findById" resultMap="BaseResultMap">
-        SELECT id, check_no, warehouse_id, status, remark, operator_id, operator_name,
-               deleted, created_at, updated_at
-        FROM stock_check
-        WHERE id = #{id} AND deleted = 0
+    <resultMap id="WithWarehouseResultMap" type="com.yiweilai.wms.stock.vo.StockCheckVO">
+        <id column="id" property="id"/>
+        <result column="check_no" property="checkNo"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="warehouse_name" property="warehouseName"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findById" resultMap="WithWarehouseResultMap">
+        SELECT sc.id, sc.check_no, sc.warehouse_id, w.name AS warehouse_name,
+               sc.status, sc.remark, sc.operator_id, sc.operator_name,
+               sc.created_at, sc.updated_at
+        FROM stock_check sc
+        LEFT JOIN warehouse w ON w.id = sc.warehouse_id AND w.deleted = 0
+        WHERE sc.id = #{id} AND sc.deleted = 0
     </select>
 
     <select id="findByCheckNo" resultMap="BaseResultMap">
@@ -37,5 +52,33 @@
     <update id="updateStatus">
         UPDATE stock_check SET status = #{status} WHERE id = #{id} AND deleted = 0
     </update>
+
+    <select id="findByPage" resultMap="WithWarehouseResultMap">
+        SELECT sc.id, sc.check_no, sc.warehouse_id, w.name AS warehouse_name,
+               sc.status, sc.remark, sc.operator_id, sc.operator_name,
+               sc.created_at, sc.updated_at
+        FROM stock_check sc
+        LEFT JOIN warehouse w ON w.id = sc.warehouse_id AND w.deleted = 0
+        WHERE sc.deleted = 0
+        <if test="warehouseId != null">
+            AND sc.warehouse_id = #{warehouseId}
+        </if>
+        <if test="status != null">
+            AND sc.status = #{status}
+        </if>
+        ORDER BY sc.created_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countByPage" resultType="long">
+        SELECT COUNT(*) FROM stock_check
+        WHERE deleted = 0
+        <if test="warehouseId != null">
+            AND warehouse_id = #{warehouseId}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+    </select>
 
 </mapper>

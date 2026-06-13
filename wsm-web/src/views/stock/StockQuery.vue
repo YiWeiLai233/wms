@@ -122,6 +122,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { adjustStock, queryStock } from '@/api/stock'
@@ -134,6 +135,7 @@ import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import PageHeader from '@/components/PageHeader.vue'
 
+const route = useRoute()
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<StockItem>(queryStock)
 
 const warehouses = ref<Warehouse[]>([])
@@ -168,6 +170,12 @@ const inboundRules: FormRules = {
 
 onMounted(async () => {
   await Promise.all([loadWarehouses(), searchProducts('')])
+  // 从 URL 参数预填仓库筛选
+  const queryWarehouseId = route.query.warehouseId
+  if (queryWarehouseId) {
+    searchParams.warehouseId = Number(queryWarehouseId)
+    handleSearch()
+  }
 })
 
 async function loadWarehouses() {

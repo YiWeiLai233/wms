@@ -1,7 +1,9 @@
 package com.yiweilai.wms.stock.controller;
 
+import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
 import com.yiweilai.wms.stock.dto.StockCheckCreateDTO;
+import com.yiweilai.wms.stock.dto.StockCheckQueryDTO;
 import com.yiweilai.wms.stock.dto.StockCheckSubmitDTO;
 import com.yiweilai.wms.stock.service.StockCheckService;
 import com.yiweilai.wms.stock.vo.StockCheckVO;
@@ -18,6 +20,14 @@ import org.springframework.web.bind.annotation.*;
 public class StockCheckController {
 
     private final StockCheckService stockCheckService;
+
+    /**
+     * 分页查询盘点单
+     */
+    @GetMapping
+    public Result<PageResult<StockCheckVO>> list(StockCheckQueryDTO query) {
+        return Result.success(stockCheckService.findByPage(query));
+    }
 
     /**
      * 创建盘点单

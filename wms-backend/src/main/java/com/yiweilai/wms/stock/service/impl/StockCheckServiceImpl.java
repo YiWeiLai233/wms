@@ -1,8 +1,10 @@
 package com.yiweilai.wms.stock.service.impl;
 
+import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.stock.dto.StockCheckCreateDTO;
+import com.yiweilai.wms.stock.dto.StockCheckQueryDTO;
 import com.yiweilai.wms.stock.dto.StockCheckSubmitDTO;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockCheck;
@@ -67,22 +69,13 @@ public class StockCheckServiceImpl implements StockCheckService {
 
     @Override
     public StockCheckVO getById(Long id) {
-        StockCheck check = checkMapper.findById(id);
-        if (check == null) {
+        StockCheckVO vo = checkMapper.findById(id);
+        if (vo == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "盘点单不存在");
         }
 
-        StockCheckVO vo = new StockCheckVO();
-        BeanUtils.copyProperties(check, vo);
-
-        // 查询盘点明细
-        List<StockCheckItemVO> items = checkItemMapper.findByCheckId(id).stream()
-                .map(item -> {
-                    StockCheckItemVO itemVO = new StockCheckItemVO();
-                    BeanUtils.copyProperties(item, itemVO);
-                    return itemVO;
-                })
-                .collect(Collectors.toList());
+        // 查询盘点明细（含SKU编码和名称）
+        List<StockCheckItemVO> items = checkItemMapper.findVOByCheckId(id);
         vo.setItems(items);
 
         return vo;
@@ -91,7 +84,7 @@ public class StockCheckServiceImpl implements StockCheckService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submit(StockCheckSubmitDTO dto) {
-        StockCheck check = checkMapper.findById(dto.getCheckId());
+        StockCheckVO check = checkMapper.findById(dto.getCheckId());
         if (check == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "盘点单不存在");
         }
@@ -141,5 +134,17 @@ public class StockCheckServiceImpl implements StockCheckService {
 
         // 更新盘点状态为已完成
         checkMapper.updateStatus(dto.getCheckId(), 2);
+    }
+
+    @Override
+    public PageResult<StockCheckVO> findByPage(StockCheckQueryDTO query) {
+        int page = query.getPage() == null ? 1 : query.getPage();
+        int size = query.getSize() == null ? 10 : query.getSize();
+        int offset = (page - 1) * size;
+
+        List<StockCheckVO> list = checkMapper.findByPage(query.getWarehouseId(), query.getStatus(), offset, size);
+        long total = checkMapper.countByPage(query.getWarehouseId(), query.getStatus());
+
+        return new PageResult<>(total, list, page, size);
     }
 }

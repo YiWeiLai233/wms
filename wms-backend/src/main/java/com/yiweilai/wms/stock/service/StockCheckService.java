@@ -1,6 +1,8 @@
 package com.yiweilai.wms.stock.service;
 
+import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.stock.dto.StockCheckCreateDTO;
+import com.yiweilai.wms.stock.dto.StockCheckQueryDTO;
 import com.yiweilai.wms.stock.dto.StockCheckSubmitDTO;
 import com.yiweilai.wms.stock.vo.StockCheckVO;
 
@@ -23,4 +25,9 @@ public interface StockCheckService {
      * 提交盘点结果
      */
     void submit(StockCheckSubmitDTO dto);
+
+    /**
+     * 分页查询盘点单
+     */
+    PageResult<StockCheckVO> findByPage(StockCheckQueryDTO query);
 }

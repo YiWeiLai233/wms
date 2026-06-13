@@ -43,8 +43,19 @@
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
+            <el-dropdown trigger="click" @command="(cmd: string) => handleDropdown(cmd, row)">
+              <el-button type="primary" link icon="Search">
+                查看 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="stock" icon="Box">库存明细</el-dropdown-item>
+                  <el-dropdown-item command="shelves" icon="Grid">货架管理</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-button type="primary" link icon="Edit" @click="openDialog(row)">编辑</el-button>
             <el-popconfirm title="确定删除该仓库吗？" @confirm="handleDelete(row.id)">
               <template #reference>
@@ -100,13 +111,17 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { getWarehouseList, createWarehouse, updateWarehouse, deleteWarehouse } from '@/api/warehouse'
 import type { Warehouse } from '@/api/warehouse'
 import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import PageHeader from '@/components/PageHeader.vue'
+
+const router = useRouter()
 
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<Warehouse>(getWarehouseList)
 
@@ -154,6 +169,14 @@ async function handleSubmit() {
     // 错误已由拦截器处理
   } finally {
     submitting.value = false
+  }
+}
+
+function handleDropdown(command: string, row: Warehouse) {
+  if (command === 'stock') {
+    router.push({ path: '/stock/query', query: { warehouseId: row.id, warehouseName: row.name } })
+  } else if (command === 'shelves') {
+    router.push({ path: '/warehouse/shelves', query: { warehouseId: row.id } })
   }
 }
 

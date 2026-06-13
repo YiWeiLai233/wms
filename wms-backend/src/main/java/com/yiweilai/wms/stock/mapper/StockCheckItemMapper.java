@@ -1,6 +1,7 @@
 package com.yiweilai.wms.stock.mapper;
 
 import com.yiweilai.wms.stock.entity.StockCheckItem;
+import com.yiweilai.wms.stock.vo.StockCheckItemVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -16,6 +17,11 @@ public interface StockCheckItemMapper {
      * 根据盘点单ID查询明细
      */
     List<StockCheckItem> findByCheckId(@Param("checkId") Long checkId);
+
+    /**
+     * 根据盘点单ID查询明细（含SKU编码和名称）
+     */
+    List<StockCheckItemVO> findVOByCheckId(@Param("checkId") Long checkId);
 
     /**
      * 根据ID查询

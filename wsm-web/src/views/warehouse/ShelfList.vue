@@ -78,12 +78,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getWarehouseList, getShelfList, createShelf, updateShelf, deleteShelf } from '@/api/warehouse'
 import type { Warehouse, WarehouseShelf } from '@/api/warehouse'
 import PageHeader from '@/components/PageHeader.vue'
 
+const route = useRoute()
 const warehouses = ref<Warehouse[]>([])
 const selectedWarehouseId = ref<number>()
 const tableData = ref<WarehouseShelf[]>([])
@@ -112,10 +114,14 @@ const rules: FormRules = {
 onMounted(async () => {
   const res = await getWarehouseList({ page: 1, size: 100 })
   warehouses.value = res.data.list || []
-  if (warehouses.value.length > 0) {
+  // 从 URL 参数预选仓库
+  const queryWarehouseId = route.query.warehouseId
+  if (queryWarehouseId) {
+    selectedWarehouseId.value = Number(queryWarehouseId)
+  } else if (warehouses.value.length > 0) {
     selectedWarehouseId.value = warehouses.value[0].id
-    handleWarehouseChange()
   }
+  handleWarehouseChange()
 })
 
 async function handleWarehouseChange() {

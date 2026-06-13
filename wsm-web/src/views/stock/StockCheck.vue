@@ -16,9 +16,9 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchParams.status" placeholder="全部" clearable style="width: 120px">
-            <el-option label="待盘点" value="PENDING" />
-            <el-option label="盘点中" value="CHECKING" />
-            <el-option label="已完成" value="COMPLETED" />
+            <el-option label="待盘点" :value="0" />
+            <el-option label="盘点中" :value="1" />
+            <el-option label="已完成" :value="2" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -48,7 +48,7 @@
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
             <el-button
-              v-if="row.status === 'PENDING' || row.status === 'CHECKING'"
+              v-if="row.status === 0 || row.status === 1"
               type="success" link icon="EditPen"
               @click="openSubmitDialog(row)"
             >录入结果</el-button>
@@ -177,17 +177,17 @@ import { formatDateTime } from '@/utils/format'
 import PageHeader from '@/components/PageHeader.vue'
 
 // 盘点状态映射
-const CHECK_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  PENDING: { label: '待盘点', color: 'warning' },
-  CHECKING: { label: '盘点中', color: '' },
-  COMPLETED: { label: '已完成', color: 'success' },
+const CHECK_STATUS_MAP: Record<number, { label: string; color: string }> = {
+  0: { label: '待盘点', color: 'warning' },
+  1: { label: '盘点中', color: 'primary' },
+  2: { label: '已完成', color: 'success' },
 }
 
 const warehouses = ref<Warehouse[]>([])
 const tableData = ref<StockCheck[]>([])
 const loading = ref(false)
 const pagination = reactive({ page: 1, size: 10, total: 0 })
-const searchParams = reactive({ warehouseId: undefined as number | undefined, status: '' })
+const searchParams = reactive({ warehouseId: undefined as number | undefined, status: undefined as number | undefined })
 
 // 创建盘点单
 const createDialogVisible = ref(false)
