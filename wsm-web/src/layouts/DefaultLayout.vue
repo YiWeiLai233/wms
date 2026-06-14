@@ -98,6 +98,9 @@
       </el-main>
     </el-container>
   </el-container>
+
+  <!-- 全局 AI 浮动聊天窗口 -->
+  <AiFloatingChat />
 </template>
 
 <script setup lang="ts">
@@ -107,6 +110,7 @@ import { ElMessageBox } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 import { MENU_LIST } from '@/utils/constants'
+import AiFloatingChat from '@/components/AiFloatingChat.vue'
 
 const route = useRoute()
 const router = useRouter()
