@@ -9,14 +9,14 @@ def retrieve(question: str, limit: int = 5) -> list[dict]:
     vector = embed_texts([question])[0]
     client = get_client()
     settings = get_settings()
-    results = client.search(
+    response = client.query_points(
         collection_name=settings.qdrant_collection,
-        query_vector=vector,
+        query=vector,
         limit=limit,
         with_payload=True,
     )
     sources: list[dict] = []
-    for item in results:
+    for item in response.points:
         payload = item.payload or {}
         sources.append(
             {

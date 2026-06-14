@@ -46,6 +46,10 @@
             <div class="message-bubble">
               <div class="message-content">{{ message.content }}</div>
 
+              <div v-if="message.role === 'assistant' && parsedMetadata(message).needConfirm" class="confirm-block">
+                当前请求需要确认，第二阶段不会执行写操作。
+              </div>
+
               <div v-if="message.role === 'assistant' && parsedMetadata(message).toolCalls.length" class="meta-block">
                 <div class="meta-title">工具调用</div>
                 <el-tag
@@ -107,6 +111,7 @@ type LocalMessage = AiMessage & {
 interface MessageMetadata {
   sources: AiSource[]
   toolCalls: AiToolCall[]
+  needConfirm: boolean
 }
 
 const conversations = ref<AiConversation[]>([])
@@ -118,15 +123,16 @@ const conversationLoading = ref(false)
 const messageScrollbar = ref<ScrollbarInstance>()
 
 function parsedMetadata(message: LocalMessage): MessageMetadata {
-  if (!message.metadata) return { sources: [], toolCalls: [] }
+  if (!message.metadata) return { sources: [], toolCalls: [], needConfirm: false }
   try {
     const data = JSON.parse(message.metadata)
     return {
       sources: Array.isArray(data.sources) ? data.sources : [],
       toolCalls: Array.isArray(data.toolCalls) ? data.toolCalls : [],
+      needConfirm: data.needConfirm === true,
     }
   } catch {
-    return { sources: [], toolCalls: [] }
+    return { sources: [], toolCalls: [], needConfirm: false }
   }
 }
 
@@ -367,6 +373,16 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.confirm-block {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 13px;
 }
 
 .meta-title {

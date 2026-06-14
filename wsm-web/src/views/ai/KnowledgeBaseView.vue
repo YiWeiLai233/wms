@@ -22,6 +22,30 @@
       </el-upload>
     </div>
 
+    <!-- 处理日志 -->
+    <div v-if="processingDocs.length > 0" class="card log-card">
+      <div class="flex items-center mb-2">
+        <el-icon class="mr-1 text-blue-500"><Loading /></el-icon>
+        <span class="font-semibold text-sm">处理日志</span>
+      </div>
+      <div class="log-container">
+        <div v-for="doc in processingDocs" :key="doc.id" class="log-item">
+          <span class="log-time">{{ formatDateTime(doc.createdAt) }}</span>
+          <el-tag :type="statusType(doc.status)" size="small" class="mx-2">{{ statusLabel(doc.status) }}</el-tag>
+          <span class="log-title">{{ doc.title }}</span>
+          <span v-if="doc.status === 'PROCESSING'" class="log-spinner">
+            <el-icon class="is-loading"><Loading /></el-icon>
+          </span>
+          <span v-if="doc.status === 'SUCCESS'" class="log-success">
+            ✓ 已完成，共 {{ doc.chunkCount }} 个分块
+          </span>
+          <span v-if="doc.status === 'FAILED'" class="log-error">
+            ✗ {{ doc.errorMessage || '处理失败' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <el-table :data="documents" v-loading="loading" stripe border>
         <el-table-column prop="id" label="ID" width="70" />
@@ -56,10 +80,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { Loading, UploadFilled } from '@element-plus/icons-vue'
 import {
   deleteKnowledge,
   getKnowledgeList,
@@ -72,6 +96,11 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const documents = ref<AiKnowledgeDocument[]>([])
 const loading = ref(false)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+const processingDocs = computed(() =>
+  documents.value.filter((d) => d.status === 'PROCESSING' || d.status === 'PENDING')
+)
 
 async function fetchList() {
   loading.value = true
@@ -96,7 +125,8 @@ async function handleUpload(options: UploadRequestOptions) {
     await uploadKnowledge(options.file as File)
     ElMessage.success('文档已上传，正在处理')
     options.onSuccess?.({})
-    fetchList()
+    await fetchList()
+    startPolling()
   } catch (error) {
     options.onError?.(error as Error)
   }
@@ -105,7 +135,26 @@ async function handleUpload(options: UploadRequestOptions) {
 async function handleRebuild(id: number) {
   await rebuildKnowledge(id)
   ElMessage.success('已提交重建')
-  fetchList()
+  await fetchList()
+  startPolling()
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(async () => {
+    await fetchList()
+    if (processingDocs.value.length === 0) {
+      stopPolling()
+      ElMessage.success('知识库处理完成')
+    }
+  }, 3000)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
 }
 
 async function handleDelete(id: number) {
@@ -134,11 +183,59 @@ function statusType(status: string) {
   return map[status] || 'info'
 }
 
-onMounted(fetchList)
+onMounted(async () => {
+  await fetchList()
+  if (processingDocs.value.length > 0) {
+    startPolling()
+  }
+})
+
+onUnmounted(stopPolling)
 </script>
 
 <style scoped lang="scss">
 .upload-card {
   margin-bottom: 16px;
+}
+.log-card {
+  margin-bottom: 16px;
+  background: #fafafa;
+}
+.log-container {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+.log-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+  &:last-child {
+    border-bottom: none;
+  }
+}
+.log-time {
+  color: #999;
+  font-size: 12px;
+  min-width: 150px;
+}
+.log-title {
+  color: #333;
+  flex: 1;
+}
+.log-spinner {
+  color: #e6a23c;
+  margin-left: 8px;
+}
+.log-success {
+  color: #67c23a;
+  margin-left: 8px;
+  font-size: 12px;
+}
+.log-error {
+  color: #f56c6c;
+  margin-left: 8px;
+  font-size: 12px;
 }
 </style>

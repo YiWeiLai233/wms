@@ -3,6 +3,7 @@ package com.yiweilai.wms.ai.service;
 import com.yiweilai.wms.ai.client.AiServiceClient;
 import com.yiweilai.wms.ai.dto.AiKnowledgeIngestRequest;
 import com.yiweilai.wms.ai.entity.AiKnowledgeDocument;
+import com.yiweilai.wms.ai.mapper.AiKnowledgeChunkMapper;
 import com.yiweilai.wms.ai.mapper.AiKnowledgeDocumentMapper;
 import com.yiweilai.wms.ai.service.impl.AiKnowledgeServiceImpl;
 import com.yiweilai.wms.file.service.FileService;
@@ -24,6 +25,7 @@ class AiKnowledgeServiceImplTest {
         FileService fileService = mock(FileService.class);
         AiKnowledgeDocumentMapper documentMapper = mock(AiKnowledgeDocumentMapper.class);
         AiServiceClient aiServiceClient = mock(AiServiceClient.class);
+        AiKnowledgeChunkMapper chunkMapper = mock(AiKnowledgeChunkMapper.class);
 
         FileVO file = new FileVO();
         file.setId(12L);
@@ -38,7 +40,7 @@ class AiKnowledgeServiceImplTest {
             return 1;
         });
 
-        AiKnowledgeServiceImpl service = new AiKnowledgeServiceImpl(fileService, documentMapper, aiServiceClient);
+        AiKnowledgeServiceImpl service = new AiKnowledgeServiceImpl(fileService, documentMapper, aiServiceClient, chunkMapper);
         MockMultipartFile upload = new MockMultipartFile("file", "入库流程.docx", file.getFileType(), "hello".getBytes());
 
         AiKnowledgeDocument document = service.upload(5L, upload);

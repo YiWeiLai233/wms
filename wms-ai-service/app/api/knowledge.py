@@ -42,10 +42,16 @@ def ingest(request: IngestRequest, x_ai_service_token: str = Header(default=""))
             chunks=chunks,
             vectors=vectors,
         )
-        callback_ingestion(request.documentId, "SUCCESS", stored_chunks, None)
+        try:
+            callback_ingestion(request.documentId, "SUCCESS", stored_chunks, None)
+        except Exception as cb_exc:
+            print(f"[WARN] 回调成功状态失败: {cb_exc}")
         return {"status": "SUCCESS"}
     except Exception as exc:
-        callback_ingestion(request.documentId, "FAILED", [], str(exc))
+        try:
+            callback_ingestion(request.documentId, "FAILED", [], str(exc))
+        except Exception as cb_exc:
+            print(f"[WARN] 回调失败状态失败: {cb_exc}")
         return {"status": "FAILED", "error": str(exc)}
 
 
@@ -59,6 +65,9 @@ def delete(document_id: int, x_ai_service_token: str = Header(default="")) -> di
 def resolve_upload_path(file_path: str) -> Path:
     settings = get_settings()
     clean_path = file_path.lstrip("/\\")
+    # 如果 filePath 不包含 uploads/ 前缀，自动加上
+    if not clean_path.startswith("uploads/") and not clean_path.startswith("uploads\\"):
+        clean_path = f"uploads/{clean_path}"
     return Path(settings.wms_upload_root) / clean_path
 
 
@@ -78,12 +87,13 @@ def callback_ingestion(document_id: int, status: str, chunks: list[dict], error:
             for chunk in chunks
         ],
     }
-    requests.post(
+    resp = requests.post(
         url,
         json=payload,
         headers={"X-AI-Service-Token": settings.ai_service_token},
-        timeout=20,
-    ).raise_for_status()
+        timeout=60,
+    )
+    resp.raise_for_status()
 
 
 @router.get("/preview-answer")

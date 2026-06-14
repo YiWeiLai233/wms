@@ -14,6 +14,7 @@ import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.file.service.FileService;
 import com.yiweilai.wms.file.vo.FileVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +30,7 @@ public class AiKnowledgeServiceImpl implements AiKnowledgeService {
     private final AiServiceClient aiServiceClient;
     private final AiKnowledgeChunkMapper chunkMapper;
 
+    @Autowired
     public AiKnowledgeServiceImpl(FileService fileService,
                                   AiKnowledgeDocumentMapper documentMapper,
                                   AiServiceClient aiServiceClient,
@@ -37,12 +39,6 @@ public class AiKnowledgeServiceImpl implements AiKnowledgeService {
         this.documentMapper = documentMapper;
         this.aiServiceClient = aiServiceClient;
         this.chunkMapper = chunkMapper;
-    }
-
-    public AiKnowledgeServiceImpl(FileService fileService,
-                                  AiKnowledgeDocumentMapper documentMapper,
-                                  AiServiceClient aiServiceClient) {
-        this(fileService, documentMapper, aiServiceClient, null);
     }
 
     @Override

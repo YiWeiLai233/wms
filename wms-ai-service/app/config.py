@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "wms_knowledge"
-    vector_size: int = 384
+    vector_size: int = 512
 
     wms_backend_url: str = "http://localhost:8080"
     wms_upload_root: str = "./uploads"
