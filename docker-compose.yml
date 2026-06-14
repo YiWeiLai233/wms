@@ -1,0 +1,33 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: wms-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  wms-ai-service:
+    build:
+      context: ./wms-ai-service
+    container_name: wms-ai-service
+    ports:
+      - "8010:8010"
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      WMS_BACKEND_URL: http://host.docker.internal:8080
+      WMS_UPLOAD_ROOT: /app/uploads
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-ChangeMeAiServiceToken}
+      LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
+    volumes:
+      - ./wms-backend/uploads:/app/uploads
+    depends_on:
+      - qdrant
+
+volumes:
+  qdrant_data:

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.ai.mapper.AiKnowledgeChunkMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.ai.entity.AiKnowledgeChunk">
+        <id column="id" property="id"/>
+        <result column="document_id" property="documentId"/>
+        <result column="chunk_index" property="chunkIndex"/>
+        <result column="content" property="content"/>
+        <result column="vector_id" property="vectorId"/>
+        <result column="metadata" property="metadata"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_knowledge_chunk (document_id, chunk_index, content, vector_id, metadata)
+        VALUES (#{documentId}, #{chunkIndex}, #{content}, #{vectorId}, #{metadata})
+    </insert>
+
+    <select id="findByDocumentId" resultMap="BaseResultMap">
+        SELECT id, document_id, chunk_index, content, vector_id, metadata, created_at
+        FROM ai_knowledge_chunk
+        WHERE document_id = #{documentId}
+        ORDER BY chunk_index ASC
+    </select>
+
+    <delete id="deleteByDocumentId">
+        DELETE FROM ai_knowledge_chunk
+        WHERE document_id = #{documentId}
+    </delete>
+</mapper>

@@ -19,6 +19,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/dashboard/DashboardView.vue'),
         meta: { title: '仪表盘', icon: 'Odometer' },
       },
+      // 智能助手
+      {
+        path: 'ai/assistant',
+        name: 'AiAssistant',
+        component: () => import('@/views/ai/AiAssistantView.vue'),
+        meta: { title: 'AI 助手', icon: 'ChatDotRound' },
+      },
+      {
+        path: 'ai/knowledge',
+        name: 'KnowledgeBase',
+        component: () => import('@/views/ai/KnowledgeBaseView.vue'),
+        meta: { title: '知识库管理', icon: 'Collection' },
+      },
       // 仓库管理
       {
         path: 'warehouse/list',

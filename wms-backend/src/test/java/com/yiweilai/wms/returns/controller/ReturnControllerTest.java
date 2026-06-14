@@ -82,5 +82,15 @@ class ReturnControllerTest {
         public void confirm(Long returnId) {
             confirmedReturnId = returnId;
         }
+
+        @Override
+        public void cancel(Long returnId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void cancelByOrderId(Long orderId) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,6 +35,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
+    @Value("${ai.service.token:}")
+    private String aiServiceToken;
+
     /** 不需要认证的路径 */
     private static final List<String> WHITE_LIST = List.of(
             "/api/health",
@@ -56,6 +60,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 白名单和跨域预检放行
         if (isWhiteListed(path) || HttpMethod.OPTIONS.matches(request.getMethod())) {
             filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (isAiServicePath(path)) {
+            authenticateAiService(request, response, filterChain);
             return;
         }
 
@@ -100,6 +109,33 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private boolean isWhiteListed(String path) {
         return WHITE_LIST.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
+    }
+
+    private boolean isAiServicePath(String path) {
+        return pathMatcher.match("/api/ai/internal/**", path)
+                || pathMatcher.match("/api/ai/tools/**", path);
+    }
+
+    private void authenticateAiService(HttpServletRequest request,
+                                       HttpServletResponse response,
+                                       FilterChain filterChain) throws IOException, ServletException {
+        String token = request.getHeader("X-AI-Service-Token");
+        if (!StringUtils.hasText(aiServiceToken) || !aiServiceToken.equals(token)) {
+            writeUnauthorized(response, "AI服务认证失败");
+            return;
+        }
+
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                        "wms-ai-service",
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_AI_SERVICE")));
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        request.setAttribute("userId", 0L);
+        request.setAttribute("username", "wms-ai-service");
+        request.setAttribute("roles", List.of("AI_SERVICE"));
+        filterChain.doFilter(request, response);
     }
 
     private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {

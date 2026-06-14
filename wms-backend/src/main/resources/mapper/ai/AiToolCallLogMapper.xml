@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.ai.mapper.AiToolCallLogMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_tool_call_log
+            (user_id, conversation_id, message_id, tool_name, request_params, response_data, status, error_message)
+        VALUES
+            (#{userId}, #{conversationId}, #{messageId}, #{toolName},
+             #{requestParams}, #{responseData}, #{status}, #{errorMessage})
+    </insert>
+</mapper>

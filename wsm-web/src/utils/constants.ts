@@ -63,6 +63,14 @@ export interface MenuItem {
 export const MENU_LIST: MenuItem[] = [
   { title: '仪表盘', icon: 'Odometer', path: '/dashboard' },
   {
+    title: '智能助手',
+    icon: 'ChatDotRound',
+    children: [
+      { title: 'AI 助手', path: '/ai/assistant' },
+      { title: '知识库管理', path: '/ai/knowledge' },
+    ],
+  },
+  {
     title: '仓库管理',
     icon: 'House',
     children: [

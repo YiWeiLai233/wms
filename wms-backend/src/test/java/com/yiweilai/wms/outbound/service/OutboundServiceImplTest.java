@@ -14,6 +14,8 @@ import com.yiweilai.wms.order.mapper.SalesOrderItemMapper;
 import com.yiweilai.wms.order.mapper.SalesOrderMapper;
 import com.yiweilai.wms.product.mapper.ProductBarcodeMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.returns.mapper.ReturnOrderItemMapper;
+import com.yiweilai.wms.returns.mapper.ReturnOrderMapper;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
 import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
@@ -69,6 +71,12 @@ class OutboundServiceImplTest {
     @Mock
     private ExpressFeeTemplateMapper feeTemplateMapper;
 
+    @Mock
+    private ReturnOrderMapper returnOrderMapper;
+
+    @Mock
+    private ReturnOrderItemMapper returnOrderItemMapper;
+
     private OutboundServiceImpl service;
 
     @BeforeEach
@@ -84,7 +92,9 @@ class OutboundServiceImplTest {
                 stockLogMapper,
                 shelfMapper,
                 feeStepMapper,
-                feeTemplateMapper);
+                feeTemplateMapper,
+                returnOrderMapper,
+                returnOrderItemMapper);
     }
 
     @Test
