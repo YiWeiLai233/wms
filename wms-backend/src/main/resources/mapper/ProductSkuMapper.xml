@@ -70,17 +70,18 @@
         FROM product_sku s
         INNER JOIN product p ON s.product_id = p.id AND p.deleted = 0
         LEFT JOIN (
-            SELECT sku_id,
-                   SUM(quantity) AS available_qty,
-                   SUM(locked_qty) AS locked_qty,
-                   SUM(defective_qty) AS defective_qty,
-                   SUM(quantity + locked_qty + defective_qty) AS total_qty
-            FROM stock
-            WHERE deleted = 0
+            SELECT st.sku_id,
+                   SUM(st.quantity) AS available_qty,
+                   SUM(st.locked_qty) AS locked_qty,
+                   SUM(st.defective_qty) AS defective_qty,
+                   SUM(st.quantity + st.locked_qty + st.defective_qty) AS total_qty
+            FROM stock st
+            INNER JOIN warehouse w ON st.warehouse_id = w.id AND w.deleted = 0 AND w.warehouse_type = 'NORMAL'
+            WHERE st.deleted = 0
             <if test="warehouseId != null">
-                AND warehouse_id = #{warehouseId}
+                AND st.warehouse_id = #{warehouseId}
             </if>
-            GROUP BY sku_id
+            GROUP BY st.sku_id
         ) inv ON inv.sku_id = s.id
         WHERE s.deleted = 0
         <if test="keyword != null and keyword != ''">

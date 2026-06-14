@@ -45,6 +45,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/warehouse/ShelfList.vue'),
         meta: { title: '货架管理', icon: 'Box' },
       },
+      {
+        path: 'warehouse/special',
+        name: 'SpecialWarehouse',
+        component: () => import('@/views/warehouse/SpecialWarehouseView.vue'),
+        meta: { title: '特殊仓库管理', icon: 'Warning' },
+      },
       // 商品管理
       {
         path: 'product/list',

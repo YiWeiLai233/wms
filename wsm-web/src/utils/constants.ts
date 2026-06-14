@@ -76,6 +76,7 @@ export const MENU_LIST: MenuItem[] = [
     children: [
       { title: '仓库管理', path: '/warehouse/list' },
       { title: '货架管理', path: '/warehouse/shelves' },
+      { title: '特殊仓库管理', path: '/warehouse/special' },
     ],
   },
   {

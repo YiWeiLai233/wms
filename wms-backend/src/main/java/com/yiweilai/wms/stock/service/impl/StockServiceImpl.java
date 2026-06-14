@@ -13,6 +13,8 @@ import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
 import com.yiweilai.wms.stock.service.StockService;
 import com.yiweilai.wms.stock.vo.StockVO;
+import com.yiweilai.wms.warehouse.entity.Warehouse;
+import com.yiweilai.wms.warehouse.mapper.WarehouseMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -32,6 +34,7 @@ public class StockServiceImpl implements StockService {
 
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final WarehouseMapper warehouseMapper;
 
     @Override
     public PageResult<StockVO> findByPage(StockQueryDTO query) {
@@ -92,6 +95,110 @@ public class StockServiceImpl implements StockService {
                     dto.getWarehouseId(),
                     beforeQty, dto.getQuantity(), afterQty, dto.getRemark());
         }
+    }
+
+    @Override
+    public List<StockVO> findByWarehouseType(String warehouseType, String skuCode, String skuName) {
+        List<Stock> stocks = stockMapper.findByWarehouseType(warehouseType, skuCode, skuName);
+        return stocks.stream().map(this::convertToVO).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmSellable(Long stockId, Long targetWarehouseId) {
+        Stock stock = stockMapper.findById(stockId);
+        if (stock == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库存记录不存在");
+        }
+        int qty = stock.getQuantity();
+        if (qty <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "无可售库存");
+        }
+
+        // 从次品仓扣减
+        stockMapper.deductQuantity(stockId, qty);
+
+        // 增加到目标普通仓
+        Stock targetStock = stockMapper.findBySkuAndWarehouse(stock.getSkuId(), targetWarehouseId);
+        if (targetStock == null) {
+            targetStock = new Stock();
+            targetStock.setSkuId(stock.getSkuId());
+            targetStock.setWarehouseId(targetWarehouseId);
+            targetStock.setQuantity(qty);
+            targetStock.setLockedQty(0);
+            targetStock.setDefectiveQty(0);
+            stockMapper.insert(targetStock);
+        } else {
+            stockMapper.addQuantity(targetStock.getId(), qty);
+        }
+
+        // 写流水
+        writeLog("TRANSFER", "SELLABLE_" + stockId, stock.getSkuId(), stock.getWarehouseId(),
+                qty, -qty, 0, "确认可售，转出次品仓");
+        writeLog("TRANSFER", "SELLABLE_" + stockId, stock.getSkuId(), targetWarehouseId,
+                targetStock.getQuantity() - qty, qty, targetStock.getQuantity(), "可售商品入库");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmDispose(Long stockId) {
+        Stock stock = stockMapper.findById(stockId);
+        if (stock == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库存记录不存在");
+        }
+        int qty = stock.getQuantity();
+        if (qty <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "无报废库存");
+        }
+
+        // 从报废仓扣减
+        stockMapper.deductQuantity(stockId, qty);
+
+        // 写流水
+        writeLog("DISPOSE", "DISPOSE_" + stockId, stock.getSkuId(), stock.getWarehouseId(),
+                qty, -qty, 0, "确认报废处置");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmScrap(Long stockId) {
+        Stock stock = stockMapper.findById(stockId);
+        if (stock == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库存记录不存在");
+        }
+        int qty = stock.getQuantity();
+        if (qty <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "无可转移库存");
+        }
+
+        // 查找报废仓
+        Warehouse scrapWarehouse = warehouseMapper.findByType("SCRAP");
+        if (scrapWarehouse == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置报废仓");
+        }
+
+        // 从次品仓扣减
+        stockMapper.deductQuantity(stockId, qty);
+
+        // 增加到报废仓
+        Stock targetStock = stockMapper.findBySkuAndWarehouse(stock.getSkuId(), scrapWarehouse.getId());
+        if (targetStock == null) {
+            targetStock = new Stock();
+            targetStock.setSkuId(stock.getSkuId());
+            targetStock.setWarehouseId(scrapWarehouse.getId());
+            targetStock.setQuantity(qty);
+            targetStock.setLockedQty(0);
+            targetStock.setDefectiveQty(0);
+            stockMapper.insert(targetStock);
+        } else {
+            stockMapper.addQuantity(targetStock.getId(), qty);
+        }
+
+        // 写流水
+        writeLog("TRANSFER", "SCRAP_" + stockId, stock.getSkuId(), stock.getWarehouseId(),
+                qty, -qty, 0, "次品转报废仓");
+        writeLog("TRANSFER", "SCRAP_" + stockId, stock.getSkuId(), scrapWarehouse.getId(),
+                targetStock.getQuantity() - qty, qty, targetStock.getQuantity(), "报废入库");
     }
 
     private void writeLog(String bizType, String bizNo, Long skuId, Long warehouseId,

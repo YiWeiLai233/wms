@@ -79,4 +79,17 @@ public interface StockMapper {
      */
     int releaseQuantity(@Param("id") Long id,
                         @Param("quantity") Integer quantity);
+
+    /**
+     * 按仓库类型查询库存（关联 warehouse 表）
+     */
+    List<Stock> findByWarehouseType(@Param("warehouseType") String warehouseType,
+                                    @Param("skuCode") String skuCode,
+                                    @Param("skuName") String skuName);
+
+    /**
+     * 扣减库存（可扣减次品库存）
+     */
+    int deductDefectiveQuantity(@Param("id") Long id,
+                                @Param("quantity") Integer quantity);
 }

@@ -107,3 +107,23 @@ export function getStockCheckDetail(id: number) {
 export function submitStockCheck(data: { checkId: number; items: { itemId: number; actualQty: number }[] }) {
   return request.post<any, ApiResponse<void>>('/stock-checks/submit', data)
 }
+
+// 查询特殊仓库库存（次品仓/报废仓）
+export function getSpecialStock(type: string, params?: { skuCode?: string; skuName?: string }) {
+  return request.get<any, ApiResponse<StockItem[]>>('/stocks/special', { params: { type, ...params } })
+}
+
+// 确认可售（次品仓→普通仓）
+export function confirmSellable(stockId: number, targetWarehouseId: number) {
+  return request.post<any, ApiResponse<void>>(`/stocks/confirm-sellable?stockId=${stockId}&targetWarehouseId=${targetWarehouseId}`)
+}
+
+// 确认报废处置（报废仓→移除）
+export function confirmDispose(stockId: number) {
+  return request.post<any, ApiResponse<void>>(`/stocks/confirm-dispose?stockId=${stockId}`)
+}
+
+// 确认转入报废仓（次品仓→报废仓）
+export function confirmScrap(stockId: number) {
+  return request.post<any, ApiResponse<void>>(`/stocks/confirm-scrap?stockId=${stockId}`)
+}
