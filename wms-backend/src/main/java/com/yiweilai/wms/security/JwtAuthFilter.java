@@ -63,7 +63,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (isAiServicePath(path)) {
+        if (isAiServicePath(request)) {
             authenticateAiService(request, response, filterChain);
             return;
         }
@@ -111,9 +111,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         return WHITE_LIST.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
-    private boolean isAiServicePath(String path) {
+    private boolean isAiServicePath(HttpServletRequest request) {
+        String path = request.getRequestURI();
         return pathMatcher.match("/api/ai/internal/**", path)
-                || pathMatcher.match("/api/ai/tools/**", path);
+                || pathMatcher.match("/api/ai/tools/**", path)
+                || (HttpMethod.POST.matches(request.getMethod())
+                && pathMatcher.match("/api/ai/actions/pending", path));
     }
 
     private void authenticateAiService(HttpServletRequest request,

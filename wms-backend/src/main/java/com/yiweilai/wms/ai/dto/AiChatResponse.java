@@ -1,5 +1,6 @@
 package com.yiweilai.wms.ai.dto;
 
+import com.yiweilai.wms.ai.dto.action.AiPendingActionVO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,4 +27,6 @@ public class AiChatResponse {
 
     @Builder.Default
     private List<AiToolCallDTO> toolCalls = new ArrayList<>();
+
+    private AiPendingActionVO pendingAction;
 }

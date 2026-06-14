@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.ai.mapper.AiPendingActionMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.ai.entity.AiPendingAction">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="conversation_id" property="conversationId"/>
+        <result column="action_type" property="actionType"/>
+        <result column="action_name" property="actionName"/>
+        <result column="request_params" property="requestParams"/>
+        <result column="summary" property="summary"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="status" property="status"/>
+        <result column="expire_at" property="expireAt"/>
+        <result column="confirmed_at" property="confirmedAt"/>
+        <result column="executed_at" property="executedAt"/>
+        <result column="result_data" property="resultData"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, conversation_id, action_type, action_name, request_params, summary,
+        risk_level, status, expire_at, confirmed_at, executed_at, result_data, error_message,
+        created_at, updated_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_pending_action
+            (user_id, conversation_id, action_type, action_name, request_params, summary, risk_level, status, expire_at)
+        VALUES
+            (#{userId}, #{conversationId}, #{actionType}, #{actionName}, #{requestParams}, #{summary},
+             #{riskLevel}, #{status}, #{expireAt})
+    </insert>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM ai_pending_action
+        WHERE id = #{id}
+    </select>
+
+    <select id="findPendingByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM ai_pending_action
+        WHERE user_id = #{userId}
+          AND status = 'PENDING'
+          AND expire_at > NOW()
+        ORDER BY id DESC
+    </select>
+
+    <update id="markConfirmed">
+        UPDATE ai_pending_action
+        SET status = 'CONFIRMED', confirmed_at = NOW()
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <update id="markExecuted">
+        UPDATE ai_pending_action
+        SET status = 'EXECUTED', executed_at = NOW(), result_data = #{resultData}, error_message = NULL
+        WHERE id = #{id}
+    </update>
+
+    <update id="markCancelled">
+        UPDATE ai_pending_action
+        SET status = 'CANCELLED'
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <update id="markExpired">
+        UPDATE ai_pending_action
+        SET status = 'EXPIRED'
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <update id="markFailed">
+        UPDATE ai_pending_action
+        SET status = 'FAILED', error_message = #{errorMessage}
+        WHERE id = #{id}
+    </update>
+</mapper>

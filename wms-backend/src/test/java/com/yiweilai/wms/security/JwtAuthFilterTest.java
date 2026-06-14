@@ -54,4 +54,32 @@ class JwtAuthFilterTest {
         assertThat(response.getStatus()).isNotEqualTo(401);
         assertThat(filterChain.getRequest()).isSameAs(request);
     }
+
+    @Test
+    void aiServiceTokenAuthenticatesOnlyPendingActionCreation() throws Exception {
+        JwtUtils jwtUtils = new JwtUtils();
+        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper());
+        ReflectionTestUtils.setField(filter, "aiServiceToken", "secret-ai-token");
+
+        MockHttpServletRequest createRequest = new MockHttpServletRequest("POST", "/api/ai/actions/pending");
+        createRequest.addHeader("X-AI-Service-Token", "secret-ai-token");
+        MockHttpServletResponse createResponse = new MockHttpServletResponse();
+        MockFilterChain createChain = new MockFilterChain();
+
+        filter.doFilterInternal(createRequest, createResponse, createChain);
+
+        assertThat(createResponse.getStatus()).isNotEqualTo(401);
+        assertThat(createChain.getRequest()).isSameAs(createRequest);
+        assertThat(createRequest.getAttribute("username")).isEqualTo("wms-ai-service");
+
+        SecurityContextHolder.clearContext();
+
+        MockHttpServletRequest confirmRequest = new MockHttpServletRequest("POST", "/api/ai/actions/1001/confirm");
+        confirmRequest.addHeader("X-AI-Service-Token", "secret-ai-token");
+        MockHttpServletResponse confirmResponse = new MockHttpServletResponse();
+
+        filter.doFilterInternal(confirmRequest, confirmResponse, new MockFilterChain());
+
+        assertThat(confirmResponse.getStatus()).isEqualTo(401);
+    }
 }

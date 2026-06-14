@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS ai_pending_action (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'Pending action ID',
+    user_id BIGINT NOT NULL COMMENT 'User ID',
+    conversation_id BIGINT DEFAULT NULL COMMENT 'AI conversation ID',
+    action_type VARCHAR(100) NOT NULL COMMENT 'Action type',
+    action_name VARCHAR(100) NOT NULL COMMENT 'Action display name',
+    request_params JSON NOT NULL COMMENT 'Pending execution parameters',
+    summary TEXT DEFAULT NULL COMMENT 'Action summary',
+    risk_level VARCHAR(30) NOT NULL DEFAULT 'MEDIUM' COMMENT 'LOW/MEDIUM/HIGH',
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/CONFIRMED/EXECUTED/CANCELLED/FAILED/EXPIRED',
+    expire_at DATETIME NOT NULL COMMENT 'Expiration time',
+    confirmed_at DATETIME DEFAULT NULL COMMENT 'Confirmed time',
+    executed_at DATETIME DEFAULT NULL COMMENT 'Executed time',
+    result_data JSON DEFAULT NULL COMMENT 'Execution result',
+    error_message TEXT DEFAULT NULL COMMENT 'Error message',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
+    KEY idx_user_id (user_id),
+    KEY idx_conversation_id (conversation_id),
+    KEY idx_status (status),
+    KEY idx_action_type (action_type),
+    KEY idx_expire_at (expire_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI pending action';

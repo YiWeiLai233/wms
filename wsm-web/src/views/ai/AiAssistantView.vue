@@ -47,8 +47,16 @@
               <div class="message-content">{{ message.content }}</div>
 
               <div v-if="message.role === 'assistant' && parsedMetadata(message).needConfirm" class="confirm-block">
-                当前请求需要确认，第二阶段不会执行写操作。
+                当前请求需要确认，确认前不会执行写操作。
               </div>
+
+              <AiActionConfirmCard
+                v-if="message.role === 'assistant' && parsedMetadata(message).pendingAction?.status === 'PENDING'"
+                :action="parsedMetadata(message).pendingAction!"
+                :loading="actionProcessing"
+                @confirm="confirmPendingAction"
+                @cancel="cancelPendingAction"
+              />
 
               <div v-if="message.role === 'assistant' && parsedMetadata(message).toolCalls.length" class="meta-block">
                 <div class="meta-title">工具调用</div>
@@ -96,12 +104,15 @@ import { nextTick, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ScrollbarInstance } from 'element-plus'
 import {
+  cancelAiAction,
+  confirmAiAction,
   deleteAiConversation,
   getAiConversations,
   getAiMessages,
   sendAiMessage,
 } from '@/api/ai'
-import type { AiConversation, AiMessage, AiSource, AiToolCall } from '@/api/ai'
+import type { AiActionExecuteResult, AiConversation, AiMessage, AiPendingAction, AiSource, AiToolCall } from '@/api/ai'
+import AiActionConfirmCard from '@/components/ai/AiActionConfirmCard.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
 type LocalMessage = AiMessage & {
@@ -112,6 +123,7 @@ interface MessageMetadata {
   sources: AiSource[]
   toolCalls: AiToolCall[]
   needConfirm: boolean
+  pendingAction?: AiPendingAction
 }
 
 const conversations = ref<AiConversation[]>([])
@@ -120,6 +132,7 @@ const currentConversationId = ref<number>()
 const inputText = ref('')
 const sending = ref(false)
 const conversationLoading = ref(false)
+const actionProcessing = ref(false)
 const messageScrollbar = ref<ScrollbarInstance>()
 
 function parsedMetadata(message: LocalMessage): MessageMetadata {
@@ -130,6 +143,7 @@ function parsedMetadata(message: LocalMessage): MessageMetadata {
       sources: Array.isArray(data.sources) ? data.sources : [],
       toolCalls: Array.isArray(data.toolCalls) ? data.toolCalls : [],
       needConfirm: data.needConfirm === true,
+      pendingAction: data.pendingAction,
     }
   } catch {
     return { sources: [], toolCalls: [], needConfirm: false }
@@ -207,6 +221,7 @@ async function sendMessage() {
         sources: res.data.sources || [],
         toolCalls: res.data.toolCalls || [],
         needConfirm: res.data.needConfirm,
+        pendingAction: res.data.pendingAction,
       }),
       createdAt: new Date().toISOString(),
     })
@@ -217,6 +232,84 @@ async function sendMessage() {
   } finally {
     sending.value = false
   }
+}
+
+async function confirmPendingAction(action: AiPendingAction) {
+  if (actionProcessing.value) return
+  if (action.riskLevel === 'HIGH') {
+    try {
+      await ElMessageBox.confirm('该操作为高风险操作，确认后会修改业务数据。确定执行吗？', '高风险确认', {
+        type: 'error',
+        confirmButtonText: '确认执行高风险操作',
+        cancelButtonText: '取消',
+      })
+    } catch {
+      return
+    }
+  }
+
+  actionProcessing.value = true
+  try {
+    const res = await confirmAiAction(action.actionId)
+    updatePendingAction(action.actionId, 'EXECUTED', res.data)
+    appendAssistantNotice(formatActionResult(res.data))
+    ElMessage.success('操作已执行')
+  } finally {
+    actionProcessing.value = false
+  }
+}
+
+async function cancelPendingAction(action: AiPendingAction) {
+  if (actionProcessing.value) return
+  actionProcessing.value = true
+  try {
+    await cancelAiAction(action.actionId)
+    updatePendingAction(action.actionId, 'CANCELLED')
+    appendAssistantNotice(`已取消待确认操作：${action.actionName}`)
+    ElMessage.success('操作已取消')
+  } finally {
+    actionProcessing.value = false
+  }
+}
+
+function updatePendingAction(actionId: number, status: AiPendingAction['status'], result?: AiActionExecuteResult) {
+  messages.value = messages.value.map((message) => {
+    if (!message.metadata) return message
+    try {
+      const data = JSON.parse(message.metadata)
+      if (data.pendingAction?.actionId !== actionId) return message
+      data.pendingAction = {
+        ...data.pendingAction,
+        status,
+        resultData: result?.resultData,
+        errorMessage: result?.errorMessage,
+      }
+      data.needConfirm = status === 'PENDING'
+      return { ...message, metadata: JSON.stringify(data) }
+    } catch {
+      return message
+    }
+  })
+}
+
+function appendAssistantNotice(content: string) {
+  messages.value.push({
+    localId: `assistant-action-${Date.now()}`,
+    id: Date.now(),
+    conversationId: currentConversationId.value || 0,
+    role: 'assistant',
+    content,
+    metadata: JSON.stringify({ sources: [], toolCalls: [], needConfirm: false }),
+    createdAt: new Date().toISOString(),
+  })
+  scrollToBottom()
+}
+
+function formatActionResult(result: AiActionExecuteResult) {
+  if (result.status === 'EXECUTED') {
+    return `操作已执行：${result.actionType}\n结果：${JSON.stringify(result.resultData || {}, null, 2)}`
+  }
+  return `操作执行失败：${result.errorMessage || '未知错误'}`
 }
 
 function scrollToBottom() {

@@ -77,14 +77,6 @@ def answer_question(request: dict) -> dict:
             "toolCalls": [],
         }
 
-    if _is_write_request(question):
-        return {
-            "answer": "该请求涉及写操作。第二阶段只支持只读查询，我不会执行库存、订单、出库或退货修改。后续第三阶段会进入确认机制。",
-            "needConfirm": True,
-            "sources": [],
-            "toolCalls": [],
-        }
-
     context = {
         "userId": request.get("userId"),
         "conversationId": request.get("conversationId"),
@@ -93,6 +85,9 @@ def answer_question(request: dict) -> dict:
 
     if _should_use_knowledge(question):
         return build_answer(question)
+
+    if _is_write_request(question):
+        return _build_pending_action_response(question, context)
 
     routed = _route_readonly_tool(question, context)
     if routed is not None:
@@ -132,6 +127,225 @@ def _route_readonly_tool(question: str, context: dict) -> dict | None:
         return _tool_response(result, tool_call, _format_order_list)
 
     return None
+
+
+def _build_pending_action_response(question: str, context: dict) -> dict:
+    plan = _build_write_action_plan(question, context)
+    if plan is None:
+        return {
+            "answer": "该请求涉及写操作。我没有拿到足够参数，因此不会创建待确认操作。请补充订单号、出库单号、退货单号、SKU、仓库或数量等必要信息。",
+            "needConfirm": True,
+            "sources": [],
+            "toolCalls": [],
+        }
+
+    pending_action, action_tool_call = wms_tools.create_pending_action(plan["payload"], context)
+    tool_calls = plan.get("toolCalls", []) + [action_tool_call]
+    if not pending_action:
+        return {
+            "answer": f"待确认操作创建失败：{action_tool_call.get('errorMessage') or '未知错误'}",
+            "needConfirm": True,
+            "sources": [],
+            "toolCalls": tool_calls,
+        }
+
+    answer = "\n".join(
+        [
+            f"已生成待确认操作：{pending_action.get('actionName')}",
+            f"风险等级：{pending_action.get('riskLevel')}",
+            pending_action.get("summary") or plan["payload"].get("summary") or "",
+            "请在确认卡片中核对参数后再执行。",
+        ]
+    ).strip()
+    return {
+        "answer": answer,
+        "needConfirm": True,
+        "sources": [],
+        "toolCalls": tool_calls,
+        "pendingAction": pending_action,
+    }
+
+
+def _build_write_action_plan(question: str, context: dict) -> dict | None:
+    if "确认出库" in question:
+        return _plan_confirm_outbound(question, context)
+    if "创建出库" in question or "生成出库" in question:
+        return _plan_create_outbound(question, context)
+    if "创建退货" in question:
+        return _plan_create_return(question, context)
+    if "质检" in question and "退货" in question:
+        return _plan_check_return(question, context)
+    if "确认退货" in question or ("退货" in question and "入库" in question):
+        return _plan_confirm_return(question, context)
+    if _contains_any(question, ("调整库存", "修改库存", "增加库存", "扣减库存", "减少库存")):
+        return _plan_adjust_stock(question, context)
+    return None
+
+
+def _plan_create_outbound(question: str, context: dict) -> dict | None:
+    order_no = _extract_prefixed_no(question, "SO")
+    if not order_no:
+        return None
+    order, tool_call = _load_order(order_no, context)
+    if not order:
+        return None
+    payload = {
+        "userId": context.get("userId"),
+        "conversationId": context.get("conversationId"),
+        "actionType": "create_outbound_order",
+        "actionName": "创建出库单",
+        "riskLevel": "MEDIUM",
+        "summary": f"将为订单 {order.get('orderNo')} 创建出库单。",
+        "requestParams": {"orderId": order.get("id"), "remark": "AI助手创建出库单"},
+    }
+    return {"payload": payload, "toolCalls": [tool_call]}
+
+
+def _plan_confirm_outbound(question: str, context: dict) -> dict | None:
+    outbound_no = _extract_prefixed_no(question, "OB")
+    if not outbound_no:
+        return None
+    result, tool_call = wms_tools.query_outbound_orders({"outboundNo": outbound_no, "page": 1, "size": 1}, context)
+    outbound = _first_page_item(result.get("data"))
+    if not outbound:
+        return None
+    params = {
+        "outboundId": outbound.get("id"),
+        "trackingNo": _extract_after_label(question, ("快递单号", "运单号")),
+        "expressCompanyId": _extract_numeric_after_label(question, ("快递公司ID", "快递公司")),
+        "shippingFee": _extract_money(question),
+    }
+    payload = {
+        "userId": context.get("userId"),
+        "conversationId": context.get("conversationId"),
+        "actionType": "confirm_outbound_order",
+        "actionName": "确认出库",
+        "riskLevel": "HIGH",
+        "summary": f"将确认出库单 {outbound.get('outboundNo')}，可能更新订单发货状态并触发后续退货流程。",
+        "requestParams": {key: value for key, value in params.items() if value is not None},
+    }
+    return {"payload": payload, "toolCalls": [tool_call]}
+
+
+def _plan_create_return(question: str, context: dict) -> dict | None:
+    order_no = _extract_prefixed_no(question, "SO")
+    if not order_no:
+        return None
+    order, tool_call = _load_order(order_no, context)
+    if not order:
+        return None
+    items = [
+        {"skuId": item.get("skuId"), "quantity": item.get("quantity")}
+        for item in order.get("items") or []
+        if item.get("skuId") and item.get("quantity")
+    ]
+    if not items:
+        return None
+    reason = _extract_after_words(question, ("原因是", "原因", "因为")) or "AI助手创建退货单"
+    payload = {
+        "userId": context.get("userId"),
+        "conversationId": context.get("conversationId"),
+        "actionType": "create_return_order",
+        "actionName": "创建退货单",
+        "riskLevel": "MEDIUM",
+        "summary": f"将为订单 {order.get('orderNo')} 创建退货单，原因：{reason}。",
+        "requestParams": {
+            "orderId": order.get("id"),
+            "reason": reason,
+            "remark": "AI助手创建退货单",
+            "items": items,
+        },
+    }
+    return {"payload": payload, "toolCalls": [tool_call]}
+
+
+def _plan_check_return(question: str, context: dict) -> dict | None:
+    return_no = _extract_prefixed_no(question, "RT")
+    if not return_no:
+        return None
+    detail, tool_calls = _load_return_detail(return_no, context)
+    if not detail:
+        return None
+    quality_status = _quality_status(question)
+    if not quality_status:
+        return None
+    items = [
+        {"itemId": item.get("id"), "qualityStatus": quality_status}
+        for item in detail.get("items") or []
+        if item.get("id")
+    ]
+    if not items:
+        return None
+    payload = {
+        "userId": context.get("userId"),
+        "conversationId": context.get("conversationId"),
+        "actionType": "check_return_order",
+        "actionName": "退货质检",
+        "riskLevel": "MEDIUM",
+        "summary": f"将把退货单 {detail.get('returnNo')} 的明细质检为 {quality_status}。",
+        "requestParams": {"returnId": detail.get("id"), "items": items},
+    }
+    return {"payload": payload, "toolCalls": tool_calls}
+
+
+def _plan_confirm_return(question: str, context: dict) -> dict | None:
+    return_no = _extract_prefixed_no(question, "RT")
+    if not return_no:
+        return None
+    detail, tool_calls = _load_return_detail(return_no, context)
+    if not detail:
+        return None
+    payload = {
+        "userId": context.get("userId"),
+        "conversationId": context.get("conversationId"),
+        "actionType": "confirm_return_order",
+        "actionName": "确认退货入库",
+        "riskLevel": "HIGH",
+        "summary": f"将确认退货单 {detail.get('returnNo')} 入库，可能改变库存和订单状态。",
+        "requestParams": {"returnId": detail.get("id")},
+    }
+    return {"payload": payload, "toolCalls": tool_calls}
+
+
+def _plan_adjust_stock(question: str, context: dict) -> dict | None:
+    sku_code = _extract_sku_code(question)
+    quantity = _extract_quantity_change(question)
+    if not sku_code or quantity is None:
+        return None
+    result, tool_call = wms_tools.query_sku_inventory({"skuCode": sku_code, "page": 1, "size": 10}, context)
+    stocks = (result.get("data") or {}).get("list") or []
+    if not stocks:
+        return None
+    stock = stocks[0]
+    payload = {
+        "userId": context.get("userId"),
+        "conversationId": context.get("conversationId"),
+        "actionType": "adjust_stock",
+        "actionName": "库存调整",
+        "riskLevel": "HIGH",
+        "summary": f"将调整 SKU {stock.get('skuCode')} 在仓库 {stock.get('warehouseName')} 的库存，调整数量 {quantity}。",
+        "requestParams": {
+            "skuId": stock.get("skuId"),
+            "warehouseId": stock.get("warehouseId"),
+            "quantityChange": quantity,
+            "remark": "AI助手库存调整",
+        },
+    }
+    return {"payload": payload, "toolCalls": [tool_call]}
+
+
+def _load_order(order_no: str, context: dict) -> tuple[dict | None, dict]:
+    result, tool_call = wms_tools.query_order_by_no(order_no, None, context)
+    return result.get("data"), tool_call
+
+
+def _load_return_detail(return_no: str, context: dict) -> tuple[dict | None, list[dict]]:
+    result, tool_call = wms_tools.query_return_orders({"returnNo": return_no, "page": 1, "size": 1}, context)
+    first = _first_page_item(result.get("data"))
+    if not first or not first.get("id"):
+        return None, [tool_call]
+    detail_result, detail_tool_call = wms_tools.query_return_orders({"id": first.get("id")}, context)
+    return detail_result.get("data"), [tool_call, detail_tool_call]
 
 
 def _tool_response(result: dict, tool_call: dict, formatter) -> dict:
@@ -202,7 +416,7 @@ def _order_search_payload(question: str) -> dict:
 
 def _stock_payload(question: str) -> dict:
     payload: dict[str, Any] = {"page": 1, "size": 10}
-    sku_code = _extract_prefixed_no(question, "SKU")
+    sku_code = _extract_sku_code(question)
     if sku_code:
         payload["skuCode"] = sku_code
     elif "低库存" in question:
@@ -310,6 +524,13 @@ def _format_return_result(data: Any) -> str:
     return _format_page(data, "退货单", ("returnNo", "orderNo", "status", "reason", "warehouseName"))
 
 
+def _first_page_item(data: Any) -> dict | None:
+    if not isinstance(data, dict):
+        return None
+    items = data.get("list") or []
+    return items[0] if items else None
+
+
 def _format_page(data: Any, label: str, fields: tuple[str, ...]) -> str:
     if not data:
         return f"未查询到匹配的{label}。"
@@ -337,6 +558,16 @@ def _extract_prefixed_no(text: str, prefix: str) -> str | None:
     return match.group(0) if match else None
 
 
+def _extract_sku_code(text: str) -> str | None:
+    label_match = re.search(r"\bSKU(?:\s+|[：:]\s*)([A-Za-z0-9_-]+)\b", text, flags=re.IGNORECASE)
+    if label_match:
+        return label_match.group(1)
+    prefixed = _extract_prefixed_no(text, "SKU")
+    if prefixed:
+        return prefixed
+    return _extract_after_label(text, ("SKU编码", "sku编码", "商品编码"))
+
+
 def _extract_phone(text: str) -> str | None:
     match = re.search(r"\b1[3-9]\d{9}\b|\b\d{7,}\b", text)
     return match.group(0) if match else None
@@ -348,6 +579,46 @@ def _extract_after_label(text: str, labels: tuple[str, ...]) -> str | None:
         if match:
             return match.group(1)
     return None
+
+
+def _extract_numeric_after_label(text: str, labels: tuple[str, ...]) -> int | None:
+    value = _extract_after_label(text, labels)
+    if value and value.isdigit():
+        return int(value)
+    return None
+
+
+def _extract_money(text: str) -> float | None:
+    match = re.search(r"(?:运费|快递费|费用)[：:\s]*(\d+(?:\.\d+)?)", text)
+    return float(match.group(1)) if match else None
+
+
+def _extract_after_words(text: str, labels: tuple[str, ...]) -> str | None:
+    for label in labels:
+        index = text.find(label)
+        if index >= 0:
+            value = text[index + len(label):].strip(" ：:,，。?")
+            return value or None
+    return None
+
+
+def _quality_status(text: str) -> str | None:
+    if "可售" in text:
+        return "SELLABLE"
+    if "次品" in text:
+        return "DEFECTIVE"
+    if "报废" in text:
+        return "SCRAPPED"
+    return None
+
+
+def _extract_quantity_change(text: str) -> int | None:
+    match = re.search(r"(增加|加|调增|减少|扣减|减|调减)\s*(\d+)", text)
+    if match:
+        value = int(match.group(2))
+        return -value if match.group(1) in ("减少", "扣减", "减", "调减") else value
+    match = re.search(r"库存.*?(-?\d+)", text)
+    return int(match.group(1)) if match else None
 
 
 def _extract_between(text: str, starts: tuple[str, ...], ends: tuple[str, ...]) -> str | None:

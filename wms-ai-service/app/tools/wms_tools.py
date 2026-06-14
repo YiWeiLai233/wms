@@ -44,6 +44,46 @@ def query_return_orders(payload: dict | None = None, context: dict | None = None
     return _post_tool("/api/ai/tools/return/query", payload or {}, context, "query_return_orders")
 
 
+def create_pending_action(payload: dict, context: dict | None = None) -> tuple[dict | None, dict]:
+    settings = get_settings()
+    request_payload = dict(payload)
+    context = context or {}
+    if request_payload.get("userId") is None:
+        request_payload["userId"] = context.get("userId")
+    if request_payload.get("conversationId") is None:
+        request_payload["conversationId"] = context.get("conversationId")
+
+    tool_name = "create_pending_action"
+    try:
+        response = requests.post(
+            f"{settings.wms_backend_url.rstrip('/')}/api/ai/actions/pending",
+            json=_clean_dict(request_payload),
+            headers=_headers(context),
+            timeout=10,
+        )
+        response.raise_for_status()
+        body = response.json()
+        if body.get("code") != 200:
+            error = body.get("message") or "WMS backend returned an error"
+            result = _failed_result(tool_name, error)
+            return None, _tool_call(tool_name, request_payload, result)
+        pending_action = body.get("data")
+        result = {
+            "toolName": tool_name,
+            "status": "SUCCESS",
+            "data": pending_action,
+            "summary": pending_action.get("summary") if isinstance(pending_action, dict) else None,
+            "errorMessage": None,
+        }
+        return pending_action, _tool_call(tool_name, request_payload, result)
+    except requests.RequestException as exc:
+        result = _failed_result(tool_name, str(exc))
+        return None, _tool_call(tool_name, request_payload, result)
+    except ValueError as exc:
+        result = _failed_result(tool_name, f"Invalid WMS backend response: {exc}")
+        return None, _tool_call(tool_name, request_payload, result)
+
+
 def _post_tool(endpoint: str, payload: dict, context: dict | None, tool_name: str) -> tuple[dict, dict]:
     settings = get_settings()
     url = f"{settings.wms_backend_url.rstrip('/')}{endpoint}"

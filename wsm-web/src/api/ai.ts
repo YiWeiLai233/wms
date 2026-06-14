@@ -22,6 +22,31 @@ export interface AiChatResponse {
   needConfirm: boolean
   sources: AiSource[]
   toolCalls: AiToolCall[]
+  pendingAction?: AiPendingAction
+}
+
+export interface AiPendingAction {
+  actionId: number
+  userId?: number
+  conversationId?: number
+  actionType: string
+  actionName: string
+  requestParams?: Record<string, any>
+  summary?: string
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
+  status: 'PENDING' | 'CONFIRMED' | 'EXECUTED' | 'CANCELLED' | 'FAILED' | 'EXPIRED'
+  needConfirm?: boolean
+  expireAt?: string
+  resultData?: Record<string, any>
+  errorMessage?: string
+}
+
+export interface AiActionExecuteResult {
+  actionId: number
+  actionType: string
+  status: string
+  resultData?: Record<string, any>
+  errorMessage?: string
 }
 
 export interface AiConversation {
@@ -95,4 +120,20 @@ export function deleteKnowledge(id: number) {
 
 export function rebuildKnowledge(id: number) {
   return request.post<any, ApiResponse<AiKnowledgeDocument>>(`/ai/knowledge/${id}/rebuild`)
+}
+
+export function getPendingAiActions() {
+  return request.get<any, ApiResponse<AiPendingAction[]>>('/ai/actions/pending')
+}
+
+export function getAiAction(actionId: number) {
+  return request.get<any, ApiResponse<AiPendingAction>>(`/ai/actions/${actionId}`)
+}
+
+export function confirmAiAction(actionId: number) {
+  return request.post<any, ApiResponse<AiActionExecuteResult>>(`/ai/actions/${actionId}/confirm`, {})
+}
+
+export function cancelAiAction(actionId: number) {
+  return request.post<any, ApiResponse<void>>(`/ai/actions/${actionId}/cancel`, {})
 }

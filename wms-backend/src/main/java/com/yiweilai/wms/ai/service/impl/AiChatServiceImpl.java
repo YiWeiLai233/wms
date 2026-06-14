@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -77,10 +78,12 @@ public class AiChatServiceImpl implements AiChatService {
         assistantMessage.setUserId(null);
         assistantMessage.setRole("assistant");
         assistantMessage.setContent(response.getAnswer());
-        assistantMessage.setMetadata(toJson(Map.of(
-                "needConfirm", response.getNeedConfirm(),
-                "sources", response.getSources() == null ? List.of() : response.getSources(),
-                "toolCalls", response.getToolCalls() == null ? List.of() : response.getToolCalls())));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("needConfirm", response.getNeedConfirm());
+        metadata.put("sources", response.getSources() == null ? List.of() : response.getSources());
+        metadata.put("toolCalls", response.getToolCalls() == null ? List.of() : response.getToolCalls());
+        metadata.put("pendingAction", response.getPendingAction());
+        assistantMessage.setMetadata(toJson(metadata));
         messageMapper.insert(assistantMessage);
 
         toolLogService.recordToolCalls(userId, conversation.getId(), assistantMessage.getId(), response.getToolCalls());
