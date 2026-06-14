@@ -10,11 +10,14 @@ import com.yiweilai.wms.file.service.FileService;
 import com.yiweilai.wms.file.vo.FileVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,5 +55,46 @@ class AiKnowledgeServiceImplTest {
                 Long.valueOf(33L).equals(request.getDocumentId())
                         && "/uploads/2026/06/14/abc.docx".equals(request.getFilePath())
                         && "入库流程.docx".equals(request.getFileName())));
+    }
+
+    @Test
+    void uploadDefersIngestionUntilTransactionCommitWhenSynchronizationIsActive() {
+        FileService fileService = mock(FileService.class);
+        AiKnowledgeDocumentMapper documentMapper = mock(AiKnowledgeDocumentMapper.class);
+        AiServiceClient aiServiceClient = mock(AiServiceClient.class);
+        AiKnowledgeChunkMapper chunkMapper = mock(AiKnowledgeChunkMapper.class);
+
+        FileVO file = new FileVO();
+        file.setId(12L);
+        file.setFileName("入库流程.docx");
+        file.setFilePath("/uploads/2026/06/14/abc.docx");
+        file.setFileType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        when(fileService.upload(any(), eq("AI_KNOWLEDGE"), eq(null))).thenReturn(file);
+        when(documentMapper.insert(any(AiKnowledgeDocument.class))).thenAnswer(invocation -> {
+            AiKnowledgeDocument document = invocation.getArgument(0);
+            document.setId(33L);
+            return 1;
+        });
+
+        AiKnowledgeServiceImpl service = new AiKnowledgeServiceImpl(fileService, documentMapper, aiServiceClient, chunkMapper);
+        MockMultipartFile upload = new MockMultipartFile("file", "入库流程.docx", file.getFileType(), "hello".getBytes());
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.upload(5L, upload);
+
+            verify(aiServiceClient, never()).ingestKnowledge(any());
+
+            for (TransactionSynchronization synchronization : TransactionSynchronizationManager.getSynchronizations()) {
+                synchronization.afterCommit();
+            }
+
+            verify(aiServiceClient).ingestKnowledge(org.mockito.ArgumentMatchers.argThat((AiKnowledgeIngestRequest request) ->
+                    Long.valueOf(33L).equals(request.getDocumentId())
+                            && "/uploads/2026/06/14/abc.docx".equals(request.getFilePath())
+                            && "入库流程.docx".equals(request.getFileName())));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 }

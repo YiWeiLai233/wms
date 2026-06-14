@@ -8,7 +8,8 @@ def chat_completion(system_prompt: str, question: str, context: str) -> str:
     if not settings.llm_api_key:
         return fallback_answer(context)
 
-    url = f"{settings.llm_base_url.rstrip('/')}/v1"
+    url = f"{settings.llm_base_url.rstrip('/')}/v1/chat/completions"
+
     payload = {
         "model": settings.llm_model,
         "messages": [

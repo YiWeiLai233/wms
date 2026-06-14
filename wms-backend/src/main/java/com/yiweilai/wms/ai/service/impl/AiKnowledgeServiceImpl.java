@@ -17,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -140,6 +142,20 @@ public class AiKnowledgeServiceImpl implements AiKnowledgeService {
     }
 
     private void requestIngestion(AiKnowledgeDocument document) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    doRequestIngestion(document);
+                }
+            });
+            return;
+        }
+
+        doRequestIngestion(document);
+    }
+
+    private void doRequestIngestion(AiKnowledgeDocument document) {
         try {
             aiServiceClient.ingestKnowledge(AiKnowledgeIngestRequest.builder()
                     .documentId(document.getId())

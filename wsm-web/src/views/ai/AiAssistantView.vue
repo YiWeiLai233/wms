@@ -88,7 +88,7 @@
             :rows="3"
             resize="none"
             placeholder="输入问题"
-            @keydown.ctrl.enter.prevent="sendMessage"
+            @keydown.enter.exact="handleComposerEnter"
           />
           <el-button type="primary" icon="Promotion" :loading="sending" :disabled="!inputText.trim()" @click="sendMessage">
             发送
@@ -232,6 +232,12 @@ async function sendMessage() {
   } finally {
     sending.value = false
   }
+}
+
+function handleComposerEnter(event: KeyboardEvent) {
+  if (event.isComposing) return
+  event.preventDefault()
+  sendMessage()
 }
 
 async function confirmPendingAction(action: AiPendingAction) {

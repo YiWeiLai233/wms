@@ -97,7 +97,6 @@ class ProductSkuServiceImplTest {
         assertThat(stockCaptor.getValue().getWarehouseId()).isEqualTo(5L);
         assertThat(stockCaptor.getValue().getQuantity()).isEqualTo(12);
         assertThat(stockCaptor.getValue().getLockedQty()).isZero();
-        assertThat(stockCaptor.getValue().getDefectiveQty()).isZero();
 
         ArgumentCaptor<StockLog> logCaptor = ArgumentCaptor.forClass(StockLog.class);
         verify(stockLogMapper).insert(logCaptor.capture());

@@ -42,17 +42,14 @@ def ingest(request: IngestRequest, x_ai_service_token: str = Header(default=""))
             chunks=chunks,
             vectors=vectors,
         )
-        try:
-            callback_ingestion(request.documentId, "SUCCESS", stored_chunks, None)
-        except Exception as cb_exc:
-            print(f"[WARN] 回调成功状态失败: {cb_exc}")
+        callback_ingestion(request.documentId, "SUCCESS", stored_chunks, None)
         return {"status": "SUCCESS"}
     except Exception as exc:
         try:
             callback_ingestion(request.documentId, "FAILED", [], str(exc))
         except Exception as cb_exc:
             print(f"[WARN] 回调失败状态失败: {cb_exc}")
-        return {"status": "FAILED", "error": str(exc)}
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.delete("/documents/{document_id}")
@@ -94,6 +91,14 @@ def callback_ingestion(document_id: int, status: str, chunks: list[dict], error:
         timeout=60,
     )
     resp.raise_for_status()
+    try:
+        data = resp.json()
+    except ValueError:
+        return
+    business_code = data.get("code") if isinstance(data, dict) else None
+    if business_code is not None and str(business_code) != "200":
+        message = data.get("message") or data.get("msg") or "unknown error"
+        raise RuntimeError(f"Backend callback rejected ingestion: {message}")
 
 
 @router.get("/preview-answer")
