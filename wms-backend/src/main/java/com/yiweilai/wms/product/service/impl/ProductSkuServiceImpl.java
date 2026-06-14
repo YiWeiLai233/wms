@@ -89,7 +89,6 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             BeanUtils.copyProperties(sku, vo);
             vo.setAvailableQty(defaultZero(sku.getAvailableQty()));
             vo.setLockedQty(defaultZero(sku.getLockedQty()));
-            vo.setDefectiveQty(defaultZero(sku.getDefectiveQty()));
             vo.setTotalQty(defaultZero(sku.getTotalQty()));
             vo.setQuantity(vo.getAvailableQty());
 
@@ -190,7 +189,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             stock.setWarehouseId(dto.getWarehouseId());
             stock.setQuantity(quantity);
             stock.setLockedQty(0);
-            stock.setDefectiveQty(0);
+//            stock.setDefectiveQty(0);
             stockMapper.insert(stock);
         } else {
             stockMapper.updateQuantity(stock.getId(), afterQty);
@@ -249,7 +248,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
         BeanUtils.copyProperties(sku, vo);
         vo.setAvailableQty(defaultZero(sku.getAvailableQty()));
         vo.setLockedQty(defaultZero(sku.getLockedQty()));
-        vo.setDefectiveQty(defaultZero(sku.getDefectiveQty()));
+//        vo.setDefectiveQty(defaultZero(sku.getDefectiveQty()));
         vo.setTotalQty(defaultZero(sku.getTotalQty()));
         vo.setQuantity(vo.getAvailableQty());
 

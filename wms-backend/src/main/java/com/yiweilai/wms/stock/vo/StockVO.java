@@ -40,10 +40,7 @@ public class StockVO {
     /** 锁定数量 */
     private Integer lockedQty;
 
-    /** 次品数量 */
-    private Integer defectiveQty;
-
-    /** 总数量（可用+锁定+次品） */
+    /** 总数量（可用+锁定） */
     private Integer totalQuantity;
 
     /** 创建时间 */

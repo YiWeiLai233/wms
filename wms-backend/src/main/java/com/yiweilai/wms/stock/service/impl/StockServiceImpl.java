@@ -72,7 +72,7 @@ public class StockServiceImpl implements StockService {
             stock.setWarehouseId(dto.getWarehouseId());
             stock.setQuantity(dto.getQuantity());
             stock.setLockedQty(0);
-            stock.setDefectiveQty(0);
+//            stock.setDefectiveQty(0);
             stockMapper.insert(stock);
 
             // 写流水
@@ -126,7 +126,7 @@ public class StockServiceImpl implements StockService {
             targetStock.setWarehouseId(targetWarehouseId);
             targetStock.setQuantity(qty);
             targetStock.setLockedQty(0);
-            targetStock.setDefectiveQty(0);
+//            targetStock.setDefectiveQty(0);
             stockMapper.insert(targetStock);
         } else {
             stockMapper.addQuantity(targetStock.getId(), qty);
@@ -188,7 +188,7 @@ public class StockServiceImpl implements StockService {
             targetStock.setWarehouseId(scrapWarehouse.getId());
             targetStock.setQuantity(qty);
             targetStock.setLockedQty(0);
-            targetStock.setDefectiveQty(0);
+//            targetStock.setDefectiveQty(0);
             stockMapper.insert(targetStock);
         } else {
             stockMapper.addQuantity(targetStock.getId(), qty);
@@ -223,7 +223,6 @@ public class StockServiceImpl implements StockService {
         int total = 0;
         if (stock.getQuantity() != null) total += stock.getQuantity();
         if (stock.getLockedQty() != null) total += stock.getLockedQty();
-        if (stock.getDefectiveQty() != null) total += stock.getDefectiveQty();
         vo.setTotalQuantity(total);
 
         return vo;

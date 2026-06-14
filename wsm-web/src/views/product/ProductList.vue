@@ -189,7 +189,6 @@
         <el-table-column prop="sizeValue" label="码数" width="80" align="center" />
         <el-table-column prop="availableQty" label="可用" width="80" align="center" />
         <el-table-column prop="lockedQty" label="锁定" width="80" align="center" />
-        <el-table-column prop="defectiveQty" label="次品" width="80" align="center" />
         <el-table-column prop="totalQty" label="总库存" width="80" align="center" />
       </el-table>
     </el-dialog>

@@ -41,7 +41,6 @@ export interface Sku {
   quantity: number
   availableQty: number
   lockedQty: number
-  defectiveQty: number
   totalQty: number
   initialQuantity?: number
   warehouseId?: number

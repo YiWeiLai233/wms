@@ -63,12 +63,6 @@ public interface StockMapper {
                     @Param("quantity") Integer quantity);
 
     /**
-     * 增加次品库存
-     */
-    int addDefectiveQuantity(@Param("id") Long id,
-                             @Param("quantity") Integer quantity);
-
-    /**
      * 锁定库存
      */
     int lockQuantity(@Param("id") Long id,
@@ -86,10 +80,4 @@ public interface StockMapper {
     List<Stock> findByWarehouseType(@Param("warehouseType") String warehouseType,
                                     @Param("skuCode") String skuCode,
                                     @Param("skuName") String skuName);
-
-    /**
-     * 扣减库存（可扣减次品库存）
-     */
-    int deductDefectiveQuantity(@Param("id") Long id,
-                                @Param("quantity") Integer quantity);
 }

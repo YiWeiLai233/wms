@@ -471,7 +471,7 @@ public class OutboundServiceImpl implements OutboundService {
             stock.setWarehouseId(warehouseId);
             stock.setQuantity(quantity);
             stock.setLockedQty(0);
-            stock.setDefectiveQty(0);
+//            stock.setDefectiveQty(0);
             stockMapper.insert(stock);
         }
 

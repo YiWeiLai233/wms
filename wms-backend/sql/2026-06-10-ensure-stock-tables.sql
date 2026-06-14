@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS stock (
     warehouse_id  BIGINT  NOT NULL COMMENT '仓库ID',
     quantity      INT     NOT NULL DEFAULT 0 COMMENT '可用数量',
     locked_qty    INT     NOT NULL DEFAULT 0 COMMENT '锁定数量',
-    defective_qty INT     NOT NULL DEFAULT 0 COMMENT '次品数量',
     deleted       TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

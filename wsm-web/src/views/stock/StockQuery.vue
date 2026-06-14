@@ -51,11 +51,6 @@
             <span class="text-orange-500">{{ row.lockedQty }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="defectiveQty" label="次品" width="80" align="center">
-          <template #default="{ row }">
-            <span class="text-gray-500">{{ row.defectiveQty }}</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="totalQuantity" label="总库存" width="90" align="center">
           <template #default="{ row }">
             <span class="font-bold">{{ row.totalQuantity }}</span>

@@ -489,7 +489,7 @@ def _format_order_list(data: Any) -> str:
 
 
 def _format_stock_result(data: Any) -> str:
-    return _format_page(data, "库存", ("skuCode", "skuName", "warehouseName", "quantity", "lockedQty", "defectiveQty"))
+    return _format_page(data, "库存", ("skuCode", "skuName", "warehouseName", "quantity", "lockedQty"))
 
 
 def _format_outbound_result(data: Any) -> str:

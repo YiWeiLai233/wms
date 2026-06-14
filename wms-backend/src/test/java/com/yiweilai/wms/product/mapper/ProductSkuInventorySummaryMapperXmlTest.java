@@ -23,14 +23,12 @@ class ProductSkuInventorySummaryMapperXmlTest {
                 .contains("FROM stock")
                 .contains("SUM(quantity) AS available_qty")
                 .contains("SUM(locked_qty) AS locked_qty")
-                .contains("SUM(defective_qty) AS defective_qty")
                 .contains("AS total_qty")
                 .contains("available_qty")
                 .contains("total_qty");
         assertThat(listVoSource)
                 .contains("availableQty")
                 .contains("lockedQty")
-                .contains("defectiveQty")
                 .contains("totalQty");
     }
 }

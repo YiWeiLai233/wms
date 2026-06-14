@@ -33,11 +33,6 @@
             <el-tag :type="row.quantity > 0 ? 'warning' : 'info'" size="small">{{ row.quantity }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="defectiveQty" label="次品数量" width="100" align="center">
-          <template #default="{ row }">
-            <span class="text-orange-500">{{ row.defectiveQty }}</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="updatedAt" label="更新时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>

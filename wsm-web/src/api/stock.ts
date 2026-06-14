@@ -12,7 +12,6 @@ export interface StockItem {
   warehouseName: string
   quantity: number
   lockedQty: number
-  defectiveQty: number
   totalQuantity: number
   createdAt: string
   updatedAt: string

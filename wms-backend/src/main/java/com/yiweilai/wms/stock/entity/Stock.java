@@ -35,9 +35,6 @@ public class Stock {
     /** 锁定数量 */
     private Integer lockedQty;
 
-    /** 次品数量 */
-    private Integer defectiveQty;
-
     /** 逻辑删除 */
     private Integer deleted;
 

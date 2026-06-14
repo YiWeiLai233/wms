@@ -19,7 +19,6 @@
         <result column="updated_at" property="updatedAt"/>
         <result column="available_qty" property="availableQty"/>
         <result column="locked_qty" property="lockedQty"/>
-        <result column="defective_qty" property="defectiveQty"/>
         <result column="total_qty" property="totalQty"/>
     </resultMap>
 
@@ -29,15 +28,13 @@
                s.status, s.created_at, s.updated_at,
                COALESCE(inv.available_qty, 0) AS available_qty,
                COALESCE(inv.locked_qty, 0) AS locked_qty,
-               COALESCE(inv.defective_qty, 0) AS defective_qty,
                COALESCE(inv.total_qty, 0) AS total_qty
         FROM product_sku s
         LEFT JOIN (
             SELECT sku_id,
                    SUM(quantity) AS available_qty,
                    SUM(locked_qty) AS locked_qty,
-                   SUM(defective_qty) AS defective_qty,
-                   SUM(quantity + locked_qty + defective_qty) AS total_qty
+                   SUM(quantity + locked_qty) AS total_qty
             FROM stock
             WHERE deleted = 0
             GROUP BY sku_id
@@ -65,7 +62,6 @@
                s.weight, s.volume, s.image, s.status, s.created_at, s.updated_at,
                COALESCE(inv.available_qty, 0) AS available_qty,
                COALESCE(inv.locked_qty, 0) AS locked_qty,
-               COALESCE(inv.defective_qty, 0) AS defective_qty,
                COALESCE(inv.total_qty, 0) AS total_qty
         FROM product_sku s
         INNER JOIN product p ON s.product_id = p.id AND p.deleted = 0
@@ -73,8 +69,7 @@
             SELECT st.sku_id,
                    SUM(st.quantity) AS available_qty,
                    SUM(st.locked_qty) AS locked_qty,
-                   SUM(st.defective_qty) AS defective_qty,
-                   SUM(st.quantity + st.locked_qty + st.defective_qty) AS total_qty
+                   SUM(st.quantity + st.locked_qty) AS total_qty
             FROM stock st
             INNER JOIN warehouse w ON st.warehouse_id = w.id AND w.deleted = 0 AND w.warehouse_type = 'NORMAL'
             WHERE st.deleted = 0

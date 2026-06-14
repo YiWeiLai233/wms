@@ -16,8 +16,7 @@ export interface StockReport {
   totalSkuCount: number
   totalQuantity: number
   totalLockedQty: number
-  totalDefectiveQty: number
-  warehouseStocks: { warehouseId: number; warehouseName: string; quantity: number; lockedQty: number; defectiveQty: number }[]
+  warehouseStocks: { warehouseId: number; warehouseName: string; quantity: number; lockedQty: number }[]
 }
 
 export interface OutboundReport {

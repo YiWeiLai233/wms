@@ -39,9 +39,6 @@ public class ProductSkuVO {
     /** 锁定库存 */
     private Integer lockedQty;
 
-    /** 次品库存 */
-    private Integer defectiveQty;
-
     /** 总库存 */
     private Integer totalQty;
 

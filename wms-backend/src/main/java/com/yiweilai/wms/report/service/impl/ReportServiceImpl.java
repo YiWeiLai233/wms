@@ -149,18 +149,11 @@ public class ReportServiceImpl implements ReportService {
                 Long.class);
         vo.setTotalLockedQty(totalLockedQty != null ? totalLockedQty : 0L);
 
-        // 总次品数量
-        Long totalDefectiveQty = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(defective_qty), 0) FROM stock WHERE deleted = 0",
-                Long.class);
-        vo.setTotalDefectiveQty(totalDefectiveQty != null ? totalDefectiveQty : 0L);
-
         // 各仓库库存分布
         List<StockReportVO.WarehouseStock> warehouseStocks = jdbcTemplate.query(
                 "SELECT s.warehouse_id, w.name as warehouse_name, " +
                 "COALESCE(SUM(s.quantity), 0) as quantity, " +
-                "COALESCE(SUM(s.locked_qty), 0) as locked_qty, " +
-                "COALESCE(SUM(s.defective_qty), 0) as defective_qty " +
+                "COALESCE(SUM(s.locked_qty), 0) as locked_qty " +
                 "FROM stock s " +
                 "LEFT JOIN warehouse w ON s.warehouse_id = w.id " +
                 "WHERE s.deleted = 0 " +
@@ -171,7 +164,6 @@ public class ReportServiceImpl implements ReportService {
                     ws.setWarehouseName(rs.getString("warehouse_name"));
                     ws.setQuantity(rs.getLong("quantity"));
                     ws.setLockedQty(rs.getLong("locked_qty"));
-                    ws.setDefectiveQty(rs.getLong("defective_qty"));
                     return ws;
                 });
         vo.setWarehouseStocks(warehouseStocks);

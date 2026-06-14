@@ -53,9 +53,6 @@ public class ProductSkuListVO {
     /** Locked inventory aggregated from stock. */
     private Integer lockedQty;
 
-    /** Defective inventory aggregated from stock. */
-    private Integer defectiveQty;
-
     /** Total inventory aggregated from stock. */
     private Integer totalQty;
 

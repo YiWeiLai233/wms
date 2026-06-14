@@ -13,7 +13,6 @@
         <result column="warehouse_name" property="warehouseName"/>
         <result column="quantity" property="quantity"/>
         <result column="locked_qty" property="lockedQty"/>
-        <result column="defective_qty" property="defectiveQty"/>
         <result column="deleted" property="deleted"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
@@ -24,7 +23,7 @@
                ps.sku_code AS sku_code, ps.name AS sku_name, ps.product_id,
                p.name AS product_name,
                s.warehouse_id, w.name AS warehouse_name,
-               s.quantity, s.locked_qty, s.defective_qty,
+               s.quantity, s.locked_qty,
                s.deleted, s.created_at, s.updated_at
         FROM stock s
         LEFT JOIN product_sku ps ON s.sku_id = ps.id AND ps.deleted = 0
@@ -59,14 +58,14 @@
     </select>
 
     <select id="findBySkuAndWarehouse" resultMap="BaseResultMap">
-        SELECT id, sku_id, warehouse_id, quantity, locked_qty, defective_qty,
+        SELECT id, sku_id, warehouse_id, quantity, locked_qty,
                deleted, created_at, updated_at
         FROM stock
         WHERE sku_id = #{skuId} AND warehouse_id = #{warehouseId} AND deleted = 0
     </select>
 
     <select id="findAvailableBySkuAndWarehouse" resultMap="BaseResultMap">
-        SELECT id, sku_id, warehouse_id, quantity, locked_qty, defective_qty,
+        SELECT id, sku_id, warehouse_id, quantity, locked_qty,
                deleted, created_at, updated_at
         FROM stock
         WHERE sku_id = #{skuId}
@@ -77,15 +76,15 @@
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, sku_id, warehouse_id, quantity, locked_qty, defective_qty,
+        SELECT id, sku_id, warehouse_id, quantity, locked_qty,
                deleted, created_at, updated_at
         FROM stock
         WHERE id = #{id} AND deleted = 0
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO stock (sku_id, warehouse_id, quantity, locked_qty, defective_qty)
-        VALUES (#{skuId}, #{warehouseId}, #{quantity}, #{lockedQty}, #{defectiveQty})
+        INSERT INTO stock (sku_id, warehouse_id, quantity, locked_qty)
+        VALUES (#{skuId}, #{warehouseId}, #{quantity}, #{lockedQty})
     </insert>
 
     <update id="updateQuantity">
@@ -101,12 +100,6 @@
     <update id="addQuantity">
         UPDATE stock
         SET quantity = quantity + #{quantity}
-        WHERE id = #{id} AND deleted = 0
-    </update>
-
-    <update id="addDefectiveQuantity">
-        UPDATE stock
-        SET defective_qty = defective_qty + #{quantity}
         WHERE id = #{id} AND deleted = 0
     </update>
 
@@ -127,13 +120,13 @@
                ps.sku_code AS sku_code, ps.name AS sku_name, ps.product_id,
                p.name AS product_name,
                s.warehouse_id, w.name AS warehouse_name,
-               s.quantity, s.locked_qty, s.defective_qty,
+               s.quantity, s.locked_qty,
                s.deleted, s.created_at, s.updated_at
         FROM stock s
         INNER JOIN warehouse w ON s.warehouse_id = w.id AND w.deleted = 0 AND w.warehouse_type = #{warehouseType}
         LEFT JOIN product_sku ps ON s.sku_id = ps.id AND ps.deleted = 0
         LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
-        WHERE s.deleted = 0 AND (s.quantity > 0 OR s.defective_qty > 0)
+        WHERE s.deleted = 0 AND s.quantity > 0
         <if test="skuCode != null and skuCode != ''">
             AND ps.sku_code LIKE CONCAT('%', #{skuCode}, '%')
         </if>
@@ -142,11 +135,5 @@
         </if>
         ORDER BY s.updated_at DESC
     </select>
-
-    <update id="deductDefectiveQuantity">
-        UPDATE stock
-        SET defective_qty = defective_qty - #{quantity}
-        WHERE id = #{id} AND deleted = 0 AND defective_qty >= #{quantity}
-    </update>
 
 </mapper>

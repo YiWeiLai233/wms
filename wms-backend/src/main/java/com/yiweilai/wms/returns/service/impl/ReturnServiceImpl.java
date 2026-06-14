@@ -238,26 +238,12 @@ public class ReturnServiceImpl implements ReturnService {
             stock = new Stock();
             stock.setSkuId(skuId);
             stock.setWarehouseId(warehouseId);
-            stock.setQuantity(0);
+            stock.setQuantity(quantity);
             stock.setLockedQty(0);
-            stock.setDefectiveQty(0);
-
-            if ("DEFECTIVE".equals(qualityStatus) || "SCRAPPED".equals(qualityStatus)) {
-                stock.setDefectiveQty(quantity);
-            } else {
-                stock.setQuantity(quantity);
-            }
-
             stockMapper.insert(stock);
         } else {
-            // 增加库存
-            if ("DEFECTIVE".equals(qualityStatus) || "SCRAPPED".equals(qualityStatus)) {
-                // 次品库存
-                stockMapper.addDefectiveQuantity(stock.getId(), quantity);
-            } else {
-                // 正常库存
-                stockMapper.addQuantity(stock.getId(), quantity);
-            }
+            // 增加库存（统一用 quantity，按仓库类型区分）
+            stockMapper.addQuantity(stock.getId(), quantity);
         }
 
         // 写库存流水

@@ -19,9 +19,6 @@ public class StockReportVO {
     /** 总锁定数量 */
     private Long totalLockedQty;
 
-    /** 总次品数量 */
-    private Long totalDefectiveQty;
-
     /** 各仓库库存分布 */
     private List<WarehouseStock> warehouseStocks;
 
@@ -34,6 +31,5 @@ public class StockReportVO {
         private String warehouseName;
         private Long quantity;
         private Long lockedQty;
-        private Long defectiveQty;
     }
 }
