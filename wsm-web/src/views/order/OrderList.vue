@@ -56,12 +56,21 @@
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="340" fixed="right">
+        <el-table-column label="操作" width="400" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
             <el-button v-if="row.orderStatus === 'WAIT_OUTBOUND'" type="success" link icon="TopRight" @click="createOutboundOrder(row)">
               创建出库单
             </el-button>
+            <el-popconfirm
+              v-if="row.orderStatus === 'WAIT_PAY' || row.orderStatus === 'WAIT_OUTBOUND'"
+              title="确定取消订单吗？将恢复已扣减的库存"
+              @confirm="handleCancelOrder(row)"
+            >
+              <template #reference>
+                <el-button type="danger" link icon="Close">取消订单</el-button>
+              </template>
+            </el-popconfirm>
             <el-button v-if="row.orderStatus === 'OUTBOUNDING'" type="primary" link icon="TopRight" @click="router.push({ path: '/outbound/list', query: { orderNo: row.orderNo } })">
               出库管理
             </el-button>
@@ -308,7 +317,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { getOrderDetail, getOrderList, importOrder } from '@/api/order'
+import { getOrderDetail, getOrderList, importOrder, updateOrderStatus } from '@/api/order'
 import type { Order } from '@/api/order'
 import { createOutbound } from '@/api/outbound'
 import { createReturn, cancelReturnByOrderId } from '@/api/returns'
@@ -630,6 +639,14 @@ async function viewDetail(row: Order) {
     const res = await getOrderDetail(row.id)
     detail.value = res.data
     detailVisible.value = true
+  } catch {}
+}
+
+async function handleCancelOrder(row: Order) {
+  try {
+    await updateOrderStatus(row.id, 'CANCELLED')
+    ElMessage.success('订单已取消')
+    fetchData()
   } catch {}
 }
 

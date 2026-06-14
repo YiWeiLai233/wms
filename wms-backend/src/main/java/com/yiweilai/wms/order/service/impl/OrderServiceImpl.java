@@ -113,7 +113,8 @@ public class OrderServiceImpl implements OrderService {
 
         orderMapper.insert(order);
 
-        // 创建订单明细并扣减库存
+        // 创建订单明细
+        boolean isBrushOrder = dto.getRemark() != null && dto.getRemark().contains("刷单");
         for (OrderImportDTO.OrderItemDTO itemDTO : dto.getItems()) {
             SalesOrderItem item = new SalesOrderItem();
             item.setOrderId(order.getId());
@@ -125,8 +126,10 @@ public class OrderServiceImpl implements OrderService {
             item.setTotalPrice(itemDTO.getUnitPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity())));
             orderItemMapper.insert(item);
 
-            // 订单导入时扣减库存
-            deductStock(itemDTO.getSkuId(), itemDTO.getQuantity(), orderNo, dto.getWarehouseId());
+            // 刷单订单不扣减真实库存
+            if (!isBrushOrder) {
+                deductStock(itemDTO.getSkuId(), itemDTO.getQuantity(), orderNo, dto.getWarehouseId());
+            }
         }
 
         return order.getId();
