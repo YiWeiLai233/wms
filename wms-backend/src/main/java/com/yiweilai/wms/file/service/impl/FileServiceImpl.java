@@ -16,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -51,18 +54,14 @@ public class FileServiceImpl implements FileService {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
         String newFilename = UUID.randomUUID().toString() + extension;
-        String relativePath = "/uploads/" + datePath + "/" + newFilename;
+        String relativePath = "/" + datePath + "/" + newFilename;
         String fullPath = uploadPath + relativePath;
 
-        // 创建目录
-        File dir = new File(fullPath).getParentFile();
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-
-        // 保存文件
+        // 创建目录并保存文件
         try {
-            file.transferTo(new File(fullPath));
+            Path targetPath = Paths.get(fullPath).toAbsolutePath().normalize();
+            Files.createDirectories(targetPath.getParent());
+            Files.write(targetPath, file.getBytes());
         } catch (IOException e) {
             log.error("文件上传失败", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "文件上传失败");
