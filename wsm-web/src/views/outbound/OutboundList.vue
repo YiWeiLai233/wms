@@ -53,8 +53,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" min-width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="(OUTBOUND_STATUS_MAP[row.status]?.color as any) || 'info'" size="small">
-              {{ row.status === 'WAIT_PICKING' && row.orderRemark?.includes('刷单') ? '刷单' : (OUTBOUND_STATUS_MAP[row.status]?.label || row.status) }}
+            <el-tag :type="getOutboundStatusType(row)" size="small">
+              {{ getOutboundStatusLabel(row) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -295,6 +295,18 @@ onMounted(async () => {
     companyList.value = res.data || []
   } catch {}
 })
+
+function getOutboundStatusType(row: any) {
+  if (row.status === 'WAIT_PICKING' && row.orderRemark?.includes('刷单')) return 'warning'
+  if (row.status === 'WAIT_PICKING' && row.orderRemark?.includes('换货')) return 'primary'
+  return OUTBOUND_STATUS_MAP[row.status]?.color || 'info'
+}
+
+function getOutboundStatusLabel(row: any) {
+  if (row.status === 'WAIT_PICKING' && row.orderRemark?.includes('刷单')) return '刷单'
+  if (row.status === 'WAIT_PICKING' && row.orderRemark?.includes('换货')) return '换货'
+  return OUTBOUND_STATUS_MAP[row.status]?.label || row.status
+}
 
 async function openDialog() {
   form.orderId = undefined
