@@ -113,16 +113,16 @@ export function getSpecialStock(type: string, params?: { skuCode?: string; skuNa
 }
 
 // 确认可售（次品仓→普通仓）
-export function confirmSellable(stockId: number, targetWarehouseId: number) {
-  return request.post<any, ApiResponse<void>>(`/stocks/confirm-sellable?stockId=${stockId}&targetWarehouseId=${targetWarehouseId}`)
+export function confirmSellable(stockId: number, targetWarehouseId: number, quantity: number) {
+  return request.post<any, ApiResponse<void>>(`/stocks/confirm-sellable?stockId=${stockId}&targetWarehouseId=${targetWarehouseId}&quantity=${quantity}`)
 }
 
 // 确认报废处置（报废仓→移除）
-export function confirmDispose(stockId: number) {
-  return request.post<any, ApiResponse<void>>(`/stocks/confirm-dispose?stockId=${stockId}`)
+export function confirmDispose(stockId: number, quantity: number) {
+  return request.post<any, ApiResponse<void>>(`/stocks/confirm-dispose?stockId=${stockId}&quantity=${quantity}`)
 }
 
 // 确认转入报废仓（次品仓→报废仓）
-export function confirmScrap(stockId: number) {
-  return request.post<any, ApiResponse<void>>(`/stocks/confirm-scrap?stockId=${stockId}`)
+export function confirmScrap(stockId: number, quantity: number) {
+  return request.post<any, ApiResponse<void>>(`/stocks/confirm-scrap?stockId=${stockId}&quantity=${quantity}`)
 }

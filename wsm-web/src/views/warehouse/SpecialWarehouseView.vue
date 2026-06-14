@@ -40,36 +40,15 @@
         <!-- 次品仓操作 -->
         <el-table-column v-if="activeTab === 'DEFECTIVE'" label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-popconfirm
-              title="确认可售？将转移到普通仓"
-              @confirm="openSellableDialog(row)"
-            >
-              <template #reference>
-                <el-button type="success" link icon="Check" :disabled="row.quantity <= 0">确认可售</el-button>
-              </template>
-            </el-popconfirm>
-            <el-popconfirm
-              title="确认转入报废仓？"
-              @confirm="handleScrap(row.id)"
-            >
-              <template #reference>
-                <el-button type="warning" link icon="Right" :disabled="row.quantity <= 0">转报废仓</el-button>
-              </template>
-            </el-popconfirm>
+            <el-button type="success" link icon="Check" :disabled="row.quantity <= 0" @click="openSellableDialog(row)">确认可售</el-button>
+            <el-button type="warning" link icon="Right" :disabled="row.quantity <= 0" @click="openScrapDialog(row)">转报废仓</el-button>
           </template>
         </el-table-column>
 
         <!-- 报废仓操作 -->
         <el-table-column v-if="activeTab === 'SCRAP'" label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-popconfirm
-              title="确认报废处置？此操作不可撤销"
-              @confirm="handleDispose(row.id)"
-            >
-              <template #reference>
-                <el-button type="danger" link icon="Delete" :disabled="row.quantity <= 0">确认报废</el-button>
-              </template>
-            </el-popconfirm>
+            <el-button type="danger" link icon="Delete" :disabled="row.quantity <= 0" @click="openDisposeDialog(row)">确认报废</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -77,14 +56,17 @@
       <el-empty v-if="!loading && stockList.length === 0" :description="activeTab === 'DEFECTIVE' ? '次品仓暂无库存' : '报废仓暂无库存'" />
     </div>
 
-    <!-- 选择目标仓库弹窗 -->
-    <el-dialog v-model="sellableDialogVisible" title="确认可售 - 选择目标仓库" width="420px" destroy-on-close>
+    <!-- 确认可售弹窗 -->
+    <el-dialog v-model="sellableDialogVisible" title="确认可售 - 转移到普通仓" width="450px" destroy-on-close>
       <el-form label-width="80px">
         <el-form-item label="商品">
           <span>{{ sellableTarget.skuName }} ({{ sellableTarget.skuCode }})</span>
         </el-form-item>
-        <el-form-item label="数量">
-          <span class="font-bold">{{ sellableTarget.quantity }}</span>
+        <el-form-item label="可转数量">
+          <span class="font-bold text-orange-500">{{ sellableTarget.maxQty }}</span>
+        </el-form-item>
+        <el-form-item label="转移数量" required>
+          <el-input-number v-model="sellableTarget.transferQty" :min="1" :max="sellableTarget.maxQty" style="width: 100%" />
         </el-form-item>
         <el-form-item label="目标仓库" required>
           <el-select v-model="sellableTarget.warehouseId" placeholder="选择普通仓" style="width: 100%">
@@ -95,6 +77,44 @@
       <template #footer>
         <el-button @click="sellableDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSellable">确认转移</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 转报废仓弹窗 -->
+    <el-dialog v-model="scrapDialogVisible" title="转入报废仓" width="420px" destroy-on-close>
+      <el-form label-width="80px">
+        <el-form-item label="商品">
+          <span>{{ scrapTarget.skuName }} ({{ scrapTarget.skuCode }})</span>
+        </el-form-item>
+        <el-form-item label="可转数量">
+          <span class="font-bold text-orange-500">{{ scrapTarget.maxQty }}</span>
+        </el-form-item>
+        <el-form-item label="转移数量" required>
+          <el-input-number v-model="scrapTarget.transferQty" :min="1" :max="scrapTarget.maxQty" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="scrapDialogVisible = false">取消</el-button>
+        <el-button type="warning" :loading="submitting" @click="handleScrap">确认转入报废仓</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 确认报废弹窗 -->
+    <el-dialog v-model="disposeDialogVisible" title="确认报废处置" width="420px" destroy-on-close>
+      <el-form label-width="80px">
+        <el-form-item label="商品">
+          <span>{{ disposeTarget.skuName }} ({{ disposeTarget.skuCode }})</span>
+        </el-form-item>
+        <el-form-item label="可报废数量">
+          <span class="font-bold text-red-500">{{ disposeTarget.maxQty }}</span>
+        </el-form-item>
+        <el-form-item label="报废数量" required>
+          <el-input-number v-model="disposeTarget.disposeQty" :min="1" :max="disposeTarget.maxQty" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="disposeDialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="submitting" @click="handleDispose">确认报废（不可撤销）</el-button>
       </template>
     </el-dialog>
   </div>
@@ -120,15 +140,38 @@ const searchParams = reactive({
   skuName: '',
 })
 
+// 确认可售
 const sellableDialogVisible = ref(false)
-const submitting = ref(false)
 const sellableTarget = reactive({
   stockId: 0,
   skuCode: '',
   skuName: '',
-  quantity: 0,
+  maxQty: 0,
+  transferQty: 1,
   warehouseId: undefined as number | undefined,
 })
+
+// 转报废仓
+const scrapDialogVisible = ref(false)
+const scrapTarget = reactive({
+  stockId: 0,
+  skuCode: '',
+  skuName: '',
+  maxQty: 0,
+  transferQty: 1,
+})
+
+// 确认报废
+const disposeDialogVisible = ref(false)
+const disposeTarget = reactive({
+  stockId: 0,
+  skuCode: '',
+  skuName: '',
+  maxQty: 0,
+  disposeQty: 1,
+})
+
+const submitting = ref(false)
 
 async function fetchData() {
   loading.value = true
@@ -156,11 +199,13 @@ function handleTabChange() {
   fetchData()
 }
 
+// 确认可售
 function openSellableDialog(row: StockItem) {
   sellableTarget.stockId = row.id
   sellableTarget.skuCode = row.skuCode
   sellableTarget.skuName = row.skuName
-  sellableTarget.quantity = row.quantity
+  sellableTarget.maxQty = row.quantity
+  sellableTarget.transferQty = row.quantity
   sellableTarget.warehouseId = undefined
   sellableDialogVisible.value = true
 }
@@ -172,7 +217,7 @@ async function handleSellable() {
   }
   submitting.value = true
   try {
-    await confirmSellable(sellableTarget.stockId, sellableTarget.warehouseId)
+    await confirmSellable(sellableTarget.stockId, sellableTarget.warehouseId, sellableTarget.transferQty)
     ElMessage.success('已转移到普通仓')
     sellableDialogVisible.value = false
     fetchData()
@@ -181,20 +226,48 @@ async function handleSellable() {
   }
 }
 
-async function handleScrap(stockId: number) {
-  try {
-    await confirmScrap(stockId)
-    ElMessage.success('已转入报废仓')
-    fetchData()
-  } catch {}
+// 转报废仓
+function openScrapDialog(row: StockItem) {
+  scrapTarget.stockId = row.id
+  scrapTarget.skuCode = row.skuCode
+  scrapTarget.skuName = row.skuName
+  scrapTarget.maxQty = row.quantity
+  scrapTarget.transferQty = row.quantity
+  scrapDialogVisible.value = true
 }
 
-async function handleDispose(stockId: number) {
+async function handleScrap() {
+  submitting.value = true
   try {
-    await confirmDispose(stockId)
-    ElMessage.success('已报废处置')
+    await confirmScrap(scrapTarget.stockId, scrapTarget.transferQty)
+    ElMessage.success('已转入报废仓')
+    scrapDialogVisible.value = false
     fetchData()
-  } catch {}
+  } catch {} finally {
+    submitting.value = false
+  }
+}
+
+// 确认报废
+function openDisposeDialog(row: StockItem) {
+  disposeTarget.stockId = row.id
+  disposeTarget.skuCode = row.skuCode
+  disposeTarget.skuName = row.skuName
+  disposeTarget.maxQty = row.quantity
+  disposeTarget.disposeQty = row.quantity
+  disposeDialogVisible.value = true
+}
+
+async function handleDispose() {
+  submitting.value = true
+  try {
+    await confirmDispose(disposeTarget.stockId, disposeTarget.disposeQty)
+    ElMessage.success('已报废处置')
+    disposeDialogVisible.value = false
+    fetchData()
+  } catch {} finally {
+    submitting.value = false
+  }
 }
 
 onMounted(async () => {

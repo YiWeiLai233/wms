@@ -199,7 +199,7 @@ public class ProductServiceImpl implements ProductService {
         stock.setWarehouseId(shelf.getWarehouseId());
         stock.setQuantity(quantity);
         stock.setLockedQty(0);
-        stock.setDefectiveQty(0);
+//        stock.setDefectiveQty(0);
         stockMapper.insert(stock);
 
         StockLog stockLog = new StockLog();
@@ -220,7 +220,7 @@ public class ProductServiceImpl implements ProductService {
         skuVO.setProductName(product.getName());
         skuVO.setAvailableQty(defaultZero(sku.getAvailableQty()));
         skuVO.setLockedQty(defaultZero(sku.getLockedQty()));
-        skuVO.setDefectiveQty(defaultZero(sku.getDefectiveQty()));
+//        skuVO.setDefectiveQty(defaultZero(sku.getDefectiveQty()));
         skuVO.setTotalQty(defaultZero(sku.getTotalQty()));
         skuVO.setQuantity(skuVO.getAvailableQty());
         return skuVO;

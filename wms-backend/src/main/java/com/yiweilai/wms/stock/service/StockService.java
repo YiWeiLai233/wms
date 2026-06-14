@@ -30,15 +30,15 @@ public interface StockService {
     /**
      * 确认可售（次品仓→普通仓）
      */
-    void confirmSellable(Long stockId, Long targetWarehouseId);
+    void confirmSellable(Long stockId, Long targetWarehouseId, Integer quantity);
 
     /**
      * 确认报废（报废仓→移除库存）
      */
-    void confirmDispose(Long stockId);
+    void confirmDispose(Long stockId, Integer quantity);
 
     /**
      * 确认转入报废仓（次品仓→报废仓）
      */
-    void confirmScrap(Long stockId);
+    void confirmScrap(Long stockId, Integer quantity);
 }

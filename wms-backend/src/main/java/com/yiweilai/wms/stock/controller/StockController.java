@@ -54,8 +54,8 @@ public class StockController {
      * 确认可售（次品仓→普通仓）
      */
     @PostMapping("/confirm-sellable")
-    public Result<Void> confirmSellable(@RequestParam Long stockId, @RequestParam Long targetWarehouseId) {
-        stockService.confirmSellable(stockId, targetWarehouseId);
+    public Result<Void> confirmSellable(@RequestParam Long stockId, @RequestParam Long targetWarehouseId, @RequestParam Integer quantity) {
+        stockService.confirmSellable(stockId, targetWarehouseId, quantity);
         return Result.success();
     }
 
@@ -63,8 +63,8 @@ public class StockController {
      * 确认报废处置（报废仓→移除）
      */
     @PostMapping("/confirm-dispose")
-    public Result<Void> confirmDispose(@RequestParam Long stockId) {
-        stockService.confirmDispose(stockId);
+    public Result<Void> confirmDispose(@RequestParam Long stockId, @RequestParam Integer quantity) {
+        stockService.confirmDispose(stockId, quantity);
         return Result.success();
     }
 
@@ -72,8 +72,8 @@ public class StockController {
      * 确认转入报废仓（次品仓→报废仓）
      */
     @PostMapping("/confirm-scrap")
-    public Result<Void> confirmScrap(@RequestParam Long stockId) {
-        stockService.confirmScrap(stockId);
+    public Result<Void> confirmScrap(@RequestParam Long stockId, @RequestParam Integer quantity) {
+        stockService.confirmScrap(stockId, quantity);
         return Result.success();
     }
 }
