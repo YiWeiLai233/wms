@@ -43,6 +43,18 @@ public class StockVO {
     /** 总数量（可用+锁定） */
     private Integer totalQuantity;
 
+    /** 库存预警状态：NORMAL/LOW_STOCK/OUT_OF_STOCK */
+    private String stockAlertStatus;
+
+    /** 库存预警状态名称 */
+    private String stockAlertStatusName;
+
+    /** 低库存阈值 */
+    private Integer lowStockThreshold;
+
+    /** 缺货阈值 */
+    private Integer outOfStockThreshold;
+
     /** 创建时间 */
     private LocalDateTime createdAt;
 

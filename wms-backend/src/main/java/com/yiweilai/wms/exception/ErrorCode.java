@@ -50,6 +50,10 @@ public enum ErrorCode {
     RETURN_NOT_FOUND(7001, "退货单不存在"),
     RETURN_STATUS_ERROR(7002, "退货单状态不正确"),
 
+    // 库存预警模块 9xxx
+    STOCK_ALERT_CONFIG_EXISTS(9001, "该SKU已存在预警配置"),
+    STOCK_ALERT_CONFIG_NOT_FOUND(9002, "预警配置不存在"),
+
     // ES 同步模块 8xxx
     ES_SYNC_FAILED(8001, "ES同步失败");
 

@@ -42,6 +42,8 @@ export interface Sku {
   availableQty: number
   lockedQty: number
   totalQty: number
+  lowStockThreshold?: number
+  outOfStockThreshold?: number
   initialQuantity?: number
   warehouseId?: number
   inboundRemark?: string

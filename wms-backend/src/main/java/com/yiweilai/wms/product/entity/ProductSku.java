@@ -55,6 +55,12 @@ public class ProductSku {
     /** Total inventory aggregated from stock. */
     private Integer totalQty;
 
+    /** 低库存阈值（来自预警配置） */
+    private Integer lowStockThreshold;
+
+    /** 缺货阈值（来自预警配置） */
+    private Integer outOfStockThreshold;
+
     /** 创建时间 */
     private LocalDateTime createdAt;
 

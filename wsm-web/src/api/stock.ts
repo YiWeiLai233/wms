@@ -13,6 +13,10 @@ export interface StockItem {
   quantity: number
   lockedQty: number
   totalQuantity: number
+  stockAlertStatus: string
+  stockAlertStatusName: string
+  lowStockThreshold: number
+  outOfStockThreshold: number
   createdAt: string
   updatedAt: string
 }

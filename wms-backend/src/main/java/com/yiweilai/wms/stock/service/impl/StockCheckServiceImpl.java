@@ -55,7 +55,7 @@ public class StockCheckServiceImpl implements StockCheckService {
         checkMapper.insert(check);
 
         // 查询该仓库所有库存，生成盘点明细
-        List<Stock> stocks = stockMapper.findByPage(null, null, null, null, dto.getWarehouseId(), null);
+        List<Stock> stocks = stockMapper.findByPage(null, null, null, null, dto.getWarehouseId(), null, null);
         for (Stock stock : stocks) {
             StockCheckItem item = new StockCheckItem();
             item.setCheckId(check.getId());

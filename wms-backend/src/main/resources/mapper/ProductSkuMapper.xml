@@ -20,6 +20,8 @@
         <result column="available_qty" property="availableQty"/>
         <result column="locked_qty" property="lockedQty"/>
         <result column="total_qty" property="totalQty"/>
+        <result column="low_stock_threshold" property="lowStockThreshold"/>
+        <result column="out_of_stock_threshold" property="outOfStockThreshold"/>
     </resultMap>
 
     <select id="findByProductId" resultMap="BaseResultMap">
@@ -62,7 +64,9 @@
                s.weight, s.volume, s.image, s.status, s.created_at, s.updated_at,
                COALESCE(inv.available_qty, 0) AS available_qty,
                COALESCE(inv.locked_qty, 0) AS locked_qty,
-               COALESCE(inv.total_qty, 0) AS total_qty
+               COALESCE(inv.total_qty, 0) AS total_qty,
+               sac.low_stock_threshold,
+               sac.out_of_stock_threshold
         FROM product_sku s
         INNER JOIN product p ON s.product_id = p.id AND p.deleted = 0
         LEFT JOIN (
@@ -78,6 +82,23 @@
             </if>
             GROUP BY st.sku_id
         ) inv ON inv.sku_id = s.id
+        LEFT JOIN (
+            SELECT ac_main.sku_id, ac_main.low_stock_threshold, ac_main.out_of_stock_threshold
+            FROM stock_alert_config ac_main
+            INNER JOIN (
+                SELECT sku_id,
+                       MIN(CASE WHEN warehouse_id = #{warehouseId} AND #{warehouseId} IS NOT NULL THEN 0
+                                WHEN warehouse_id IS NULL THEN 1
+                                ELSE 2 END) AS priority
+                FROM stock_alert_config
+                WHERE deleted = 0 AND enabled = 1
+                    AND (warehouse_id IS NULL OR warehouse_id = #{warehouseId})
+                GROUP BY sku_id
+            ) ac_p ON ac_main.sku_id = ac_p.sku_id
+                AND ((#{warehouseId} IS NOT NULL AND ac_main.warehouse_id = #{warehouseId} AND ac_p.priority = 0)
+                    OR (ac_main.warehouse_id IS NULL AND ac_p.priority = 1))
+            WHERE ac_main.deleted = 0 AND ac_main.enabled = 1
+        ) sac ON sac.sku_id = s.id
         WHERE s.deleted = 0
         <if test="keyword != null and keyword != ''">
             AND (s.name LIKE CONCAT('%', #{keyword}, '%') OR s.sku_code LIKE CONCAT('%', #{keyword}, '%'))

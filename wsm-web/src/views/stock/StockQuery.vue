@@ -41,8 +41,15 @@
         <el-table-column prop="warehouseName" label="仓库" width="120" />
         <el-table-column prop="quantity" label="可用库存" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStockTagType(row.quantity)" size="small">
+            <el-tag :type="getStockAlertTagType(row.stockAlertStatus)" size="small">
               {{ row.quantity }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="stockAlertStatusName" label="库存状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getStockAlertTagType(row.stockAlertStatus)" size="small" effect="dark">
+              {{ row.stockAlertStatusName || '库存正常' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -138,10 +145,10 @@ const productOptions = ref<Product[]>([])
 const skuOptions = ref<Sku[]>([])
 const productLoading = ref(false)
 
-// 库存标签类型
-function getStockTagType(quantity: number): string {
-  if (quantity <= 0) return 'danger'
-  if (quantity <= 10) return 'warning'
+// 库存预警标签类型
+function getStockAlertTagType(status: string): string {
+  if (status === 'OUT_OF_STOCK') return 'danger'
+  if (status === 'LOW_STOCK') return 'warning'
   return 'success'
 }
 

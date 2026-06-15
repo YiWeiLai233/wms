@@ -5,6 +5,8 @@ import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
+import com.yiweilai.wms.alert.entity.StockAlertConfig;
+import com.yiweilai.wms.alert.service.StockAlertConfigService;
 import com.yiweilai.wms.stock.dto.StockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockQueryDTO;
 import com.yiweilai.wms.stock.entity.Stock;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +38,7 @@ public class StockServiceImpl implements StockService {
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
     private final WarehouseMapper warehouseMapper;
+    private final StockAlertConfigService stockAlertConfigService;
 
     @Override
     public PageResult<StockVO> findByPage(StockQueryDTO query) {
@@ -45,12 +49,17 @@ public class StockServiceImpl implements StockService {
                 query.getSkuName(),
                 query.getProductName(),
                 query.getWarehouseId(),
-                query.getStockType());
+                query.getStockType(),
+                null);
 
         PageInfo<Stock> pageInfo = new PageInfo<>(stocks);
 
+        // 批量查询预警配置，避免N+1
+        List<Long> skuIds = stocks.stream().map(Stock::getSkuId).distinct().collect(Collectors.toList());
+        Map<Long, StockAlertConfig> configMap = stockAlertConfigService.findConfigMapBySkuIds(skuIds);
+
         List<StockVO> voList = stocks.stream()
-                .map(this::convertToVO)
+                .map(stock -> convertToVO(stock, configMap.get(stock.getSkuId())))
                 .collect(Collectors.toList());
 
         PageResult<StockVO> result = new PageResult<>();
@@ -100,7 +109,11 @@ public class StockServiceImpl implements StockService {
     @Override
     public List<StockVO> findByWarehouseType(String warehouseType, String skuCode, String skuName) {
         List<Stock> stocks = stockMapper.findByWarehouseType(warehouseType, skuCode, skuName);
-        return stocks.stream().map(this::convertToVO).collect(Collectors.toList());
+        List<Long> skuIds = stocks.stream().map(Stock::getSkuId).distinct().collect(Collectors.toList());
+        Map<Long, StockAlertConfig> configMap = stockAlertConfigService.findConfigMapBySkuIds(skuIds);
+        return stocks.stream()
+                .map(stock -> convertToVO(stock, configMap.get(stock.getSkuId())))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -214,7 +227,7 @@ public class StockServiceImpl implements StockService {
         stockLogMapper.insert(log);
     }
 
-    private StockVO convertToVO(Stock stock) {
+    private StockVO convertToVO(Stock stock, StockAlertConfig config) {
         StockVO vo = new StockVO();
         BeanUtils.copyProperties(stock, vo);
 
@@ -224,6 +237,36 @@ public class StockServiceImpl implements StockService {
         if (stock.getLockedQty() != null) total += stock.getLockedQty();
         vo.setTotalQuantity(total);
 
+        // 计算预警状态
+        int lowThreshold = 10;
+        int outThreshold = 0;
+        if (config != null) {
+            lowThreshold = config.getLowStockThreshold();
+            outThreshold = config.getOutOfStockThreshold();
+        }
+        vo.setLowStockThreshold(lowThreshold);
+        vo.setOutOfStockThreshold(outThreshold);
+
+        int qty = stock.getQuantity() != null ? stock.getQuantity() : 0;
+        String status;
+        if (qty <= outThreshold) {
+            status = "OUT_OF_STOCK";
+        } else if (qty <= lowThreshold) {
+            status = "LOW_STOCK";
+        } else {
+            status = "NORMAL";
+        }
+        vo.setStockAlertStatus(status);
+        vo.setStockAlertStatusName(getStatusName(status));
+
         return vo;
+    }
+
+    private String getStatusName(String status) {
+        switch (status) {
+            case "OUT_OF_STOCK": return "缺货";
+            case "LOW_STOCK": return "低库存";
+            default: return "库存正常";
+        }
     }
 }

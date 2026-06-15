@@ -20,7 +20,8 @@ public interface StockMapper {
                            @Param("skuName") String skuName,
                            @Param("productName") String productName,
                            @Param("warehouseId") Long warehouseId,
-                           @Param("stockType") String stockType);
+                           @Param("stockType") String stockType,
+                           @Param("warehouseType") String warehouseType);
 
     /**
      * 根据SKU和仓库查询库存
