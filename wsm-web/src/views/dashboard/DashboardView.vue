@@ -39,33 +39,60 @@
       <el-col :span="6">
         <div class="card alert-card">
           <div class="card-header">
-            <h3 class="text-base font-semibold text-gray-800">库存预警</h3>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-semibold text-gray-800">库存预警</h3>
+              <el-badge :value="currentAlertList.length" :max="99" type="danger" class="alert-badge" />
+            </div>
             <el-tabs v-model="alertTab" class="alert-tabs">
-              <el-tab-pane label="缺货" name="outOfStock" />
-              <el-tab-pane label="低库存" name="lowStock" />
+              <el-tab-pane name="outOfStock">
+                <template #label>
+                  <div class="flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span>缺货</span>
+                  </div>
+                </template>
+              </el-tab-pane>
+              <el-tab-pane name="lowStock">
+                <template #label>
+                  <div class="flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                    <span>低库存</span>
+                  </div>
+                </template>
+              </el-tab-pane>
             </el-tabs>
           </div>
-          <el-table :data="currentAlertList" size="small" height="100%" stripe>
-            <el-table-column prop="skuName" label="商品" show-overflow-tooltip />
-            <el-table-column label="仓库" width="70">
-              <template #default="{ row }">
-                {{ row.warehouseName || '所有仓库' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="库存" width="55" align="center">
-              <template #default="{ row }">
-                <span :class="row.alertStatus === 'OUT_OF_STOCK' ? 'text-red-500 font-bold' : 'text-yellow-500 font-bold'">
-                  {{ row.quantity }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column label="阈值" width="55" align="center">
-              <template #default="{ row }">
-                {{ row.alertStatus === 'OUT_OF_STOCK' ? row.outOfStockThreshold : row.lowStockThreshold }}
-              </template>
-            </el-table-column>
-          </el-table>
-          <div v-if="currentAlertList.length === 0" class="empty-text">暂无预警</div>
+          <div class="alert-list">
+            <div
+              v-for="(item, index) in currentAlertList"
+              :key="index"
+              class="alert-item"
+              :class="item.alertStatus === 'OUT_OF_STOCK' ? 'alert-danger' : 'alert-warning'"
+            >
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <div class="alert-icon">
+                  <el-icon v-if="item.alertStatus === 'OUT_OF_STOCK'" color="#ef4444"><WarningFilled /></el-icon>
+                  <el-icon v-else color="#f59e0b"><Warning /></el-icon>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-medium text-gray-800 truncate">{{ item.skuName }}</div>
+                  <div class="text-xs text-gray-500">{{ item.warehouseName || '所有仓库' }}</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-lg font-bold" :class="item.alertStatus === 'OUT_OF_STOCK' ? 'text-red-500' : 'text-yellow-500'">
+                  {{ item.quantity }}
+                </div>
+                <div class="text-xs text-gray-400">
+                  /{{ item.alertStatus === 'OUT_OF_STOCK' ? item.outOfStockThreshold : item.lowStockThreshold }}
+                </div>
+              </div>
+            </div>
+            <div v-if="currentAlertList.length === 0" class="empty-state">
+              <el-icon :size="40" color="#d1d5db"><CircleCheck /></el-icon>
+              <p class="text-gray-400 mt-2">暂无预警</p>
+            </div>
+          </div>
         </div>
       </el-col>
     </el-row>
@@ -91,6 +118,7 @@ import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart, PieChart, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { WarningFilled, Warning, CircleCheck } from '@element-plus/icons-vue'
 import { getDashboard } from '@/api/report'
 import type { DashboardData } from '@/api/report'
 import { getLowStockList, getOutOfStockList } from '@/api/stockAlert'
@@ -304,6 +332,14 @@ onMounted(async () => {
     flex: 1;
   }
 }
+.alert-badge {
+  :deep(.el-badge__content) {
+    font-size: 10px;
+    padding: 0 4px;
+    height: 16px;
+    line-height: 16px;
+  }
+}
 .alert-tabs {
   :deep(.el-tabs__header) {
     margin: 0;
@@ -321,10 +357,71 @@ onMounted(async () => {
     height: 2px;
   }
 }
-.empty-text {
-  text-align: center;
-  color: #9ca3af;
+.alert-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #e5e7eb;
+    border-radius: 2px;
+  }
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+.alert-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateX(2px);
+  }
+
+  &.alert-danger {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    border-left: 3px solid #ef4444;
+
+    &:hover {
+      background: linear-gradient(135deg, #fee2e2, #fecaca);
+    }
+  }
+
+  &.alert-warning {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-left: 3px solid #f59e0b;
+
+    &:hover {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+    }
+  }
+}
+.alert-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  flex-shrink: 0;
+}
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 40px 0;
-  font-size: 13px;
 }
 </style>
