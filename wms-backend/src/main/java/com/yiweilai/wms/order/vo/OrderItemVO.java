@@ -26,6 +26,9 @@ public class OrderItemVO {
     /** SKU名称 */
     private String skuName;
 
+    /** SKU图片 */
+    private String skuImage;
+
     /** 码数 */
     private String sizeValue;
 

@@ -141,6 +141,11 @@
 
       <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">订单明细</h4>
       <el-table :data="detail.items || []" border size="small">
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.skuImage" />
+          </template>
+        </el-table-column>
         <el-table-column prop="skuCode" label="SKU编码" width="130" />
         <el-table-column prop="skuName" label="SKU名称" min-width="100" />
         <el-table-column prop="sizeValue" label="码数" width="80" align="center">
@@ -359,6 +364,7 @@ import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { ORDER_STATUS_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
 
 const router = useRouter()
 

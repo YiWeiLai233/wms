@@ -33,6 +33,11 @@
     <!-- 表格 -->
     <div class="card">
       <el-table :data="tableData" v-loading="loading" stripe border>
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.mainImage" />
+          </template>
+        </el-table-column>
         <el-table-column prop="spuCode" label="SPU编码" width="120" />
         <el-table-column prop="name" label="商品名称" width="150" show-overflow-tooltip />
         <el-table-column label="仓库" width="100">
@@ -131,6 +136,9 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-form-item label="商品主图">
+          <ImageUpload v-model="form.mainImage" placeholder="上传商品图片" />
+        </el-form-item>
         <el-form-item label="描述" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="商品描述" />
         </el-form-item>
@@ -238,6 +246,8 @@ import type { StockAlertTemplate } from '@/api/stockAlertTemplate'
 import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import PageHeader from '@/components/PageHeader.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
+import ImageUpload from '@/components/ImageUpload.vue'
 
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<Product>(getProductList)
 

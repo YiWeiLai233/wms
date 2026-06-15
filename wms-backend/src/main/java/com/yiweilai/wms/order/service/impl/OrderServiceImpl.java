@@ -305,6 +305,15 @@ public class OrderServiceImpl implements OrderService {
     private OrderItemVO convertToItemVO(SalesOrderItem item) {
         OrderItemVO vo = new OrderItemVO();
         BeanUtils.copyProperties(item, vo);
+
+        // 查询SKU图片
+        if (item.getSkuId() != null) {
+            ProductSku sku = productSkuMapper.findById(item.getSkuId());
+            if (sku != null) {
+                vo.setSkuImage(sku.getImage());
+            }
+        }
+
         return vo;
     }
 }
