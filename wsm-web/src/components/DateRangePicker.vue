@@ -52,6 +52,10 @@ const quickOptions: QuickOption[] = [
   { label: '近30天', value: 'last30days' },
   { label: '本月', value: 'thisMonth' },
   { label: '上月', value: 'lastMonth' },
+  { label: '本季度', value: 'thisQuarter' },
+  { label: '上季度', value: 'lastQuarter' },
+  { label: '本年', value: 'thisYear' },
+  { label: '去年', value: 'lastYear' },
 ]
 
 const activeQuick = ref<string>('')
@@ -106,6 +110,29 @@ function getDateRange(type: string): string[] {
     case 'lastMonth':
       start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       end = new Date(now.getFullYear(), now.getMonth(), 0)
+      break
+    case 'thisQuarter':
+      const thisQuarter = Math.floor(now.getMonth() / 3)
+      start = new Date(now.getFullYear(), thisQuarter * 3, 1)
+      end = new Date(now)
+      break
+    case 'lastQuarter':
+      const lastQuarter = Math.floor(now.getMonth() / 3) - 1
+      if (lastQuarter < 0) {
+        start = new Date(now.getFullYear() - 1, 9, 1)
+        end = new Date(now.getFullYear() - 1, 11, 31)
+      } else {
+        start = new Date(now.getFullYear(), lastQuarter * 3, 1)
+        end = new Date(now.getFullYear(), lastQuarter * 3 + 3, 0)
+      }
+      break
+    case 'thisYear':
+      start = new Date(now.getFullYear(), 0, 1)
+      end = new Date(now)
+      break
+    case 'lastYear':
+      start = new Date(now.getFullYear() - 1, 0, 1)
+      end = new Date(now.getFullYear() - 1, 11, 31)
       break
     default:
       return []
