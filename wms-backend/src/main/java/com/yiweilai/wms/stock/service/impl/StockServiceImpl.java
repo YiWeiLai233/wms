@@ -269,4 +269,63 @@ public class StockServiceImpl implements StockService {
             default: return "库存正常";
         }
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deductStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark) {
+        int remaining = quantity;
+        while (remaining > 0) {
+            List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
+            if (availableStocks.isEmpty()) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
+            }
+
+            boolean deducted = false;
+            for (Stock stock : availableStocks) {
+                int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
+                int deductQty = Math.min(beforeQty, remaining);
+                if (deductQty <= 0) continue;
+
+                int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
+                if (affected == 0) continue;
+
+                // 写流水
+                writeLog(bizType, bizNo, skuId, warehouseId,
+                        beforeQty, -deductQty, beforeQty - deductQty, remark);
+
+                remaining -= deductQty;
+                deducted = true;
+                break; // 扣成功了就跳出 for 循环，重新查询最新库存
+            }
+
+            if (!deducted) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void addStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark) {
+        Stock stock = stockMapper.findBySkuAndWarehouse(skuId, warehouseId);
+        int beforeQty;
+
+        if (stock == null) {
+            // 新增库存记录
+            stock = new Stock();
+            stock.setSkuId(skuId);
+            stock.setWarehouseId(warehouseId);
+            stock.setQuantity(quantity);
+            stock.setLockedQty(0);
+            stockMapper.insert(stock);
+            beforeQty = 0;
+        } else {
+            beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
+            stockMapper.addQuantity(stock.getId(), quantity);
+        }
+
+        // 写流水
+        writeLog(bizType, bizNo, skuId, warehouseId,
+                beforeQty, quantity, beforeQty + quantity, remark);
+    }
 }
