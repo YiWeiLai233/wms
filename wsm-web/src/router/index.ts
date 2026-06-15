@@ -102,6 +102,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/OperationLog.vue'),
         meta: { title: '操作日志', icon: 'Notebook' },
       },
+      {
+        path: 'system/stock-alert',
+        name: 'StockAlertConfig',
+        component: () => import('@/views/system/StockAlertConfig.vue'),
+        meta: { title: '库存预警设置', icon: 'Bell' },
+      },
       // 订单管理
       {
         path: 'order/list',

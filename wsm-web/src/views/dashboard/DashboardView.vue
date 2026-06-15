@@ -20,7 +20,7 @@
 
     <!-- 图表区 -->
     <el-row :gutter="20">
-      <el-col :span="16">
+      <el-col :span="12">
         <div class="card">
           <div class="card-header">
             <h3 class="text-base font-semibold text-gray-800">近 7 天订单趋势</h3>
@@ -28,12 +28,44 @@
           <v-chart class="chart" :option="trendOption" autoresize />
         </div>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <div class="card">
           <div class="card-header">
             <h3 class="text-base font-semibold text-gray-800">订单状态分布</h3>
           </div>
           <v-chart class="chart" :option="pieOption" autoresize />
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="card alert-card">
+          <div class="card-header">
+            <h3 class="text-base font-semibold text-gray-800">库存预警</h3>
+            <el-tabs v-model="alertTab" class="alert-tabs">
+              <el-tab-pane label="缺货" name="outOfStock" />
+              <el-tab-pane label="低库存" name="lowStock" />
+            </el-tabs>
+          </div>
+          <el-table :data="currentAlertList" size="small" height="100%" stripe>
+            <el-table-column prop="skuName" label="商品" show-overflow-tooltip />
+            <el-table-column label="仓库" width="70">
+              <template #default="{ row }">
+                {{ row.warehouseName || '所有仓库' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="库存" width="55" align="center">
+              <template #default="{ row }">
+                <span :class="row.alertStatus === 'OUT_OF_STOCK' ? 'text-red-500 font-bold' : 'text-yellow-500 font-bold'">
+                  {{ row.quantity }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="阈值" width="55" align="center">
+              <template #default="{ row }">
+                {{ row.alertStatus === 'OUT_OF_STOCK' ? row.outOfStockThreshold : row.lowStockThreshold }}
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-if="currentAlertList.length === 0" class="empty-text">暂无预警</div>
         </div>
       </el-col>
     </el-row>
@@ -61,6 +93,8 @@ import { LineChart, PieChart, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { getDashboard } from '@/api/report'
 import type { DashboardData } from '@/api/report'
+import { getLowStockList, getOutOfStockList } from '@/api/stockAlert'
+import type { StockAlertStatus } from '@/api/stockAlert'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 
@@ -177,10 +211,23 @@ const barOption = computed(() => {
   }
 })
 
+const alertTab = ref<'outOfStock' | 'lowStock'>('outOfStock')
+const outOfStockList = ref<StockAlertStatus[]>([])
+const lowStockList = ref<StockAlertStatus[]>([])
+const currentAlertList = computed(() =>
+  alertTab.value === 'outOfStock' ? outOfStockList.value : lowStockList.value,
+)
+
 onMounted(async () => {
   try {
-    const res = await getDashboard()
-    dashboard.value = res.data
+    const [dashRes, oosRes, lsRes] = await Promise.all([
+      getDashboard(),
+      getOutOfStockList(),
+      getLowStockList(),
+    ])
+    dashboard.value = dashRes.data
+    outOfStockList.value = oosRes.data || []
+    lowStockList.value = lsRes.data || []
   } catch {
     // 使用默认空数据
   }
@@ -195,5 +242,36 @@ onMounted(async () => {
 .bar-chart {
   height: 300px;
   width: 100%;
+}
+.alert-card {
+  height: 362px;
+  display: flex;
+  flex-direction: column;
+  :deep(.el-table) {
+    flex: 1;
+  }
+}
+.alert-tabs {
+  :deep(.el-tabs__header) {
+    margin: 0;
+  }
+  :deep(.el-tabs__nav-wrap::after) {
+    display: none;
+  }
+  :deep(.el-tabs__item) {
+    height: 28px;
+    line-height: 28px;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+  :deep(.el-tabs__active-bar) {
+    height: 2px;
+  }
+}
+.empty-text {
+  text-align: center;
+  color: #9ca3af;
+  padding: 40px 0;
+  font-size: 13px;
 }
 </style>

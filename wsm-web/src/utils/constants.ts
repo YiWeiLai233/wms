@@ -122,6 +122,7 @@ export const MENU_LIST: MenuItem[] = [
       { title: '用户管理', path: '/system/users' },
       { title: '文件管理', path: '/system/files' },
       { title: '操作日志', path: '/system/logs' },
+      { title: '库存预警设置', path: '/system/stock-alert' },
     ],
   },
 ]
