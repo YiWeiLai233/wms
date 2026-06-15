@@ -76,5 +76,17 @@ public class DashboardVO {
         private String skuCode;
         private String skuName;
         private Long totalQuantity;
+        private List<PlatformQuantity> platformQuantities;
+    }
+
+    /**
+     * 平台数量
+     */
+    @Data
+    public static class PlatformQuantity {
+        private Long platformId;
+        private String platformName;
+        private String platformColor;
+        private Long quantity;
     }
 }

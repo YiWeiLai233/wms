@@ -252,9 +252,85 @@ const pieOption = computed(() => ({
 
 const barOption = computed(() => {
   const skus = [...(dashboard.value.topSkus || [])].reverse()
+
+  // 收集所有平台信息
+  const platformMap = new Map<number, { name: string; color: string }>()
+  skus.forEach((sku) => {
+    if (sku.platformQuantities) {
+      sku.platformQuantities.forEach((pq) => {
+        if (!platformMap.has(pq.platformId)) {
+          platformMap.set(pq.platformId, { name: pq.platformName, color: pq.platformColor })
+        }
+      })
+    }
+  })
+  const platforms = Array.from(platformMap.entries()).sort((a, b) => a[0] - b[0])
+
+  // 如果没有平台数据，使用旧的单柱子模式
+  if (platforms.length === 0) {
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 140, right: 50, top: 10, bottom: 20 },
+      xAxis: {
+        type: 'value',
+        axisLine: { show: false },
+        splitLine: { lineStyle: { color: '#f3f4f6' } },
+        axisLabel: { color: '#6b7280' },
+      },
+      yAxis: {
+        type: 'category',
+        data: skus.map((i) => i.skuName),
+        axisLabel: { color: '#374151', fontSize: 12 },
+        axisLine: { lineStyle: { color: '#e5e7eb' } },
+      },
+      series: [
+        {
+          type: 'bar',
+          data: skus.map((i) => i.totalQuantity),
+          barWidth: '55%',
+          itemStyle: {
+            borderRadius: [0, 4, 4, 0],
+            color: '#3b82f6',
+          },
+          label: {
+            show: true,
+            position: 'right',
+            fontSize: 12,
+            fontWeight: 'bold',
+            color: '#374151',
+          },
+        },
+      ],
+    }
+  }
+
+  // 按平台分组显示柱子
   return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 140, right: 50, top: 10, bottom: 20 },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        let result = `<div style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
+        let total = 0
+        params.forEach((param: any) => {
+          if (param.value > 0) {
+            result += `<div style="display:flex;align-items:center;gap:5px">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${param.color}"></span>
+              <span>${param.seriesName}: ${param.value}</span>
+            </div>`
+            total += param.value
+          }
+        })
+        result += `<div style="margin-top:5px;font-weight:bold">总计: ${total}</div>`
+        return result
+      },
+    },
+    legend: {
+      data: platforms.map(([, p]) => p.name),
+      bottom: 0,
+      textStyle: { color: '#6b7280', fontSize: 12 },
+    },
+    grid: { left: 140, right: 50, top: 10, bottom: 40 },
     xAxis: {
       type: 'value',
       axisLine: { show: false },
@@ -267,28 +343,20 @@ const barOption = computed(() => {
       axisLabel: { color: '#374151', fontSize: 12 },
       axisLine: { lineStyle: { color: '#e5e7eb' } },
     },
-    series: [
-      {
-        type: 'bar',
-        data: skus.map((i) => i.totalQuantity),
-        barWidth: '55%',
-        itemStyle: {
-          borderRadius: [0, 4, 4, 0],
-          color: (params: any) => {
-            const reversedIndex = skus.length - 1 - params.dataIndex
-            const colors = ['#ef4444', '#f59e0b', '#f59e0b', '#3b82f6', '#3b82f6', '#3b82f6', '#10b981', '#10b981', '#10b981', '#10b981']
-            return colors[reversedIndex] || '#3b82f6'
-          },
-        },
-        label: {
-          show: true,
-          position: 'right',
-          fontSize: 12,
-          fontWeight: 'bold',
-          color: '#374151',
-        },
+    series: platforms.map(([platformId, platform]) => ({
+      name: platform.name,
+      type: 'bar',
+      stack: 'total',
+      data: skus.map((sku) => {
+        const pq = sku.platformQuantities?.find((p) => p.platformId === platformId)
+        return pq?.quantity || 0
+      }),
+      barWidth: '55%',
+      itemStyle: {
+        color: platform.color,
+        borderRadius: platformId === platforms[platforms.length - 1][0] ? [0, 4, 4, 0] : 0,
       },
-    ],
+    })),
   }
 })
 
@@ -325,7 +393,7 @@ onMounted(async () => {
   width: 100%;
 }
 .alert-card {
-  height: 450px;
+  height: 410px;
   display: flex;
   flex-direction: column;
   :deep(.el-table) {

@@ -10,7 +10,7 @@ export interface DashboardData {
   platformTrends?: { platformId: number; platformName: string; platformColor: string; data: { date: string; count: number }[] }[]
   orderTrend: { date: string; count: number }[]
   orderStatusDistribution: { status: string; statusName: string; count: number }[]
-  topSkus: { skuId: number; skuCode: string; skuName: string; totalQuantity: number }[]
+  topSkus: { skuId: number; skuCode: string; skuName: string; totalQuantity: number; platformQuantities?: { platformId: number; platformName: string; platformColor: string; quantity: number }[] }[]
 }
 
 export interface StockReport {

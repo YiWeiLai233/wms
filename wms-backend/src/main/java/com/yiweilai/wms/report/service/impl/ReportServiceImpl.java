@@ -177,6 +177,54 @@ public class ReportServiceImpl implements ReportService {
                     rank.setTotalQuantity(rs.getLong("total_quantity"));
                     return rank;
                 }, monthStart);
+
+        // 查询各平台信息
+        List<Map<String, Object>> platformList = jdbcTemplate.queryForList(
+                "SELECT id, name, color FROM platform WHERE deleted = 0 AND enabled = 1 ORDER BY id");
+
+        // 为每个SKU查询各平台的出货量
+        for (DashboardVO.SkuRank rank : topSkus) {
+            List<DashboardVO.PlatformQuantity> platformQuantities = new ArrayList<>();
+            Long remainingQuantity = rank.getTotalQuantity();
+
+            for (Map<String, Object> platform : platformList) {
+                Long platformId = ((Number) platform.get("id")).longValue();
+                String platformName = (String) platform.get("name");
+                String platformColor = (String) platform.get("color");
+
+                Long quantity = jdbcTemplate.queryForObject(
+                        "SELECT COALESCE(SUM(oi.quantity), 0) " +
+                        "FROM outbound_order_item oi " +
+                        "JOIN outbound_order o ON oi.outbound_id = o.id AND o.deleted = 0 " +
+                        "JOIN sales_order so ON o.order_no = so.order_no AND so.deleted = 0 " +
+                        "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? " +
+                        "AND oi.sku_id = ? AND so.platform_id = ?",
+                        Long.class, monthStart, rank.getSkuId(), platformId);
+
+                quantity = quantity != null ? quantity : 0L;
+                remainingQuantity -= quantity;
+
+                DashboardVO.PlatformQuantity pq = new DashboardVO.PlatformQuantity();
+                pq.setPlatformId(platformId);
+                pq.setPlatformName(platformName);
+                pq.setPlatformColor(platformColor != null ? platformColor : "#94a3b8");
+                pq.setQuantity(quantity);
+                platformQuantities.add(pq);
+            }
+
+            // 未分配平台的出货量
+            if (remainingQuantity > 0) {
+                DashboardVO.PlatformQuantity pq = new DashboardVO.PlatformQuantity();
+                pq.setPlatformId(0L);
+                pq.setPlatformName("其他");
+                pq.setPlatformColor("#94a3b8");
+                pq.setQuantity(remainingQuantity);
+                platformQuantities.add(pq);
+            }
+
+            rank.setPlatformQuantities(platformQuantities);
+        }
+
         vo.setTopSkus(topSkus);
 
         return vo;
