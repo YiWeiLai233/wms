@@ -211,6 +211,11 @@
           </el-select>
         </div>
         <el-table v-if="selectedSkuGroup" :data="selectedSkuGroup.skus" border size="small" class="mb-3" max-height="350">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.image" />
+            </template>
+          </el-table-column>
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
             <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
           </el-table-column>
@@ -229,6 +234,11 @@
         </el-table>
 
         <el-table :data="importForm.items" border size="small">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.image" />
+            </template>
+          </el-table-column>
           <el-table-column prop="skuCode" label="SKU编码" width="150" show-overflow-tooltip />
           <el-table-column prop="skuName" label="SKU名称" min-width="150" show-overflow-tooltip />
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
@@ -394,6 +404,7 @@ interface ImportItemForm {
   sizeValue?: string
   quantity: number
   unitPrice: number
+  image?: string
 }
 
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<Order>(getOrderList)
@@ -534,6 +545,7 @@ function addSkuToImport(sku: SkuListItem) {
     sizeValue: sku.sizeValue || '',
     quantity: 1,
     unitPrice: sku.salePrice || 0,
+    image: sku.image || '',
   })
 }
 
