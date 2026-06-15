@@ -325,7 +325,7 @@ onMounted(async () => {
   width: 100%;
 }
 .alert-card {
-  height: 420px;
+  height: 450px;
   display: flex;
   flex-direction: column;
   :deep(.el-table) {
