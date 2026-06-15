@@ -65,7 +65,7 @@ class AiReadonlyToolServiceTest {
         AiToolResult<OrderVO> result = service.queryOrderByNo(request, CONTEXT);
 
         assertThat(result.getStatus()).isEqualTo("SUCCESS");
-        assertThat(result.getData()).isSameAs(match);
+        assertThat(result.getData().getOrderNo()).isEqualTo(match.getOrderNo());
         verify(orderService).findByPage(any(OrderQueryDTO.class));
         verify(orderService).getById(11L);
         verify(orderService, never()).importOrder(any(OrderImportDTO.class));

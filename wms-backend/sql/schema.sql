@@ -254,9 +254,11 @@ CREATE TABLE IF NOT EXISTS sales_order (
     order_no          VARCHAR(50)   NOT NULL COMMENT '订单号',
     platform_order_no VARCHAR(50)   DEFAULT NULL COMMENT '平台订单号',
     warehouse_id      BIGINT        DEFAULT NULL COMMENT '仓库ID',
-    receiver_name     VARCHAR(50)   DEFAULT NULL COMMENT '收件人姓名',
-    receiver_phone    VARCHAR(20)   DEFAULT NULL COMMENT '收件人电话',
-    receiver_address  VARCHAR(500)  DEFAULT NULL COMMENT '收件人地址',
+    receiver_name     TEXT          DEFAULT NULL COMMENT '收件人姓名（加密存储）',
+    receiver_phone    TEXT          DEFAULT NULL COMMENT '收件人电话（加密存储）',
+    receiver_address  TEXT          DEFAULT NULL COMMENT '收件人地址（加密存储）',
+    receiver_name_hash CHAR(64)     DEFAULT NULL COMMENT '收件人姓名HMAC哈希，用于精确查询',
+    receiver_phone_hash CHAR(64)    DEFAULT NULL COMMENT '收件人电话HMAC哈希，用于精确查询',
     order_status      VARCHAR(30)   NOT NULL DEFAULT 'WAIT_PAY' COMMENT '订单状态',
     total_amount      DECIMAL(12,2) DEFAULT 0.00 COMMENT '订单总金额',
     remark            VARCHAR(500)  DEFAULT NULL COMMENT '备注',
@@ -268,6 +270,8 @@ CREATE TABLE IF NOT EXISTS sales_order (
     updated_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     UNIQUE KEY uk_order_no (order_no),
     KEY idx_platform_order_no (platform_order_no),
+    KEY idx_sales_order_receiver_name_hash (receiver_name_hash),
+    KEY idx_sales_order_receiver_phone_hash (receiver_phone_hash),
     KEY idx_order_status (order_status),
     KEY idx_created_at (created_at)
 ) ENGINE=InnoDB COMMENT='订单表';

@@ -17,10 +17,19 @@ public interface SalesOrderMapper {
      */
     List<SalesOrder> findByPage(@Param("orderNo") String orderNo,
                                 @Param("platformOrderNo") String platformOrderNo,
-                                @Param("receiverName") String receiverName,
-                                @Param("receiverPhone") String receiverPhone,
+                                @Param("receiverNameHash") String receiverNameHash,
+                                @Param("receiverPhoneHash") String receiverPhoneHash,
                                 @Param("orderStatus") String orderStatus,
                                 @Param("warehouseId") Long warehouseId);
+
+    /**
+     * Search by non-sensitive keyword and exact privacy hashes.
+     */
+    List<SalesOrder> searchByKeyword(@Param("keyword") String keyword,
+                                     @Param("receiverNameHash") String receiverNameHash,
+                                     @Param("receiverPhoneHash") String receiverPhoneHash,
+                                     @Param("orderStatus") String orderStatus,
+                                     @Param("warehouseId") Long warehouseId);
 
     /**
      * 根据ID查询
@@ -47,4 +56,15 @@ public interface SalesOrderMapper {
      * 更新发货时间
      */
     int updateShippedAt(@Param("id") Long id);
+
+    /**
+     * Batch query for privacy migration.
+     */
+    List<SalesOrder> findPrivacyMigrationBatch(@Param("lastId") Long lastId,
+                                               @Param("limit") Integer limit);
+
+    /**
+     * Update encrypted receiver fields and lookup hashes.
+     */
+    int updatePrivacyFields(SalesOrder order);
 }

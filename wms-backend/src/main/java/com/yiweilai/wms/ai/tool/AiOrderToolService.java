@@ -9,10 +9,12 @@ import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.order.dto.OrderQueryDTO;
 import com.yiweilai.wms.order.service.OrderService;
 import com.yiweilai.wms.order.vo.OrderVO;
+import com.yiweilai.wms.privacy.mask.PrivacyMaskUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -42,8 +44,9 @@ public class AiOrderToolService {
             }
 
             OrderVO order = findFirstOrder(safeRequest);
-            String summary = order == null ? "No matching order found" : "Order found: " + order.getOrderNo();
-            AiToolResult<OrderVO> result = AiToolResult.success(QUERY_ORDER_BY_NO, order, summary);
+            OrderVO maskedOrder = maskOrder(order);
+            String summary = maskedOrder == null ? "No matching order found" : "Order found: " + maskedOrder.getOrderNo();
+            AiToolResult<OrderVO> result = AiToolResult.success(QUERY_ORDER_BY_NO, maskedOrder, summary);
             log(context, QUERY_ORDER_BY_NO, safeRequest, result, "SUCCESS", null);
             return result;
         } catch (RuntimeException ex) {
@@ -57,8 +60,9 @@ public class AiOrderToolService {
             PageResult<OrderVO> page = shouldSearchKeywordAcrossFields(safeRequest)
                     ? searchKeywordAcrossFields(safeRequest)
                     : orderService.findByPage(toOrderQuery(safeRequest));
+            PageResult<OrderVO> maskedPage = maskPage(page);
             AiToolResult<PageResult<OrderVO>> result = AiToolResult.success(
-                    SEARCH_ORDERS, page, "Matched orders: " + nullSafeTotal(page));
+                    SEARCH_ORDERS, maskedPage, "Matched orders: " + nullSafeTotal(maskedPage));
             log(context, SEARCH_ORDERS, safeRequest, result, "SUCCESS", null);
             return result;
         } catch (RuntimeException ex) {
@@ -209,10 +213,44 @@ public class AiOrderToolService {
                 safeContext.getConversationId(),
                 safeContext.getMessageId(),
                 toolName,
-                request,
+                maskRequest(request),
                 response,
                 status,
                 errorMessage);
+    }
+
+    private Object maskRequest(Object request) {
+        if (request instanceof AiOrderSearchRequest searchRequest) {
+            AiOrderSearchRequest masked = new AiOrderSearchRequest();
+            BeanUtils.copyProperties(searchRequest, masked);
+            masked.setKeyword(masked.getKeyword() == null ? null : "***");
+            masked.setReceiverName(PrivacyMaskUtil.maskName(masked.getReceiverName()));
+            masked.setReceiverPhone(PrivacyMaskUtil.maskPhone(masked.getReceiverPhone()));
+            return masked;
+        }
+        return request;
+    }
+
+    private PageResult<OrderVO> maskPage(PageResult<OrderVO> page) {
+        if (page == null) {
+            return null;
+        }
+        List<OrderVO> maskedList = page.getList() == null
+                ? List.of()
+                : page.getList().stream().map(this::maskOrder).toList();
+        return new PageResult<>(page.getTotal(), maskedList, page.getPageNum(), page.getPageSize());
+    }
+
+    private OrderVO maskOrder(OrderVO order) {
+        if (order == null) {
+            return null;
+        }
+        OrderVO masked = new OrderVO();
+        BeanUtils.copyProperties(order, masked);
+        masked.setReceiverName(PrivacyMaskUtil.maskName(order.getReceiverName()));
+        masked.setReceiverPhone(PrivacyMaskUtil.maskPhone(order.getReceiverPhone()));
+        masked.setReceiverAddress(PrivacyMaskUtil.maskAddress(order.getReceiverAddress()));
+        return masked;
     }
 
     @Data

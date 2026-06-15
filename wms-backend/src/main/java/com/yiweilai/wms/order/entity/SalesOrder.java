@@ -36,6 +36,12 @@ public class SalesOrder {
     /** 收件人地址 */
     private String receiverAddress;
 
+    /** Receiver name HMAC hash for exact lookup */
+    private String receiverNameHash;
+
+    /** Receiver phone HMAC hash for exact lookup */
+    private String receiverPhoneHash;
+
     /** 订单状态 */
     private String orderStatus;
 

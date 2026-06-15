@@ -15,6 +15,8 @@ import com.yiweilai.wms.order.mapper.SalesOrderMapper;
 import com.yiweilai.wms.order.service.OrderService;
 import com.yiweilai.wms.order.vo.OrderItemVO;
 import com.yiweilai.wms.order.vo.OrderVO;
+import com.yiweilai.wms.privacy.crypto.PrivacyCryptoService;
+import com.yiweilai.wms.privacy.crypto.PrivacyHashService;
 import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import com.yiweilai.wms.stock.entity.Stock;
@@ -46,13 +48,19 @@ public class OrderServiceImpl implements OrderService {
     private final ProductSkuMapper productSkuMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final PrivacyCryptoService privacyCryptoService;
+    private final PrivacyHashService privacyHashService;
 
     @Override
     public PageResult<OrderVO> findByPage(OrderQueryDTO query) {
         PageHelper.startPage(query.getPage(), query.getSize());
+        String receiverNameHash = privacyHashService.hmacSha256(
+                privacyHashService.normalizeName(query.getReceiverName()));
+        String receiverPhoneHash = privacyHashService.hmacSha256(
+                privacyHashService.normalizePhone(query.getReceiverPhone()));
         List<SalesOrder> orders = orderMapper.findByPage(
                 query.getOrderNo(), query.getPlatformOrderNo(),
-                query.getReceiverName(), query.getReceiverPhone(),
+                receiverNameHash, receiverPhoneHash,
                 query.getOrderStatus(), query.getWarehouseId());
 
         PageInfo<SalesOrder> pageInfo = new PageInfo<>(orders);
@@ -99,6 +107,7 @@ public class OrderServiceImpl implements OrderService {
         order.setReceiverName(dto.getReceiverName());
         order.setReceiverPhone(dto.getReceiverPhone());
         order.setReceiverAddress(dto.getReceiverAddress());
+        protectReceiverFields(order);
         order.setRemark(dto.getRemark());
         order.setOrderStatus("WAIT_OUTBOUND"); // 默认待出库
 
@@ -274,7 +283,22 @@ public class OrderServiceImpl implements OrderService {
     private OrderVO convertToVO(SalesOrder order) {
         OrderVO vo = new OrderVO();
         BeanUtils.copyProperties(order, vo);
+        vo.setReceiverName(privacyCryptoService.decrypt(order.getReceiverName()));
+        vo.setReceiverPhone(privacyCryptoService.decrypt(order.getReceiverPhone()));
+        vo.setReceiverAddress(privacyCryptoService.decrypt(order.getReceiverAddress()));
         return vo;
+    }
+
+    private void protectReceiverFields(SalesOrder order) {
+        String receiverName = privacyCryptoService.decrypt(order.getReceiverName());
+        String receiverPhone = privacyCryptoService.decrypt(order.getReceiverPhone());
+        String receiverAddress = privacyCryptoService.decrypt(order.getReceiverAddress());
+
+        order.setReceiverNameHash(privacyHashService.hmacSha256(privacyHashService.normalizeName(receiverName)));
+        order.setReceiverPhoneHash(privacyHashService.hmacSha256(privacyHashService.normalizePhone(receiverPhone)));
+        order.setReceiverName(privacyCryptoService.encrypt(receiverName));
+        order.setReceiverPhone(privacyCryptoService.encrypt(receiverPhone));
+        order.setReceiverAddress(privacyCryptoService.encrypt(receiverAddress));
     }
 
     private OrderItemVO convertToItemVO(SalesOrderItem item) {

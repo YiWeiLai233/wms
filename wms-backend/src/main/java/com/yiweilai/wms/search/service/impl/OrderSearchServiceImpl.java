@@ -9,6 +9,8 @@ import com.yiweilai.wms.order.mapper.SalesOrderItemMapper;
 import com.yiweilai.wms.order.mapper.SalesOrderMapper;
 import com.yiweilai.wms.outbound.entity.OutboundOrder;
 import com.yiweilai.wms.outbound.mapper.OutboundOrderMapper;
+import com.yiweilai.wms.privacy.crypto.PrivacyCryptoService;
+import com.yiweilai.wms.privacy.crypto.PrivacyHashService;
 import com.yiweilai.wms.returns.entity.ReturnOrder;
 import com.yiweilai.wms.returns.mapper.ReturnOrderMapper;
 import com.yiweilai.wms.search.dto.OrderSearchDTO;
@@ -38,14 +40,19 @@ public class OrderSearchServiceImpl implements OrderSearchService {
     private final OutboundOrderMapper outboundOrderMapper;
     private final ReturnOrderMapper returnOrderMapper;
     private final WarehouseMapper warehouseMapper;
+    private final PrivacyCryptoService privacyCryptoService;
+    private final PrivacyHashService privacyHashService;
 
     @Override
     public PageResult<OrderSearchVO> search(OrderSearchDTO query) {
         // 当前使用 MySQL 模拟搜索，后期替换为 ES
         PageHelper.startPage(query.getPage(), query.getSize());
 
-        List<SalesOrder> orders = salesOrderMapper.findByPage(
-                query.getKeyword(), null, query.getKeyword(), null,
+        String keyword = query.getKeyword();
+        String receiverNameHash = privacyHashService.hmacSha256(privacyHashService.normalizeName(keyword));
+        String receiverPhoneHash = privacyHashService.hmacSha256(privacyHashService.normalizePhone(keyword));
+        List<SalesOrder> orders = salesOrderMapper.searchByKeyword(
+                keyword, receiverNameHash, receiverPhoneHash,
                 query.getOrderStatus(), query.getWarehouseId());
 
         PageInfo<SalesOrder> pageInfo = new PageInfo<>(orders);
@@ -65,9 +72,9 @@ public class OrderSearchServiceImpl implements OrderSearchService {
         vo.setId(order.getId());
         vo.setOrderNo(order.getOrderNo());
         vo.setPlatformOrderNo(order.getPlatformOrderNo());
-        vo.setReceiverName(order.getReceiverName());
-        vo.setReceiverPhone(order.getReceiverPhone());
-        vo.setReceiverAddress(order.getReceiverAddress());
+        vo.setReceiverName(privacyCryptoService.decrypt(order.getReceiverName()));
+        vo.setReceiverPhone(privacyCryptoService.decrypt(order.getReceiverPhone()));
+        vo.setReceiverAddress(privacyCryptoService.decrypt(order.getReceiverAddress()));
         vo.setOrderStatus(order.getOrderStatus());
         vo.setTotalAmount(order.getTotalAmount());
         vo.setCreatedAt(order.getCreatedAt());
