@@ -35,6 +35,9 @@
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column prop="spuCode" label="SPU编码" width="120" />
         <el-table-column prop="name" label="商品名称" width="150" show-overflow-tooltip />
+        <el-table-column label="仓库" width="100">
+          <template #default="{ row }">{{ row.warehouseName || '-' }}</template>
+        </el-table-column>
         <el-table-column label="货架" width="120">
           <template #default="{ row }">{{ row.shelfCode }} - {{ getShelfName(row.shelfId) }}</template>
         </el-table-column>
@@ -95,12 +98,21 @@
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="货架号" prop="shelfId">
-              <el-select v-model="form.shelfId" placeholder="选择货架" style="width: 100%" @change="handleShelfChange">
-                <el-option v-for="s in shelfList" :key="s.id" :label="`${s.code} - ${s.name} (${s.categoryName})`" :value="s.id" />
+            <el-form-item label="所属仓库" prop="warehouseId">
+              <el-select v-model="form.warehouseId" placeholder="选择仓库" style="width: 100%" @change="handleWarehouseChange">
+                <el-option v-for="w in warehouseOptions" :key="w.id" :label="w.name" :value="w.id" />
               </el-select>
             </el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item label="货架号" prop="shelfId">
+              <el-select v-model="form.shelfId" placeholder="选择货架" style="width: 100%" @change="handleShelfChange">
+                <el-option v-for="s in filteredShelfList" :key="s.id" :label="`${s.code} - ${s.name} (${s.categoryName})`" :value="s.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="分类">
               <el-input :model-value="selectedShelf?.categoryName || ''" disabled placeholder="选择货架后自动填充" />
@@ -182,6 +194,7 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="SPU编码">{{ detail.spuCode }}</el-descriptions-item>
         <el-descriptions-item label="商品名称">{{ detail.name }}</el-descriptions-item>
+        <el-descriptions-item label="仓库">{{ detail.warehouseName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="货架号">{{ detail.shelfCode }}</el-descriptions-item>
         <el-descriptions-item label="分类">{{ detail.categoryName }}</el-descriptions-item>
         <el-descriptions-item label="参考售价">¥{{ detail.price?.toFixed(2) }}</el-descriptions-item>
@@ -228,9 +241,18 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<Product>(getProductList)
 
+// 仓库列表
+const warehouseOptions = ref<Warehouse[]>([])
+
 // 货架列表
 const shelfList = ref<WarehouseShelf[]>([])
 const selectedShelf = computed(() => shelfList.value.find((s) => s.id === form.shelfId))
+
+// 根据选中仓库过滤货架列表
+const filteredShelfList = computed(() => {
+  if (!form.warehouseId) return shelfList.value
+  return shelfList.value.filter((s) => s.warehouseId === form.warehouseId)
+})
 
 // 预警模板列表
 const alertTemplateOptions = ref<StockAlertTemplate[]>([])
@@ -251,6 +273,7 @@ const form = reactive<Partial<Product> & { skuList: ProductSizeSku[] }>({
   id: undefined,
   spuCode: '',
   name: '',
+  warehouseId: undefined,
   shelfId: undefined,
   shelfCode: '',
   categoryName: '',
@@ -270,11 +293,12 @@ const rules: FormRules = {
 }
 
 onMounted(async () => {
-  // 加载所有仓库的货架
+  // 加载仓库列表
   try {
     const wRes = await getWarehouseList({ page: 1, size: 100 })
-    const warehouses = wRes.data.list || []
-    for (const w of warehouses) {
+    warehouseOptions.value = (wRes.data.list || []).filter((w: any) => w.warehouseType === 'NORMAL')
+    // 加载所有仓库的货架
+    for (const w of warehouseOptions.value) {
       try {
         const sRes = await getShelfList(w.id)
         shelfList.value.push(...(sRes.data || []))
@@ -288,6 +312,13 @@ onMounted(async () => {
     alertTemplateOptions.value = tRes.data || []
   } catch {}
 })
+
+function handleWarehouseChange() {
+  // 切换仓库时清空货架选择
+  form.shelfId = undefined
+  form.shelfCode = ''
+  form.categoryName = ''
+}
 
 function handleShelfChange(shelfId: number) {
   const shelf = shelfList.value.find((s) => s.id === shelfId)
@@ -306,6 +337,7 @@ function openDialog(row?: Product) {
       id: undefined,
       spuCode: '',
       name: '',
+      warehouseId: undefined,
       shelfId: undefined,
       shelfCode: '',
       categoryName: '',

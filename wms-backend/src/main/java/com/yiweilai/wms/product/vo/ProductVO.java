@@ -21,6 +21,12 @@ public class ProductVO {
     /** 商品名称 */
     private String name;
 
+    /** 仓库ID */
+    private Long warehouseId;
+
+    /** 仓库名称 */
+    private String warehouseName;
+
     /** 货架ID */
     private Long shelfId;
 

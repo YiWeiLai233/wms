@@ -5,6 +5,8 @@ export interface Product {
   id: number
   spuCode: string
   name: string
+  warehouseId?: number
+  warehouseName?: string
   shelfId: number
   shelfCode: string
   shelfName: string

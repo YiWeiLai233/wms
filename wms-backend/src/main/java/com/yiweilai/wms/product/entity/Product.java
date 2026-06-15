@@ -19,6 +19,9 @@ public class Product {
     /** 商品名称 */
     private String name;
 
+    /** 仓库ID */
+    private Long warehouseId;
+
     /** 货架ID */
     private Long shelfId;
 

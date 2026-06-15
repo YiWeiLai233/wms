@@ -6,6 +6,7 @@
         <id column="id" property="id"/>
         <result column="spu_code" property="spuCode"/>
         <result column="name" property="name"/>
+        <result column="warehouse_id" property="warehouseId"/>
         <result column="shelf_id" property="shelfId"/>
         <result column="main_image" property="mainImage"/>
         <result column="description" property="description"/>
@@ -17,7 +18,7 @@
     </resultMap>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT p.id, p.spu_code, p.name, p.shelf_id, p.main_image, p.description,
+        SELECT p.id, p.spu_code, p.name, p.warehouse_id, p.shelf_id, p.main_image, p.description,
                p.price, p.status, p.alert_template_id, p.created_at, p.updated_at
         FROM product p
         LEFT JOIN warehouse_shelf ws ON p.shelf_id = ws.id AND ws.deleted = 0
@@ -37,22 +38,22 @@
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, spu_code, name, shelf_id, main_image, description,
+        SELECT id, spu_code, name, warehouse_id, shelf_id, main_image, description,
                price, status, alert_template_id, created_at, updated_at
         FROM product
         WHERE id = #{id} AND deleted = 0
     </select>
 
     <select id="findBySpuCode" resultMap="BaseResultMap">
-        SELECT id, spu_code, name, shelf_id, main_image, description,
+        SELECT id, spu_code, name, warehouse_id, shelf_id, main_image, description,
                price, status, alert_template_id, created_at, updated_at
         FROM product
         WHERE spu_code = #{spuCode} AND deleted = 0
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO product (spu_code, name, shelf_id, main_image, description, price, status, alert_template_id)
-        VALUES (#{spuCode}, #{name}, #{shelfId}, #{mainImage}, #{description}, #{price}, #{status}, #{alertTemplateId})
+        INSERT INTO product (spu_code, name, warehouse_id, shelf_id, main_image, description, price, status, alert_template_id)
+        VALUES (#{spuCode}, #{name}, #{warehouseId}, #{shelfId}, #{mainImage}, #{description}, #{price}, #{status}, #{alertTemplateId})
     </insert>
 
     <update id="update">
@@ -60,6 +61,7 @@
         <set>
             <if test="spuCode != null">spu_code = #{spuCode},</if>
             <if test="name != null">name = #{name},</if>
+            <if test="warehouseId != null">warehouse_id = #{warehouseId},</if>
             <if test="shelfId != null">shelf_id = #{shelfId},</if>
             <if test="mainImage != null">main_image = #{mainImage},</if>
             <if test="description != null">description = #{description},</if>

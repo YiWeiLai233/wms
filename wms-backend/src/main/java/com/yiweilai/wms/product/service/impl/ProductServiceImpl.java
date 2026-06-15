@@ -22,7 +22,9 @@ import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
+import com.yiweilai.wms.warehouse.entity.Warehouse;
 import com.yiweilai.wms.warehouse.entity.WarehouseShelf;
+import com.yiweilai.wms.warehouse.mapper.WarehouseMapper;
 import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductMapper productMapper;
     private final ProductSkuMapper skuMapper;
+    private final WarehouseMapper warehouseMapper;
     private final WarehouseShelfMapper shelfMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
@@ -165,6 +168,14 @@ public class ProductServiceImpl implements ProductService {
     private ProductVO convertToVO(Product product) {
         ProductVO vo = new ProductVO();
         BeanUtils.copyProperties(product, vo);
+
+        // 查询仓库信息
+        if (product.getWarehouseId() != null) {
+            Warehouse warehouse = warehouseMapper.findById(product.getWarehouseId());
+            if (warehouse != null) {
+                vo.setWarehouseName(warehouse.getName());
+            }
+        }
 
         // 查询货架信息
         if (product.getShelfId() != null) {
