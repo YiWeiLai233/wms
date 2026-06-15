@@ -1,6 +1,21 @@
 <template>
   <div class="page-container">
-    <PageHeader title="退货管理" />
+    <PageHeader title="退货管理" class="order-sticky-header" :class="{ 'title-collapsed': titleCollapsed }">
+      <template #actions>
+        <el-button type="primary" icon="Stamp" :type="selectMode === 'check' ? 'primary' : ''" @click="toggleSelectMode('check')">
+          {{ selectMode === 'check' ? '取消选择' : '批量质检' }}
+        </el-button>
+        <el-button type="success" icon="Check" :type="selectMode === 'confirm' ? 'success' : ''" @click="toggleSelectMode('confirm')">
+          {{ selectMode === 'confirm' ? '取消选择' : '批量入库' }}
+        </el-button>
+        <el-button type="danger" icon="Close" :type="selectMode === 'cancel' ? 'danger' : ''" @click="toggleSelectMode('cancel')">
+          {{ selectMode === 'cancel' ? '取消选择' : '批量取消' }}
+        </el-button>
+        <el-button v-if="selectMode && selectedReturns.length > 0" type="primary" @click="handleBatchAction">
+          确认{{ selectMode === 'check' ? '质检' : selectMode === 'confirm' ? '入库' : '取消' }} ({{ selectedReturns.length }})
+        </el-button>
+      </template>
+    </PageHeader>
 
     <div class="card mb-4">
       <el-form :model="searchParams" inline>
@@ -31,7 +46,27 @@
     </div>
 
     <div class="card">
-      <el-table :data="tableData" v-loading="loading" stripe border>
+      <!-- 选择模式提示 -->
+      <el-alert
+        v-if="selectMode"
+        :title="selectMode === 'check' ? '批量质检模式：请勾选需要质检的退货单（仅待质检状态可选）' : selectMode === 'confirm' ? '批量入库模式：请勾选需要入库的退货单（仅已质检状态可选）' : '批量取消模式：请勾选需要取消的退货单（未入库状态可选）'"
+        :type="selectMode === 'check' ? 'info' : selectMode === 'confirm' ? 'success' : 'error'"
+        show-icon
+        :closable="false"
+        class="mb-3"
+      />
+
+      <el-table
+        ref="tableRef"
+        :data="tableData"
+        v-loading="loading"
+        stripe
+        border
+        :class="selectMode === 'check' ? 'check-mode' : selectMode === 'confirm' ? 'confirm-mode' : selectMode === 'cancel' ? 'cancel-mode' : ''"
+        :row-class-name="getRowClassName"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="50" :selectable="isSelectable" />
         <el-table-column prop="returnNo" label="退货单号" width="160" />
         <el-table-column prop="orderNo" label="订单号" width="160" />
         <el-table-column prop="platformOrderNo" label="平台单号" width="160" show-overflow-tooltip>
@@ -198,11 +233,41 @@
         <el-button type="primary" :loading="confirming" @click="handleConfirmReturn">确认入库</el-button>
       </template>
     </el-dialog>
+
+    <!-- 批量质检弹窗 -->
+    <el-dialog v-model="batchCheckVisible" title="批量质检" width="800px" destroy-on-close>
+      <div v-for="(ret, idx) in batchCheckList" :key="ret.id" class="mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-semibold text-sm">{{ ret.platformOrderNo || '-' }}</span>
+        </div>
+        <el-table :data="ret.items" border size="small">
+          <el-table-column prop="skuCode" label="SKU编码" width="130" />
+          <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column label="质检结果" width="150">
+            <template #default="{ row }">
+              <el-select v-model="row.qualityStatus" style="width: 120px">
+                <el-option label="可售" value="SELLABLE" />
+                <el-option label="次品" value="DEFECTIVE" />
+                <el-option label="报废" value="SCRAPPED" />
+              </el-select>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <template #footer>
+        <el-button @click="batchCheckVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchChecking" @click="handleBatchCheckSubmit">确认质检</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
@@ -240,6 +305,163 @@ const confirmInfo = ref({
   scrapWarehouse: '',
 })
 
+// 批量操作相关
+const selectMode = ref<'check' | 'confirm' | 'cancel' | null>(null)
+const selectedReturns = ref<ReturnOrder[]>([])
+const tableRef = ref()
+const headerRef = ref()
+const titleCollapsed = ref(false)
+const batchCheckVisible = ref(false)
+const batchChecking = ref(false)
+const batchCheckList = ref<any[]>([])
+
+function handleSelectionChange(selection: ReturnOrder[]) {
+  selectedReturns.value = selection
+}
+
+function isSelectable(row: ReturnOrder) {
+  if (!selectMode.value) return false
+  if (selectMode.value === 'check') return row.status === 'PENDING_CHECK'
+  if (selectMode.value === 'confirm') return row.status === 'SELLABLE' || row.status === 'DEFECTIVE' || row.status === 'SCRAPPED'
+  if (selectMode.value === 'cancel') return row.status === 'PENDING_CHECK' || row.status === 'SELLABLE' || row.status === 'DEFECTIVE' || row.status === 'SCRAPPED'
+  return false
+}
+
+function getRowClassName({ row }: { row: ReturnOrder }) {
+  if (!selectMode.value) return ''
+  if (isSelectable(row)) return 'selectable-row'
+  return 'disabled-row'
+}
+
+function toggleSelectMode(mode: 'check' | 'confirm' | 'cancel') {
+  if (selectMode.value === mode) {
+    selectMode.value = null
+    selectedReturns.value = []
+    tableRef.value?.clearSelection()
+  } else {
+    selectMode.value = mode
+    selectedReturns.value = []
+    tableRef.value?.clearSelection()
+  }
+}
+
+async function handleBatchAction() {
+  if (!selectMode.value || selectedReturns.value.length === 0) return
+  if (selectMode.value === 'check') await handleBatchCheck()
+  else if (selectMode.value === 'confirm') await handleBatchConfirm()
+  else if (selectMode.value === 'cancel') await handleBatchCancel()
+}
+
+async function handleBatchCheck() {
+  const pending = selectedReturns.value.filter(r => r.status === 'PENDING_CHECK')
+  if (pending.length === 0) {
+    ElMessage.warning('请选择待质检的退货单')
+    return
+  }
+
+  // 加载每个退货单的明细
+  const list: any[] = []
+  for (const item of pending) {
+    try {
+      const res = await getReturnDetail(item.id)
+      const returnData = res.data
+      list.push({
+        ...returnData,
+        items: (returnData.items || []).map((i: any) => ({
+          id: i.id,
+          skuCode: i.skuCode,
+          skuName: i.skuName || i.skuCode,
+          sizeValue: i.sizeValue,
+          quantity: i.quantity,
+          qualityStatus: i.qualityStatus || 'SELLABLE',
+        })),
+      })
+    } catch {}
+  }
+  batchCheckList.value = list
+  batchCheckVisible.value = true
+}
+
+async function handleBatchCheckSubmit() {
+  batchChecking.value = true
+  let success = 0
+  for (const ret of batchCheckList.value) {
+    try {
+      await checkReturn({
+        returnId: ret.id,
+        items: ret.items.map((i: any) => ({
+          itemId: i.id,
+          qualityStatus: i.qualityStatus,
+        })),
+      })
+      success++
+    } catch {}
+  }
+  ElMessage.success(`批量质检完成，成功 ${success}/${batchCheckList.value.length}`)
+  batchCheckVisible.value = false
+  selectMode.value = null
+  selectedReturns.value = []
+  tableRef.value?.clearSelection()
+  fetchData()
+  batchChecking.value = false
+}
+
+async function handleBatchConfirm() {
+  const ready = selectedReturns.value.filter(r => r.status === 'SELLABLE' || r.status === 'DEFECTIVE' || r.status === 'SCRAPPED')
+  if (ready.length === 0) {
+    ElMessage.warning('请选择可入库的退货单')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定对 ${ready.length} 个退货单进行批量入库吗？`, '批量入库', { type: 'warning' })
+  } catch { return }
+
+  let success = 0
+  for (const item of ready) {
+    try {
+      const res = await getReturnDetail(item.id)
+      const returnData = res.data
+      const items = (returnData.items || []).map((i: any) => ({
+        itemId: i.id,
+        qualityStatus: i.qualityStatus || 'SELLABLE',
+      }))
+      await confirmReturn(item.id, items)
+      success++
+    } catch {}
+  }
+  ElMessage.success(`批量入库完成，成功 ${success}/${ready.length}`)
+  selectMode.value = null
+  selectedReturns.value = []
+  tableRef.value?.clearSelection()
+  fetchData()
+}
+
+async function handleBatchCancel() {
+  const cancellable = selectedReturns.value.filter(r =>
+    r.status === 'PENDING_CHECK' || r.status === 'SELLABLE' || r.status === 'DEFECTIVE' || r.status === 'SCRAPPED'
+  )
+  if (cancellable.length === 0) {
+    ElMessage.warning('请选择可取消的退货单')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定取消 ${cancellable.length} 个退货单吗？取消后订单将恢复为已发货状态`, '批量取消', { type: 'warning' })
+  } catch { return }
+
+  let success = 0
+  for (const item of cancellable) {
+    try {
+      await cancelReturn(item.id)
+      success++
+    } catch {}
+  }
+  ElMessage.success(`批量取消完成，成功 ${success}/${cancellable.length}`)
+  selectMode.value = null
+  selectedReturns.value = []
+  tableRef.value?.clearSelection()
+  fetchData()
+}
+
 onMounted(async () => {
   try {
     const res = await getWarehouseList({ page: 1, size: 100 })
@@ -252,6 +474,20 @@ onMounted(async () => {
   if (queryOrderNo) {
     searchParams.orderNo = queryOrderNo
     handleSearch()
+  }
+
+  // 监听滚动，检测置顶状态
+  const scrollContainer = document.querySelector('.layout-content')
+  const headerEl = headerRef.value?.$el
+  if (scrollContainer && headerEl) {
+    const stickyTop = headerEl.offsetTop
+    const onScroll = () => {
+      titleCollapsed.value = scrollContainer.scrollTop >= stickyTop
+    }
+    scrollContainer.addEventListener('scroll', onScroll, { passive: true })
+    onBeforeUnmount(() => {
+      scrollContainer.removeEventListener('scroll', onScroll)
+    })
   }
 })
 
@@ -353,3 +589,65 @@ async function handleConfirmReturn() {
   }
 }
 </script>
+
+<style scoped>
+/* 操作按钮置顶 */
+.order-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  transition: padding-bottom 0.2s;
+}
+
+.order-sticky-header.title-collapsed :deep(.page-header__left) {
+  height: 0;
+  overflow: hidden;
+  margin: 0;
+}
+</style>
+
+<style>
+/* 批量质检模式 - 蓝色选择框 */
+.check-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
+  border-color: #409eff !important;
+  background-color: #409eff !important;
+}
+.check-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+
+/* 批量入库模式 - 绿色选择框 */
+.confirm-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
+  border-color: #67c23a !important;
+  background-color: #67c23a !important;
+}
+.confirm-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+
+/* 批量取消模式 - 红色选择框 */
+.cancel-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
+  border-color: #ff4d4f !important;
+  background-color: #ff4d4f !important;
+}
+.cancel-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+}
+.cancel-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+
+/* 不可选择的行 - 半透明 */
+.disabled-row {
+  opacity: 0.5;
+}
+
+/* 可选择的行 - 浅色背景高亮 */
+.selectable-row {
+  background-color: #fdf6ec !important;
+}
+.selectable-row:hover td {
+  background-color: #faecd8 !important;
+}
+</style>

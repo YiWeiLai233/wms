@@ -413,42 +413,74 @@
     </el-dialog>
 
     <!-- 批量退货弹窗 -->
-    <el-dialog v-model="batchReturnDialogVisible" title="批量退货" width="500px" destroy-on-close>
-      <el-form ref="batchReturnFormRef" :model="batchReturnForm" :rules="batchReturnRules" label-width="90px">
-        <el-form-item label="退货订单">
-          <div class="text-sm text-gray-600">已选择 {{ selectedOrders.length }} 个订单</div>
-        </el-form-item>
-        <el-form-item label="退货原因" prop="reason">
-          <el-select
-            v-model="batchReturnForm.reason"
-            filterable
-            allow-create
-            default-first-option
-            placeholder="请选择或输入退货原因"
-            style="width: 100%"
-          >
-            <el-option label="七天无理由退货" value="七天无理由退货" />
-            <el-option label="商品质量问题" value="商品质量问题" />
-            <el-option label="商品与描述不符" value="商品与描述不符" />
-            <el-option label="发错货" value="发错货" />
-            <el-option label="物流问题" value="物流问题" />
-            <el-option label="客户取消订单" value="客户取消订单" />
-            <el-option label="其他" value="其他" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="客户快递单号">
-          <el-input v-model="batchReturnForm.trackingNo" placeholder="客户退回的快递单号（选填）" />
-        </el-form-item>
-        <el-form-item label="退货快递费">
-          <el-input-number v-model="batchReturnForm.shippingFee" :min="0" :precision="2" style="width: 100%" placeholder="快递费用（选填）" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="batchReturnForm.remark" type="textarea" :rows="2" placeholder="备注信息（选填）" />
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="batchReturnDialogVisible" title="批量退货" width="1200px" destroy-on-close>
+      <el-table :data="batchReturnItems" border size="small" max-height="500">
+        <el-table-column label="平台单号" width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.platformOrderNo || row.orderNo }}</template>
+        </el-table-column>
+        <el-table-column label="商品明细" min-width="200">
+          <template #default="{ row }">
+            <div v-if="row.skuList && row.skuList.length > 0" class="sku-tags">
+              <el-tag v-for="(sku, idx) in row.skuList" :key="idx" size="small" class="sku-tag">
+                {{ sku.skuName }} x{{ sku.quantity }}
+              </el-tag>
+            </div>
+            <span v-else class="text-gray-400">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="退货原因" width="130">
+          <template #default="{ row }">
+            <el-select
+              v-model="row.reason"
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择原因"
+              size="small"
+              style="width: 100%"
+            >
+              <el-option label="七天无理由退货" value="七天无理由退货" />
+              <el-option label="商品质量问题" value="商品质量问题" />
+              <el-option label="商品与描述不符" value="商品与描述不符" />
+              <el-option label="发错货" value="发错货" />
+              <el-option label="物流问题" value="物流问题" />
+              <el-option label="客户取消订单" value="客户取消订单" />
+              <el-option label="其他" value="其他" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="客户快递单号" width="150">
+          <template #default="{ row }">
+            <el-input v-model="row.trackingNo" placeholder="快递单号" size="small" />
+          </template>
+        </el-table-column>
+        <el-table-column label="快递公司" width="120">
+          <template #default="{ row }">
+            <span class="text-sm">{{ getCompanyName(row.expressCompanyId) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="费用模板" width="130">
+          <template #default="{ row }">
+            <el-select v-model="row.feeTemplateId" placeholder="模板" size="small" style="width: 100%" @change="(val: number) => handleBatchReturnTemplateChange(row, val)">
+              <el-option v-for="t in row.templateList || []" :key="t.id" :label="t.name" :value="t.id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="重量(kg)" width="100">
+          <template #default="{ row }">
+            <el-input-number v-model="row.estimatedWeight" :min="0" :precision="2" size="small" style="width: 100%" @change="calculateReturnItemFee(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="快递费用" width="110">
+          <template #default="{ row }">
+            <el-input-number v-model="row.shippingFee" :min="0" :precision="2" size="small" style="width: 100%" />
+          </template>
+        </el-table-column>
+      </el-table>
+
       <template #footer>
         <el-button @click="batchReturnDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="batchReturning" @click="handleBatchReturnSubmit">确认退货</el-button>
+        <el-button type="primary" :loading="batchReturning" @click="handleBatchReturnSubmit">确认退货 ({{ batchReturnItems.length }})</el-button>
       </template>
     </el-dialog>
 
@@ -538,6 +570,8 @@ import { getWarehouseList } from '@/api/warehouse'
 import type { Warehouse } from '@/api/warehouse'
 import { getPlatformOptions } from '@/api/platform'
 import type { Platform } from '@/api/platform'
+import { getCompanyList } from '@/api/express'
+import type { ExpressCompany } from '@/api/express'
 import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { ORDER_STATUS_MAP } from '@/utils/constants'
@@ -579,6 +613,7 @@ const { tableData, loading, pagination, searchParams, handleSearch, handleReset,
 
 const warehouses = ref<Warehouse[]>([])
 const platforms = ref<Platform[]>([])
+const companyList = ref<ExpressCompany[]>([])
 const skuList = ref<SkuListItem[]>([])
 const detailVisible = ref(false)
 const detail = ref<Partial<Order>>({})
@@ -710,49 +745,179 @@ async function handleBatchReturn() {
     return
   }
 
-  // 打开批量退货弹窗
-  batchReturnForm.reason = ''
-  batchReturnForm.remark = ''
+  // 查找"退货"快递公司
+  const returnCompany = companyList.value.find(c => c.name.includes('退货'))
+  let defaultTemplateList: any[] = []
+  let defaultTemplate: any = null
+
+  if (returnCompany) {
+    try {
+      const { getTemplateListByCompany } = await import('@/api/express')
+      const res = await getTemplateListByCompany(returnCompany.id)
+      defaultTemplateList = res.data || []
+      defaultTemplate = defaultTemplateList.find((t: any) => t.isDefault === 1) || defaultTemplateList[0]
+    } catch {}
+  }
+
+  // 初始化批量退货列表，加载订单详情获取SKU信息
+  const items = []
+  for (const order of validOrders) {
+    let skuList: any[] = []
+    try {
+      const orderRes = await getOrderDetail(order.id)
+      skuList = (orderRes.data.items || []).map((item: any) => ({
+        skuName: item.skuName,
+        quantity: item.quantity,
+      }))
+    } catch {}
+
+    items.push({
+      orderId: order.id,
+      orderNo: order.orderNo,
+      platformOrderNo: order.platformOrderNo,
+      reason: '',
+      trackingNo: '',
+      expressCompanyId: returnCompany?.id,
+      feeTemplateId: defaultTemplate?.id,
+      estimatedWeight: undefined as number | undefined,
+      shippingFee: undefined as number | undefined,
+      remark: '',
+      templateList: [...defaultTemplateList],
+      templateDetail: defaultTemplate || null,
+      skuList,
+    })
+  }
+  batchReturnItems.value = items
   batchReturnDialogVisible.value = true
+}
+
+function getCompanyName(companyId: number | undefined): string {
+  if (!companyId) return '-'
+  return companyList.value.find(c => c.id === companyId)?.name || '-'
+}
+
+async function handleReturnCompanyChange(item: any, companyId: number) {
+  item.feeTemplateId = undefined
+  item.templateList = []
+  item.templateDetail = null
+  if (companyId) {
+    try {
+      const { getTemplateListByCompany } = await import('@/api/express')
+      const res = await getTemplateListByCompany(companyId)
+      item.templateList = res.data || []
+      const defaultTemplate = item.templateList.find((t: any) => t.isDefault === 1)
+      if (defaultTemplate) {
+        item.feeTemplateId = defaultTemplate.id
+        await handleBatchReturnTemplateChange(item, defaultTemplate.id)
+      }
+    } catch {
+      item.templateList = []
+    }
+  }
+}
+
+async function handleBatchReturnTemplateChange(item: any, templateId: number) {
+  if (templateId) {
+    try {
+      const { getTemplateDetail } = await import('@/api/express')
+      const res = await getTemplateDetail(templateId)
+      item.templateDetail = res.data
+      if (item.estimatedWeight && item.estimatedWeight > 0) {
+        calculateReturnItemFee(item)
+      }
+    } catch {
+      item.templateDetail = null
+    }
+  } else {
+    item.templateDetail = null
+  }
+}
+
+function calculateReturnItemFee(item: any) {
+  if (!item.templateDetail || !item.estimatedWeight || item.estimatedWeight <= 0) return
+
+  const template = item.templateDetail
+  let fee: number | undefined
+
+  if (template.templateType === 'FIRST_CONTINUE') {
+    const firstWeight = template.firstWeight || 1
+    const firstFee = template.firstFee || 0
+    const additionalWeight = template.additionalWeight || 1
+    const additionalFee = template.additionalFee || 0
+
+    if (item.estimatedWeight <= firstWeight) {
+      fee = firstFee
+    } else {
+      const extraWeight = item.estimatedWeight - firstWeight
+      const extraUnits = Math.ceil(extraWeight / additionalWeight)
+      fee = firstFee + extraUnits * additionalFee
+    }
+  } else if (template.steps && template.steps.length > 0) {
+    const sortedSteps = [...template.steps].sort((a: any, b: any) => a.minWeight - b.minWeight)
+    const matchedStep = sortedSteps.find((s: any) =>
+      item.estimatedWeight >= s.minWeight && item.estimatedWeight < s.maxWeight
+    )
+    if (matchedStep) {
+      fee = matchedStep.fee
+    } else {
+      const lastStep = sortedSteps[sortedSteps.length - 1]
+      if (item.estimatedWeight >= lastStep.minWeight) {
+        fee = lastStep.fee
+      }
+    }
+  }
+
+  if (fee !== undefined) {
+    item.shippingFee = fee
+  }
 }
 
 // 批量退货弹窗
 const batchReturnDialogVisible = ref(false)
 const batchReturning = ref(false)
-const batchReturnFormRef = ref<FormInstance>()
-const batchReturnForm = reactive({
-  reason: '',
-  trackingNo: '',
-  shippingFee: undefined as number | undefined,
-  remark: '',
-})
-const batchReturnRules: FormRules = {
-  reason: [{ required: true, message: '请选择或输入退货原因', trigger: 'change' }],
-}
+const batchReturnItems = ref<any[]>([])
 
 async function handleBatchReturnSubmit() {
-  const valid = await batchReturnFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-
-  const orderIds = selectedOrders.value.filter(o => o.orderStatus === 'SHIPPED').map(o => o.id)
+  // 验证每行数据
+  for (const item of batchReturnItems.value) {
+    if (!item.reason) {
+      ElMessage.warning(`订单 ${item.platformOrderNo || item.orderNo} 请选择退货原因`)
+      return
+    }
+  }
 
   batchReturning.value = true
-  try {
-    const res = await createBatchReturn({
-      orderIds,
-      reason: batchReturnForm.reason,
-      remark: batchReturnForm.remark || undefined,
-      trackingNo: batchReturnForm.trackingNo || undefined,
-      shippingFee: batchReturnForm.shippingFee,
-    })
-    ElMessage.success(`批量退货成功，共创建 ${res.data?.length || 0} 个退货单`)
-    batchReturnDialogVisible.value = false
-    selectedOrders.value = []
-    selectMode.value = null
-    fetchData()
-  } catch {} finally {
-    batchReturning.value = false
+  let successCount = 0
+
+  for (const item of batchReturnItems.value) {
+    try {
+      // 获取订单详情以获取退货明细
+      const orderRes = await getOrderDetail(item.orderId)
+      const order = orderRes.data
+      const returnItems = (order.items || []).map((sku: any) => ({
+        skuId: sku.skuId,
+        quantity: sku.quantity,
+      }))
+
+      await createReturn({
+        orderId: item.orderId,
+        reason: item.reason,
+        trackingNo: item.trackingNo || undefined,
+        shippingFee: item.shippingFee,
+        remark: item.remark || undefined,
+        items: returnItems,
+      })
+      successCount++
+    } catch {}
   }
+
+  ElMessage.success(`批量退货完成，成功 ${successCount} 个`)
+  batchReturnDialogVisible.value = false
+  selectedOrders.value = []
+  selectMode.value = null
+  tableRef.value?.clearSelection()
+  fetchData()
+  batchReturning.value = false
 }
 
 const importDialogVisible = ref(false)
@@ -1145,6 +1310,13 @@ onMounted(async () => {
   } catch {
     platforms.value = []
   }
+  // 加载快递公司列表
+  try {
+    const res = await getCompanyList()
+    companyList.value = res.data || []
+  } catch {
+    companyList.value = []
+  }
   // 加载SKU列表
   try {
     const res = await getAllSkuList({ page: 1, size: 1000 })
@@ -1442,5 +1614,15 @@ async function handleImport() {
 }
 .selectable-row:hover td {
   background-color: #faecd8 !important;
+}
+
+/* SKU标签 */
+.sku-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sku-tag {
+  margin: 0;
 }
 </style>

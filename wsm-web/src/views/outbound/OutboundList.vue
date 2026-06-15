@@ -1,10 +1,20 @@
 <template>
   <div class="page-container">
-    <PageHeader title="发货管理">
-      <template #actions>
-        <el-button type="primary" icon="Plus" @click="openDialog()">新增发货单</el-button>
-      </template>
-    </PageHeader>
+    <PageHeader title="发货管理" />
+
+    <!-- 操作栏 -->
+    <div class="action-bar">
+      <el-button type="primary" icon="Plus" @click="openDialog()">新增发货单</el-button>
+      <div class="flex-1"></div>
+      <el-button
+        type="success"
+        icon="Check"
+        :disabled="selectedOrders.length === 0"
+        @click="handleBatchConfirm"
+      >
+        批量发货{{ selectedOrders.length > 0 ? ` (${selectedOrders.length})` : '' }}
+      </el-button>
+    </div>
 
     <div class="card mb-4">
       <el-form :model="searchParams" inline>
@@ -35,7 +45,8 @@
     </div>
 
     <div class="card">
-      <el-table :data="tableData" v-loading="loading" stripe border>
+      <el-table ref="tableRef" :data="tableData" v-loading="loading" stripe border @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="50" :selectable="isSelectable" />
         <el-table-column prop="outboundNo" label="发货单号" min-width="160" />
         <el-table-column prop="orderNo" label="订单号" min-width="140" />
         <el-table-column prop="platformOrderNo" label="平台单号" min-width="140" show-overflow-tooltip>
@@ -286,6 +297,49 @@
         <el-button type="primary" :loading="confirming" @click="handleConfirm">确认发货</el-button>
       </template>
     </el-dialog>
+
+    <!-- 批量发货弹窗 -->
+    <el-dialog v-model="batchConfirmVisible" title="批量发货" width="900px" destroy-on-close>
+      <el-table :data="batchItems" border size="small" max-height="500">
+        <el-table-column label="平台单号" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.platformOrderNo || row.orderNo }}</template>
+        </el-table-column>
+        <el-table-column label="快递单号" min-width="160">
+          <template #default="{ row }">
+            <el-input v-model="row.trackingNo" placeholder="快递单号" size="small" />
+          </template>
+        </el-table-column>
+        <el-table-column label="快递公司" min-width="140">
+          <template #default="{ row }">
+            <el-select v-model="row.expressCompanyId" placeholder="快递公司" size="small" style="width: 100%" @change="(val: number) => handleItemCompanyChange(row, val)">
+              <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="费用模板" min-width="140">
+          <template #default="{ row }">
+            <el-select v-model="row.feeTemplateId" placeholder="模板" size="small" style="width: 100%" @change="(val: number) => handleItemTemplateChange(row, val)">
+              <el-option v-for="t in row.templateList || []" :key="t.id" :label="t.name" :value="t.id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="重量(kg)" min-width="110">
+          <template #default="{ row }">
+            <el-input-number v-model="row.estimatedWeight" :min="0" :precision="2" size="small" style="width: 100%" @change="calculateItemFee(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="快递费用" min-width="120">
+          <template #default="{ row }">
+            <el-input-number v-model="row.shippingFee" :min="0" :precision="2" size="small" style="width: 100%" />
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="batchConfirmVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchConfirming" @click="submitBatchConfirm">确认发货 ({{ batchItems.length }})</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -310,6 +364,155 @@ import ImagePreview from '@/components/ImagePreview.vue'
 
 const route = useRoute()
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<OutboundOrder>(getOutboundList)
+
+// 批量选择相关
+const selectedOrders = ref<OutboundOrder[]>([])
+const tableRef = ref()
+
+function handleSelectionChange(selection: OutboundOrder[]) {
+  selectedOrders.value = selection
+}
+
+function isSelectable(row: OutboundOrder) {
+  return row.status === 'WAIT_PICKING' || row.status === 'PICKING'
+}
+
+// 批量发货弹窗
+const batchConfirmVisible = ref(false)
+const batchConfirming = ref(false)
+const batchItems = ref<any[]>([])
+
+async function handleBatchConfirm() {
+  if (selectedOrders.value.length === 0) {
+    ElMessage.warning('请选择要发货的发货单')
+    return
+  }
+  // 初始化批量发货列表
+  batchItems.value = selectedOrders.value.map(order => ({
+    outboundId: order.id,
+    outboundNo: order.outboundNo,
+    orderNo: order.orderNo,
+    platformOrderNo: order.platformOrderNo,
+    trackingNo: '',
+    expressCompanyId: undefined as number | undefined,
+    feeTemplateId: undefined as number | undefined,
+    estimatedWeight: undefined as number | undefined,
+    shippingFee: undefined as number | undefined,
+    templateList: [],
+    templateDetail: null,
+  }))
+  batchConfirmVisible.value = true
+}
+
+async function handleItemCompanyChange(item: any, companyId: number) {
+  item.feeTemplateId = undefined
+  item.templateList = []
+  item.templateDetail = null
+  if (companyId) {
+    try {
+      const res = await getTemplateListByCompany(companyId)
+      item.templateList = res.data || []
+      const defaultTemplate = item.templateList.find((t: any) => t.isDefault === 1)
+      if (defaultTemplate) {
+        item.feeTemplateId = defaultTemplate.id
+        await handleItemTemplateChange(item, defaultTemplate.id)
+      }
+    } catch {
+      item.templateList = []
+    }
+  }
+}
+
+async function handleItemTemplateChange(item: any, templateId: number) {
+  if (templateId) {
+    try {
+      const res = await getTemplateDetail(templateId)
+      item.templateDetail = res.data
+      if (item.estimatedWeight && item.estimatedWeight > 0) {
+        calculateItemFee(item)
+      }
+    } catch {
+      item.templateDetail = null
+    }
+  } else {
+    item.templateDetail = null
+  }
+}
+
+function calculateItemFee(item: any) {
+  if (!item.templateDetail || !item.estimatedWeight || item.estimatedWeight <= 0) return
+
+  const template = item.templateDetail
+  let fee: number | undefined
+
+  if (template.templateType === 'FIRST_CONTINUE') {
+    const firstWeight = template.firstWeight || 1
+    const firstFee = template.firstFee || 0
+    const additionalWeight = template.additionalWeight || 1
+    const additionalFee = template.additionalFee || 0
+
+    if (item.estimatedWeight <= firstWeight) {
+      fee = firstFee
+    } else {
+      const extraWeight = item.estimatedWeight - firstWeight
+      const extraUnits = Math.ceil(extraWeight / additionalWeight)
+      fee = firstFee + extraUnits * additionalFee
+    }
+  } else if (template.steps && template.steps.length > 0) {
+    const sortedSteps = [...template.steps].sort((a: any, b: any) => a.minWeight - b.minWeight)
+    const matchedStep = sortedSteps.find((s: any) =>
+      item.estimatedWeight >= s.minWeight && item.estimatedWeight < s.maxWeight
+    )
+    if (matchedStep) {
+      fee = matchedStep.fee
+    } else {
+      const lastStep = sortedSteps[sortedSteps.length - 1]
+      if (item.estimatedWeight >= lastStep.minWeight) {
+        fee = lastStep.fee
+      }
+    }
+  }
+
+  if (fee !== undefined) {
+    item.shippingFee = fee
+  }
+}
+
+async function submitBatchConfirm() {
+  // 验证每行数据
+  for (const item of batchItems.value) {
+    if (!item.expressCompanyId) {
+      ElMessage.warning(`发货单 ${item.outboundNo} 请选择快递公司`)
+      return
+    }
+    if (!item.shippingFee && item.shippingFee !== 0) {
+      ElMessage.warning(`发货单 ${item.outboundNo} 请输入快递费用`)
+      return
+    }
+  }
+
+  batchConfirming.value = true
+  let successCount = 0
+
+  for (const item of batchItems.value) {
+    try {
+      await confirmOutbound({
+        outboundId: item.outboundId,
+        trackingNo: item.trackingNo || undefined,
+        expressCompanyId: item.expressCompanyId,
+        shippingFee: item.shippingFee,
+      })
+      successCount++
+    } catch {}
+  }
+
+  ElMessage.success(`批量发货完成，成功 ${successCount} 个`)
+  batchConfirmVisible.value = false
+  selectedOrders.value = []
+  tableRef.value?.clearSelection()
+  fetchData()
+  batchConfirming.value = false
+}
 
 const warehouses = ref<Warehouse[]>([])
 const orderList = ref<Order[]>([])
@@ -700,3 +903,14 @@ async function handleConfirm() {
   }
 }
 </script>
+
+<style scoped>
+/* 操作栏 */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 16px;
+}
+</style>
