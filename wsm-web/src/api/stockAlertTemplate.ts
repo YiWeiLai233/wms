@@ -22,9 +22,9 @@ export interface StockAlertTemplateCreateDTO {
 }
 
 export interface StockAlertTemplateUpdateDTO {
-  name?: string
-  lowStockThreshold?: number
-  outOfStockThreshold?: number
+  name: string
+  lowStockThreshold: number
+  outOfStockThreshold: number
   enabled?: number
   remark?: string
 }
