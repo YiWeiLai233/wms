@@ -1,13 +1,13 @@
 <template>
   <div class="image-preview" v-if="src">
     <div class="thumbnail" @click="handlePreview">
-      <img :src="src" alt="缩略图" />
+      <img :src="src" alt="缩略图" @error="handleError" @load="handleLoad" />
     </div>
 
     <!-- 图片预览 -->
     <el-dialog v-model="visible" title="图片预览" width="600px" destroy-on-close>
       <div class="preview-container">
-        <img :src="src" alt="预览" class="preview-image" />
+        <img :src="src" alt="预览" class="preview-image" @error="handleError" />
       </div>
     </el-dialog>
   </div>
@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   src?: string
 }>()
 
@@ -25,6 +25,14 @@ const visible = ref(false)
 
 function handlePreview() {
   visible.value = true
+}
+
+function handleError(e: Event) {
+  console.error('图片加载失败:', props.src, e)
+}
+
+function handleLoad() {
+  console.log('图片加载成功:', props.src)
 }
 </script>
 
