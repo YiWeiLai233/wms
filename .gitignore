@@ -35,3 +35,9 @@ mvnw.cmd
 
 # Uploads
 uploads/
+
+# Sensitive files
+**/application.properties
+**/application-*.properties
+.env
+*.env
