@@ -25,6 +25,9 @@ public class ProductSaveDTO {
     @NotBlank(message = "商品名称不能为空")
     private String name;
 
+    /** 仓库ID */
+    private Long warehouseId;
+
     /** 分类ID（支持单个数字或级联数组） */
     private Object categoryId;
 
