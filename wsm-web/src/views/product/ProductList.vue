@@ -248,11 +248,8 @@ const warehouseOptions = ref<Warehouse[]>([])
 const shelfList = ref<WarehouseShelf[]>([])
 const selectedShelf = computed(() => shelfList.value.find((s) => s.id === form.shelfId))
 
-// 根据选中仓库过滤货架列表
-const filteredShelfList = computed(() => {
-  if (!form.warehouseId) return shelfList.value
-  return shelfList.value.filter((s) => s.warehouseId === form.warehouseId)
-})
+// 货架列表（已根据仓库过滤）
+const filteredShelfList = computed(() => shelfList.value)
 
 // 预警模板列表
 const alertTemplateOptions = ref<StockAlertTemplate[]>([])
@@ -297,13 +294,6 @@ onMounted(async () => {
   try {
     const wRes = await getWarehouseList({ page: 1, size: 100 })
     warehouseOptions.value = (wRes.data.list || []).filter((w: any) => w.warehouseType === 'NORMAL')
-    // 加载所有仓库的货架
-    for (const w of warehouseOptions.value) {
-      try {
-        const sRes = await getShelfList(w.id)
-        shelfList.value.push(...(sRes.data || []))
-      } catch {}
-    }
   } catch {}
 
   // 加载预警模板选项
@@ -313,11 +303,22 @@ onMounted(async () => {
   } catch {}
 })
 
-function handleWarehouseChange() {
+async function handleWarehouseChange() {
   // 切换仓库时清空货架选择
   form.shelfId = undefined
   form.shelfCode = ''
   form.categoryName = ''
+  // 加载该仓库的货架列表
+  if (form.warehouseId) {
+    try {
+      const res = await getShelfList(form.warehouseId)
+      shelfList.value = res.data || []
+    } catch {
+      shelfList.value = []
+    }
+  } else {
+    shelfList.value = []
+  }
 }
 
 function handleShelfChange(shelfId: number) {
@@ -328,10 +329,19 @@ function handleShelfChange(shelfId: number) {
   }
 }
 
-function openDialog(row?: Product) {
+async function openDialog(row?: Product) {
   isEdit.value = !!row
   if (row) {
     Object.assign(form, { ...row, skuList: [] })
+    // 编辑时加载该仓库的货架列表
+    if (row.warehouseId) {
+      try {
+        const res = await getShelfList(row.warehouseId)
+        shelfList.value = res.data || []
+      } catch {
+        shelfList.value = []
+      }
+    }
   } else {
     Object.assign(form, {
       id: undefined,
