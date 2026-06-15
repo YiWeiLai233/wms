@@ -682,8 +682,7 @@ async function openImportDialog() {
 }
 
 async function handleImportWarehouseChange(warehouseId: number) {
-  // 清空已选明细
-  importForm.items = []
+  // 清空商品选择
   selectedSkuGroupKey.value = ''
   // 根据仓库重新加载SKU库存
   if (warehouseId) {
@@ -691,6 +690,8 @@ async function handleImportWarehouseChange(warehouseId: number) {
       const res = await getAllSkuList({ page: 1, size: 1000, warehouseId })
       skuList.value = res.data.list || []
     } catch {}
+  } else {
+    skuList.value = []
   }
 }
 
