@@ -431,7 +431,7 @@ const importForm = reactive({
 const selectedSkuGroupKey = ref('')
 
 const importRules: FormRules = {
-  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
+  warehouseId: [{ required: true, message: '请选择仓库', trigger: ['change', 'blur'] }],
   receiverName: [{ required: true, message: '请输入收件人', trigger: 'blur' }],
   receiverPhone: [{ required: true, message: '请输入电话', trigger: 'blur' }],
   receiverAddress: [{ required: true, message: '请输入地址', trigger: 'blur' }],
