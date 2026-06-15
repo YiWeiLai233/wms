@@ -6,10 +6,15 @@ import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.order.entity.SalesOrder;
+import com.yiweilai.wms.order.mapper.SalesOrderItemMapper;
 import com.yiweilai.wms.order.mapper.SalesOrderMapper;
+import com.yiweilai.wms.product.entity.Product;
 import com.yiweilai.wms.product.entity.ProductSku;
+import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.returns.dto.ReturnBatchCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnCheckDTO;
+import com.yiweilai.wms.returns.dto.ReturnConfirmDTO;
 import com.yiweilai.wms.returns.dto.ReturnCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnQueryDTO;
 import com.yiweilai.wms.returns.entity.ReturnOrder;
@@ -47,7 +52,9 @@ public class ReturnServiceImpl implements ReturnService {
     private final ReturnOrderMapper returnOrderMapper;
     private final ReturnOrderItemMapper returnOrderItemMapper;
     private final SalesOrderMapper salesOrderMapper;
+    private final SalesOrderItemMapper salesOrderItemMapper;
     private final ProductSkuMapper productSkuMapper;
+    private final ProductMapper productMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
     private final WarehouseMapper warehouseMapper;
@@ -144,6 +151,69 @@ public class ReturnServiceImpl implements ReturnService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public List<Long> createBatch(ReturnBatchCreateDTO dto) {
+        List<Long> returnIds = new java.util.ArrayList<>();
+
+        for (Long orderId : dto.getOrderIds()) {
+            // 查询订单
+            SalesOrder order = salesOrderMapper.findById(orderId);
+            if (order == null) {
+                log.warn("订单不存在: {}", orderId);
+                continue;
+            }
+
+            // 检查订单状态（已发货才能退货）
+            if (!"SHIPPED".equals(order.getOrderStatus())) {
+                log.warn("订单状态不允许退货: {}, 状态: {}", orderId, order.getOrderStatus());
+                continue;
+            }
+
+            // 检查是否已有退货单
+            ReturnOrder existingReturn = returnOrderMapper.findLatestByOrderId(orderId);
+            if (existingReturn != null && !"CANCELLED".equals(existingReturn.getStatus())) {
+                log.warn("订单已有退货单: {}", orderId);
+                continue;
+            }
+
+            // 生成退货单号
+            String returnNo = "RT" + new SimpleDateFormat("yyyyMMddHHmmssSSS").format(new Date());
+
+            // 创建退货单
+            ReturnOrder returnOrder = new ReturnOrder();
+            returnOrder.setReturnNo(returnNo);
+            returnOrder.setOrderId(order.getId());
+            returnOrder.setOrderNo(order.getOrderNo());
+            returnOrder.setWarehouseId(order.getWarehouseId());
+            returnOrder.setStatus("PENDING_CHECK");
+            returnOrder.setReason(dto.getReason());
+            returnOrder.setTrackingNo(dto.getTrackingNo());
+            returnOrder.setRemark(dto.getRemark());
+            returnOrderMapper.insert(returnOrder);
+
+            // 查询订单明细并创建退货明细
+            List<com.yiweilai.wms.order.entity.SalesOrderItem> orderItems =
+                    salesOrderItemMapper.findByOrderId(order.getId());
+            for (com.yiweilai.wms.order.entity.SalesOrderItem orderItem : orderItems) {
+                ReturnOrderItem item = new ReturnOrderItem();
+                item.setReturnId(returnOrder.getId());
+                item.setSkuId(orderItem.getSkuId());
+                item.setSkuCode(orderItem.getSkuCode());
+                item.setSkuName(orderItem.getSkuName());
+                item.setQuantity(orderItem.getQuantity());
+                returnOrderItemMapper.insert(item);
+            }
+
+            // 更新订单状态为退货中
+            salesOrderMapper.updateStatus(order.getId(), "RETURNING");
+
+            returnIds.add(returnOrder.getId());
+        }
+
+        return returnIds;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void check(ReturnCheckDTO dto) {
         ReturnOrder order = returnOrderMapper.findById(dto.getReturnId());
         if (order == null) {
@@ -176,7 +246,7 @@ public class ReturnServiceImpl implements ReturnService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void confirm(Long returnId) {
+    public void confirm(Long returnId, List<ReturnConfirmDTO.ReturnConfirmItemDTO> confirmItems) {
         ReturnOrder order = returnOrderMapper.findById(returnId);
         if (order == null) {
             throw new BusinessException(ErrorCode.RETURN_NOT_FOUND);
@@ -185,6 +255,13 @@ public class ReturnServiceImpl implements ReturnService {
         if (!"SELLABLE".equals(order.getStatus()) && !"DEFECTIVE".equals(order.getStatus())
                 && !"SCRAPPED".equals(order.getStatus())) {
             throw new BusinessException(ErrorCode.RETURN_STATUS_ERROR, "退货单状态不允许确认入库");
+        }
+
+        // 如果传入了质检结果，先更新质检状态
+        if (confirmItems != null && !confirmItems.isEmpty()) {
+            for (ReturnConfirmDTO.ReturnConfirmItemDTO confirmItem : confirmItems) {
+                returnOrderItemMapper.updateQualityStatus(confirmItem.getItemId(), confirmItem.getQualityStatus());
+            }
         }
 
         // 查询次品仓和报废仓
@@ -305,6 +382,23 @@ public class ReturnServiceImpl implements ReturnService {
     private ReturnOrderItemVO convertToItemVO(ReturnOrderItem item) {
         ReturnOrderItemVO vo = new ReturnOrderItemVO();
         BeanUtils.copyProperties(item, vo);
+
+        // 查询SKU图片
+        if (item.getSkuId() != null) {
+            ProductSku sku = productSkuMapper.findById(item.getSkuId());
+            if (sku != null) {
+                String image = sku.getImage();
+                // 如果SKU没有图片，查询SPU主图
+                if (image == null || image.isEmpty()) {
+                    Product product = productMapper.findById(sku.getProductId());
+                    if (product != null) {
+                        image = product.getMainImage();
+                    }
+                }
+                vo.setSkuImage(image);
+            }
+        }
+
         return vo;
     }
 }

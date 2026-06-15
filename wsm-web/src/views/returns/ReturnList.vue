@@ -148,24 +148,46 @@
     </el-dialog>
 
     <!-- 确认入库弹窗 -->
-    <el-dialog v-model="confirmDialogVisible" title="确认退货入库" width="520px" destroy-on-close>
-      <div class="mb-4">
-        <p class="text-sm text-gray-600 mb-3">退货商品将按以下规则入库：</p>
-        <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="可售商品">
-            <el-tag type="success" size="small">原发货仓</el-tag>
-            <span class="ml-2 text-gray-500">{{ confirmInfo.sellableWarehouse }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="次品">
-            <el-tag type="warning" size="small">次品仓</el-tag>
-            <span class="ml-2 text-gray-500">{{ confirmInfo.defectiveWarehouse }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="报废">
-            <el-tag type="danger" size="small">报废仓</el-tag>
-            <span class="ml-2 text-gray-500">{{ confirmInfo.scrapWarehouse }}</span>
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
+    <el-dialog v-model="confirmDialogVisible" title="确认退货入库" width="700px" destroy-on-close>
+      <h4 class="mb-2 text-sm font-semibold text-gray-700">退货产品明细</h4>
+      <el-table :data="confirmItems" border size="small" class="mb-4" max-height="250">
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.skuImage" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="skuCode" label="SKU编码" width="130" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="quantity" label="退货数量" width="90" align="center" />
+        <el-table-column label="质检结果" width="130" align="center">
+          <template #default="{ row }">
+            <el-select v-model="row.qualityStatus" size="small" style="width: 110px">
+              <el-option label="可售" value="SELLABLE" />
+              <el-option label="次品" value="DEFECTIVE" />
+              <el-option label="报废" value="SCRAPPED" />
+            </el-select>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <h4 class="mb-2 text-sm font-semibold text-gray-700">入库规则</h4>
+      <el-descriptions :column="1" border size="small">
+        <el-descriptions-item label="可售商品">
+          <el-tag type="success" size="small">原发货仓</el-tag>
+          <span class="ml-2 text-gray-500">{{ confirmInfo.sellableWarehouse }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="次品">
+          <el-tag type="warning" size="small">次品仓</el-tag>
+          <span class="ml-2 text-gray-500">{{ confirmInfo.defectiveWarehouse }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="报废">
+          <el-tag type="danger" size="small">报废仓</el-tag>
+          <span class="ml-2 text-gray-500">{{ confirmInfo.scrapWarehouse }}</span>
+        </el-descriptions-item>
+      </el-descriptions>
       <template #footer>
         <el-button @click="confirmDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="confirming" @click="handleConfirmReturn">确认入库</el-button>
@@ -187,6 +209,7 @@ import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { QUALITY_STATUS_MAP, RETURN_STATUS_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
 
 const route = useRoute()
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<ReturnOrder>(getReturnList)
@@ -205,6 +228,7 @@ const checkForm = ref({
 const confirmDialogVisible = ref(false)
 const confirming = ref(false)
 const confirmReturnId = ref(0)
+const confirmItems = ref<any[]>([])
 const confirmInfo = ref({
   sellableWarehouse: '',
   defectiveWarehouse: '',
@@ -286,6 +310,16 @@ async function handleCheck() {
 
 async function openConfirmDialog(row: ReturnOrder) {
   confirmReturnId.value = row.id
+
+  // 加载退货详情（包含产品明细）
+  try {
+    const res = await getReturnDetail(row.id)
+    const returnData = res.data
+    confirmItems.value = returnData.items || []
+  } catch {
+    confirmItems.value = []
+  }
+
   // 查找各类仓库名称
   const defective = warehouses.value.find((w) => w.warehouseType === 'DEFECTIVE')
   const scrap = warehouses.value.find((w) => w.warehouseType === 'SCRAP')
@@ -300,7 +334,12 @@ async function openConfirmDialog(row: ReturnOrder) {
 async function handleConfirmReturn() {
   confirming.value = true
   try {
-    await confirmReturn(confirmReturnId.value)
+    // 传递质检结果给后端
+    const items = confirmItems.value.map((item: any) => ({
+      itemId: item.id,
+      qualityStatus: item.qualityStatus || 'SELLABLE',
+    }))
+    await confirmReturn(confirmReturnId.value, items)
     ElMessage.success('退货入库成功')
     confirmDialogVisible.value = false
     fetchData()

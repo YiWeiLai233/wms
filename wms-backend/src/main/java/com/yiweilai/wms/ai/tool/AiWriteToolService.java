@@ -102,7 +102,7 @@ public class AiWriteToolService {
         if (returnId == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "returnId 不能为空");
         }
-        returnService.confirm(returnId);
+        returnService.confirm(returnId, null);
         return AiActionExecuteResult.success(action.getId(), action.getActionType(), Map.of("returnId", returnId));
     }
 

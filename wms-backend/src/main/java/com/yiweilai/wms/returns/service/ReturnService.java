@@ -1,10 +1,14 @@
 package com.yiweilai.wms.returns.service;
 
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.returns.dto.ReturnBatchCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnCheckDTO;
+import com.yiweilai.wms.returns.dto.ReturnConfirmDTO;
 import com.yiweilai.wms.returns.dto.ReturnCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnQueryDTO;
 import com.yiweilai.wms.returns.vo.ReturnOrderVO;
+
+import java.util.List;
 
 /**
  * 退货 Service
@@ -27,6 +31,11 @@ public interface ReturnService {
     Long create(ReturnCreateDTO dto);
 
     /**
+     * 批量创建退货单
+     */
+    List<Long> createBatch(ReturnBatchCreateDTO dto);
+
+    /**
      * 退货质检
      */
     void check(ReturnCheckDTO dto);
@@ -34,7 +43,7 @@ public interface ReturnService {
     /**
      * 确认退货入库
      */
-    void confirm(Long returnId);
+    void confirm(Long returnId, List<ReturnConfirmDTO.ReturnConfirmItemDTO> items);
 
     /**
      * 取消退货单

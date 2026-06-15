@@ -28,6 +28,9 @@ public class ReturnOrderItemVO {
     /** 码数 */
     private String sizeValue;
 
+    /** SKU图片 */
+    private String skuImage;
+
     /** 退货数量 */
     private Integer quantity;
 

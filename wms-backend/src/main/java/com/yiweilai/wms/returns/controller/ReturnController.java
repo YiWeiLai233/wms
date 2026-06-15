@@ -2,6 +2,7 @@ package com.yiweilai.wms.returns.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.returns.dto.ReturnBatchCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnCheckDTO;
 import com.yiweilai.wms.returns.dto.ReturnConfirmDTO;
 import com.yiweilai.wms.returns.dto.ReturnCreateDTO;
@@ -11,6 +12,8 @@ import com.yiweilai.wms.returns.vo.ReturnOrderVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 退货 Controller
@@ -47,6 +50,14 @@ public class ReturnController {
     }
 
     /**
+     * 批量创建退货单
+     */
+    @PostMapping("/create-batch")
+    public Result<List<Long>> createBatch(@Valid @RequestBody ReturnBatchCreateDTO dto) {
+        return Result.success(returnService.createBatch(dto));
+    }
+
+    /**
      * 退货质检
      */
     @PostMapping("/check")
@@ -60,7 +71,7 @@ public class ReturnController {
      */
     @PostMapping("/confirm")
     public Result<Void> confirm(@Valid @RequestBody ReturnConfirmDTO dto) {
-        returnService.confirm(dto.getReturnId());
+        returnService.confirm(dto.getReturnId(), dto.getItems());
         return Result.success();
     }
 
