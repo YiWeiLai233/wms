@@ -11,8 +11,7 @@ import lombok.Data;
 @Data
 public class StockAlertTemplateUpdateDTO {
 
-    /** 模板ID */
-    @NotNull(message = "模板ID不能为空")
+    /** 模板ID（由路径参数设置） */
     private Long id;
 
     /** 模板名称 */
