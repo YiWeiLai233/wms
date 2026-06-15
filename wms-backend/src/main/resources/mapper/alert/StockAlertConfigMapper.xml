@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.alert.mapper.StockAlertConfigMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.alert.entity.StockAlertConfig">
+        <id column="id" property="id"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="low_stock_threshold" property="lowStockThreshold"/>
+        <result column="out_of_stock_threshold" property="outOfStockThreshold"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="created_by_name" property="createdByName"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="updated_by_name" property="updatedByName"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <resultMap id="VOResultMap" type="com.yiweilai.wms.alert.vo.StockAlertConfigVO">
+        <id column="id" property="id"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="sku_code" property="skuCode"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="warehouse_name" property="warehouseName"/>
+        <result column="low_stock_threshold" property="lowStockThreshold"/>
+        <result column="out_of_stock_threshold" property="outOfStockThreshold"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByPage" resultMap="VOResultMap">
+        SELECT sac.id, sac.sku_id,
+               ps.sku_code, ps.name AS sku_name,
+               sac.warehouse_id, w.name AS warehouse_name,
+               sac.low_stock_threshold, sac.out_of_stock_threshold,
+               sac.enabled, sac.remark,
+               sac.created_at, sac.updated_at
+        FROM stock_alert_config sac
+        LEFT JOIN product_sku ps ON sac.sku_id = ps.id AND ps.deleted = 0
+        LEFT JOIN warehouse w ON sac.warehouse_id = w.id AND w.deleted = 0
+        WHERE sac.deleted = 0
+        <if test="skuCode != null and skuCode != ''">
+            AND ps.sku_code LIKE CONCAT('%', #{skuCode}, '%')
+        </if>
+        <if test="skuName != null and skuName != ''">
+            AND ps.name LIKE CONCAT('%', #{skuName}, '%')
+        </if>
+        <if test="warehouseId != null">
+            AND sac.warehouse_id = #{warehouseId}
+        </if>
+        <if test="enabled != null">
+            AND sac.enabled = #{enabled}
+        </if>
+        ORDER BY sac.updated_at DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, sku_id, warehouse_id, low_stock_threshold, out_of_stock_threshold,
+               enabled, remark, created_by, created_by_name, updated_by, updated_by_name,
+               deleted, created_at, updated_at
+        FROM stock_alert_config
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findEnabledConfig" resultMap="BaseResultMap">
+        SELECT id, sku_id, warehouse_id, low_stock_threshold, out_of_stock_threshold,
+               enabled, remark, deleted, created_at, updated_at
+        FROM stock_alert_config
+        WHERE sku_id = #{skuId} AND deleted = 0 AND enabled = 1
+        ORDER BY CASE WHEN warehouse_id IS NOT NULL AND warehouse_id = #{warehouseId} THEN 0
+                      WHEN warehouse_id IS NULL THEN 1
+                      ELSE 2 END
+        LIMIT 1
+    </select>
+
+    <select id="findEnabledBySkuIds" resultMap="BaseResultMap">
+        SELECT id, sku_id, warehouse_id, low_stock_threshold, out_of_stock_threshold,
+               enabled, remark, deleted, created_at, updated_at
+        FROM stock_alert_config
+        WHERE sku_id IN
+        <foreach collection="skuIds" item="skuId" open="(" separator="," close=")">
+            #{skuId}
+        </foreach>
+        AND deleted = 0 AND enabled = 1
+        ORDER BY sku_id, CASE WHEN warehouse_id IS NULL THEN 1 ELSE 0 END
+    </select>
+
+    <select id="findBySkuAndWarehouse" resultMap="BaseResultMap">
+        SELECT id, sku_id, warehouse_id, low_stock_threshold, out_of_stock_threshold,
+               enabled, remark, deleted, created_at, updated_at
+        FROM stock_alert_config
+        WHERE sku_id = #{skuId} AND deleted = 0
+        <if test="warehouseId != null">
+            AND warehouse_id = #{warehouseId}
+        </if>
+        <if test="warehouseId == null">
+            AND warehouse_id IS NULL
+        </if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_alert_config (sku_id, warehouse_id, low_stock_threshold, out_of_stock_threshold,
+                                        enabled, remark, created_by, created_by_name, updated_by, updated_by_name)
+        VALUES (#{skuId}, #{warehouseId}, #{lowStockThreshold}, #{outOfStockThreshold},
+                #{enabled}, #{remark}, #{createdBy}, #{createdByName}, #{updatedBy}, #{updatedByName})
+    </insert>
+
+    <update id="update">
+        UPDATE stock_alert_config
+        <set>
+            <if test="lowStockThreshold != null">low_stock_threshold = #{lowStockThreshold},</if>
+            <if test="outOfStockThreshold != null">out_of_stock_threshold = #{outOfStockThreshold},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updatedBy != null">updated_by = #{updatedBy},</if>
+            <if test="updatedByName != null">updated_by_name = #{updatedByName},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE stock_alert_config SET deleted = 1 WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateEnabled">
+        UPDATE stock_alert_config SET enabled = #{enabled} WHERE id = #{id} AND deleted = 0
+    </update>
+
+</mapper>
