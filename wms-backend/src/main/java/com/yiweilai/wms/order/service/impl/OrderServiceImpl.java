@@ -8,6 +8,7 @@ import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
 import com.yiweilai.wms.order.dto.OrderQueryDTO;
 import com.yiweilai.wms.order.dto.OrderStatusUpdateDTO;
+import com.yiweilai.wms.order.dto.OrderUpdateDTO;
 import com.yiweilai.wms.order.entity.SalesOrder;
 import com.yiweilai.wms.order.entity.SalesOrderItem;
 import com.yiweilai.wms.order.mapper.SalesOrderItemMapper;
@@ -47,8 +48,8 @@ public class OrderServiceImpl implements OrderService {
 
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper orderItemMapper;
-    private final ProductMapper productMapper;
     private final ProductSkuMapper productSkuMapper;
+    private final ProductMapper productMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
     private final PrivacyCryptoService privacyCryptoService;
@@ -200,6 +201,43 @@ public class OrderServiceImpl implements OrderService {
         if ("CANCELLED".equals(targetStatus)) {
             restoreStockForOrder(order);
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(OrderUpdateDTO dto) {
+        SalesOrder order = orderMapper.findById(dto.getId());
+        if (order == null) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
+        }
+
+        // 所有状态都可以编辑
+
+        // 更新平台信息
+        if (dto.getPlatformId() != null) {
+            order.setPlatformId(dto.getPlatformId());
+        }
+        if (dto.getPlatformOrderNo() != null) {
+            order.setPlatformOrderNo(dto.getPlatformOrderNo());
+        }
+
+        // 更新收件人信息（需要加密）
+        if (dto.getReceiverName() != null) {
+            order.setReceiverName(privacyCryptoService.encrypt(dto.getReceiverName()));
+            order.setReceiverNameHash(privacyHashService.hmacSha256(privacyHashService.normalizeName(dto.getReceiverName())));
+        }
+        if (dto.getReceiverPhone() != null) {
+            order.setReceiverPhone(privacyCryptoService.encrypt(dto.getReceiverPhone()));
+            order.setReceiverPhoneHash(privacyHashService.hmacSha256(privacyHashService.normalizePhone(dto.getReceiverPhone())));
+        }
+        if (dto.getReceiverAddress() != null) {
+            order.setReceiverAddress(privacyCryptoService.encrypt(dto.getReceiverAddress()));
+        }
+        if (dto.getRemark() != null) {
+            order.setRemark(dto.getRemark());
+        }
+
+        orderMapper.update(order);
     }
 
     /**
