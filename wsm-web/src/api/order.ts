@@ -63,6 +63,18 @@ export function updateOrderStatus(id: number, targetStatus: string) {
   return request.put<any, ApiResponse<void>>(`/orders/${id}/status`, { targetStatus })
 }
 
+// 更新订单信息
+export function updateOrder(id: number, data: {
+  platformId?: number
+  platformOrderNo?: string
+  receiverName?: string
+  receiverPhone?: string
+  receiverAddress?: string
+  remark?: string
+}) {
+  return request.put<any, ApiResponse<void>>(`/orders/${id}`, data)
+}
+
 // 订单搜索
 export function searchOrders(params: PageParams & { keyword?: string; orderStatus?: string; warehouseId?: number; startTime?: string; endTime?: string }) {
   return request.get<any, ApiResponse<PageResult<Order>>>('/orders/search', { params })

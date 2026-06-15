@@ -43,14 +43,19 @@ export function createReturn(data: { orderId: number; reason: string; trackingNo
   return request.post<any, ApiResponse<number>>('/returns/create', data)
 }
 
+// 批量创建退货单
+export function createBatchReturn(data: { orderIds: number[]; reason: string; trackingNo?: string; remark?: string }) {
+  return request.post<any, ApiResponse<number[]>>('/returns/create-batch', data)
+}
+
 // 退货质检
 export function checkReturn(data: { returnId: number; items: { itemId: number; qualityStatus: string }[] }) {
   return request.post<any, ApiResponse<void>>('/returns/check', data)
 }
 
 // 确认退货入库
-export function confirmReturn(returnId: number) {
-  return request.post<any, ApiResponse<void>>('/returns/confirm', { returnId })
+export function confirmReturn(returnId: number, items?: { itemId: number; qualityStatus: string }[]) {
+  return request.post<any, ApiResponse<void>>('/returns/confirm', { returnId, items })
 }
 
 // 取消退货单
