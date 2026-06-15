@@ -26,8 +26,8 @@
 
     <div class="card">
       <el-table :data="tableData" v-loading="loading" stripe border>
-        <el-table-column prop="name" label="平台名称" min-width="150" show-overflow-tooltip />
-        <el-table-column label="颜色" width="120" align="center">
+        <el-table-column prop="name" label="平台名称" min-width="100" show-overflow-tooltip />
+        <el-table-column label="颜色" width="170" align="center">
           <template #default="{ row }">
             <div v-if="row.color" class="flex items-center justify-center gap-2">
               <div class="w-6 h-6 rounded border" :style="{ backgroundColor: row.color }"></div>
