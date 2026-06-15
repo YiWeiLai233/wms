@@ -1,7 +1,10 @@
 <template>
   <el-container class="layout-container">
     <!-- 侧边栏 -->
-    <el-aside :width="appStore.sidebarCollapsed ? '64px' : '220px'" class="layout-aside">
+    <el-aside
+      :width="appStore.sidebarCollapsed ? '64px' : '220px'"
+      class="layout-aside"
+    >
       <div class="logo" @click="router.push('/dashboard')">
         <svg viewBox="0 0 32 32" class="logo-icon">
           <rect width="32" height="32" rx="6" fill="#3b82f6" />
@@ -45,6 +48,26 @@
           </template>
         </el-menu>
       </el-scrollbar>
+
+      <!-- 底部折叠按钮 -->
+      <div class="sidebar-collapse-btn" @click="appStore.toggleSidebar()">
+        <el-icon :size="18">
+          <component :is="appStore.sidebarCollapsed ? 'Expand' : 'Fold'" />
+        </el-icon>
+      </div>
+
+      <!-- 侧边栏边缘拖拽按钮 -->
+      <div
+        class="sidebar-drag-handle"
+        :class="{ collapsed: appStore.sidebarCollapsed }"
+        @click="appStore.toggleSidebar()"
+      >
+        <div class="drag-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
     </el-aside>
 
     <!-- 右侧内容区 -->
@@ -151,10 +174,11 @@ function handleCommand(command: string) {
 .layout-aside {
   background: #1e293b;
   transition: width 0.3s ease;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  position: relative;
 }
 
 .logo {
@@ -204,6 +228,68 @@ function handleCommand(command: string) {
     color: #fff !important;
     border-radius: 0;
   }
+}
+
+.sidebar-collapse-btn {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #94a3b8;
+  border-top: 1px solid #334155;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #334155;
+    color: #fff;
+  }
+}
+
+.sidebar-drag-handle {
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 60px;
+  background: #3b82f6;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 100;
+  box-shadow: 2px 0 8px rgba(59, 130, 246, 0.3);
+
+  &:hover {
+    opacity: 1;
+    right: -24px;
+    width: 24px;
+    background: #2563eb;
+    box-shadow: 4px 0 12px rgba(59, 130, 246, 0.5);
+  }
+
+  .drag-indicator {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+
+    span {
+      width: 4px;
+      height: 4px;
+      background: #fff;
+      border-radius: 50%;
+    }
+  }
+}
+
+.layout-aside:hover .sidebar-drag-handle {
+  opacity: 0.8;
 }
 
 .layout-main {
