@@ -11,13 +11,14 @@
         <result column="description" property="description"/>
         <result column="price" property="price"/>
         <result column="status" property="status"/>
+        <result column="alert_template_id" property="alertTemplateId"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
     <select id="findByPage" resultMap="BaseResultMap">
         SELECT p.id, p.spu_code, p.name, p.shelf_id, p.main_image, p.description,
-               p.price, p.status, p.created_at, p.updated_at
+               p.price, p.status, p.alert_template_id, p.created_at, p.updated_at
         FROM product p
         LEFT JOIN warehouse_shelf ws ON p.shelf_id = ws.id AND ws.deleted = 0
         <where>
@@ -37,21 +38,21 @@
 
     <select id="findById" resultMap="BaseResultMap">
         SELECT id, spu_code, name, shelf_id, main_image, description,
-               price, status, created_at, updated_at
+               price, status, alert_template_id, created_at, updated_at
         FROM product
         WHERE id = #{id} AND deleted = 0
     </select>
 
     <select id="findBySpuCode" resultMap="BaseResultMap">
         SELECT id, spu_code, name, shelf_id, main_image, description,
-               price, status, created_at, updated_at
+               price, status, alert_template_id, created_at, updated_at
         FROM product
         WHERE spu_code = #{spuCode} AND deleted = 0
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO product (spu_code, name, shelf_id, main_image, description, price, status)
-        VALUES (#{spuCode}, #{name}, #{shelfId}, #{mainImage}, #{description}, #{price}, #{status})
+        INSERT INTO product (spu_code, name, shelf_id, main_image, description, price, status, alert_template_id)
+        VALUES (#{spuCode}, #{name}, #{shelfId}, #{mainImage}, #{description}, #{price}, #{status}, #{alertTemplateId})
     </insert>
 
     <update id="update">
@@ -64,6 +65,7 @@
             <if test="description != null">description = #{description},</if>
             <if test="price != null">price = #{price},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="alertTemplateId != null">alert_template_id = #{alertTemplateId},</if>
         </set>
         WHERE id = #{id} AND deleted = 0
     </update>
@@ -71,5 +73,9 @@
     <delete id="deleteById">
         DELETE FROM product WHERE id = #{id}
     </delete>
+
+    <select id="findProductIdsByTemplateId" resultType="java.lang.Long">
+        SELECT id FROM product WHERE alert_template_id = #{templateId} AND deleted = 0
+    </select>
 
 </mapper>

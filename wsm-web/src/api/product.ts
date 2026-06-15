@@ -13,6 +13,8 @@ export interface Product {
   description: string
   price: number
   status: number
+  alertTemplateId?: number
+  alertTemplateName?: string
   createdAt: string
   updatedAt: string
   skuList?: ProductSizeSku[]

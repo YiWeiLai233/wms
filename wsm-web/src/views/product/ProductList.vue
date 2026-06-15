@@ -122,6 +122,17 @@
         <el-form-item label="描述" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="商品描述" />
         </el-form-item>
+        <el-form-item label="预警模板">
+          <el-select v-model="form.alertTemplateId" placeholder="选择预警模板（可选）" clearable style="width: 100%">
+            <el-option
+              v-for="t in alertTemplateOptions"
+              :key="t.id"
+              :label="`${t.name} (低库存:${t.lowStockThreshold} 缺货:${t.outOfStockThreshold})`"
+              :value="t.id"
+            />
+          </el-select>
+          <div class="text-xs text-gray-400 mt-1">选择模板后，新建的SKU将自动应用该模板的预警阈值</div>
+        </el-form-item>
 
         <template v-if="!isEdit">
           <el-divider content-position="left">码数 SKU</el-divider>
@@ -180,6 +191,12 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="描述" :span="2">{{ detail.description || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="预警模板" :span="2">
+          <el-tag v-if="detail.alertTemplateName" type="success" size="small">
+            {{ detail.alertTemplateName }}
+          </el-tag>
+          <span v-else class="text-gray-400">未设置</span>
+        </el-descriptions-item>
       </el-descriptions>
 
       <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">SKU 列表</h4>
@@ -203,6 +220,8 @@ import { getProductList, getProductDetail, createProduct, updateProduct, deleteP
 import type { Product, ProductSizeSku } from '@/api/product'
 import { getWarehouseList, getShelfList } from '@/api/warehouse'
 import type { Warehouse, WarehouseShelf } from '@/api/warehouse'
+import { getStockAlertTemplateOptions } from '@/api/stockAlertTemplate'
+import type { StockAlertTemplate } from '@/api/stockAlertTemplate'
 import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import PageHeader from '@/components/PageHeader.vue'
@@ -212,6 +231,10 @@ const { tableData, loading, pagination, searchParams, handleSearch, handleReset,
 // 货架列表
 const shelfList = ref<WarehouseShelf[]>([])
 const selectedShelf = computed(() => shelfList.value.find((s) => s.id === form.shelfId))
+
+// 预警模板列表
+const alertTemplateOptions = ref<StockAlertTemplate[]>([])
+const selectedTemplate = computed(() => alertTemplateOptions.value.find((t) => t.id === form.alertTemplateId))
 
 function getShelfName(shelfId: number) {
   return shelfList.value.find((s) => s.id === shelfId)?.name || '-'
@@ -234,6 +257,7 @@ const form = reactive<Partial<Product> & { skuList: ProductSizeSku[] }>({
   price: 0,
   description: '',
   status: 1,
+  alertTemplateId: undefined,
   skuList: [],
 })
 
@@ -256,6 +280,12 @@ onMounted(async () => {
         shelfList.value.push(...(sRes.data || []))
       } catch {}
     }
+  } catch {}
+
+  // 加载预警模板选项
+  try {
+    const tRes = await getStockAlertTemplateOptions()
+    alertTemplateOptions.value = tRes.data || []
   } catch {}
 })
 
@@ -282,6 +312,7 @@ function openDialog(row?: Product) {
       price: 0,
       description: '',
       status: 1,
+      alertTemplateId: undefined,
       skuList: [],
     })
     generateSizeSkus()

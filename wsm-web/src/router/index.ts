@@ -108,6 +108,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/StockAlertConfig.vue'),
         meta: { title: '库存预警设置', icon: 'Bell' },
       },
+      {
+        path: 'system/stock-alert-template',
+        name: 'StockAlertTemplate',
+        component: () => import('@/views/system/StockAlertTemplate.vue'),
+        meta: { title: '预警模板管理', icon: 'Document' },
+      },
       // 订单管理
       {
         path: 'order/list',

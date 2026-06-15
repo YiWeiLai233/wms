@@ -62,4 +62,9 @@ public interface StockAlertConfigMapper {
      * 更新启用状态
      */
     int updateEnabled(@Param("id") Long id, @Param("enabled") Integer enabled);
+
+    /**
+     * 根据SKU ID查询通用预警配置（warehouse_id IS NULL）
+     */
+    StockAlertConfig findBySkuId(@Param("skuId") Long skuId);
 }

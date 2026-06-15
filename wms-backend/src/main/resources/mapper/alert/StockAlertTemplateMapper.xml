@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.alert.mapper.StockAlertTemplateMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.alert.entity.StockAlertTemplate">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="low_stock_threshold" property="lowStockThreshold"/>
+        <result column="out_of_stock_threshold" property="outOfStockThreshold"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <resultMap id="VOResultMap" type="com.yiweilai.wms.alert.vo.StockAlertTemplateVO">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="low_stock_threshold" property="lowStockThreshold"/>
+        <result column="out_of_stock_threshold" property="outOfStockThreshold"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="product_count" property="productCount"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByPage" resultMap="VOResultMap">
+        SELECT t.id, t.name, t.low_stock_threshold, t.out_of_stock_threshold,
+               t.enabled, t.remark, t.created_at, t.updated_at,
+               (SELECT COUNT(*) FROM product p WHERE p.alert_template_id = t.id AND p.deleted = 0) AS product_count
+        FROM stock_alert_template t
+        WHERE t.deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND t.name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="enabled != null">
+            AND t.enabled = #{enabled}
+        </if>
+        ORDER BY t.id DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, name, low_stock_threshold, out_of_stock_threshold,
+               enabled, remark, deleted, created_at, updated_at
+        FROM stock_alert_template
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findEnabledList" resultMap="VOResultMap">
+        SELECT id, name, low_stock_threshold, out_of_stock_threshold
+        FROM stock_alert_template
+        WHERE deleted = 0 AND enabled = 1
+        ORDER BY id DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_alert_template (name, low_stock_threshold, out_of_stock_threshold, enabled, remark)
+        VALUES (#{name}, #{lowStockThreshold}, #{outOfStockThreshold}, #{enabled}, #{remark})
+    </insert>
+
+    <update id="update">
+        UPDATE stock_alert_template
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="lowStockThreshold != null">low_stock_threshold = #{lowStockThreshold},</if>
+            <if test="outOfStockThreshold != null">out_of_stock_threshold = #{outOfStockThreshold},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE stock_alert_template SET deleted = 1 WHERE id = #{id}
+    </update>
+
+    <select id="countProductsByTemplateId" resultType="int">
+        SELECT COUNT(*) FROM product WHERE alert_template_id = #{templateId} AND deleted = 0
+    </select>
+
+</mapper>

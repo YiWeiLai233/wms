@@ -132,4 +132,12 @@
         UPDATE stock_alert_config SET enabled = #{enabled} WHERE id = #{id} AND deleted = 0
     </update>
 
+    <select id="findBySkuId" resultMap="BaseResultMap">
+        SELECT id, sku_id, warehouse_id, low_stock_threshold, out_of_stock_threshold,
+               enabled, remark, deleted, created_at, updated_at
+        FROM stock_alert_config
+        WHERE sku_id = #{skuId} AND warehouse_id IS NULL AND deleted = 0
+        LIMIT 1
+    </select>
+
 </mapper>

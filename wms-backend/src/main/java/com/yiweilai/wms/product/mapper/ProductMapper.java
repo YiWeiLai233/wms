@@ -43,4 +43,9 @@ public interface ProductMapper {
      * 删除
      */
     int deleteById(@Param("id") Long id);
+
+    /**
+     * 根据预警模板ID查询关联的商品ID列表
+     */
+    List<Long> findProductIdsByTemplateId(@Param("templateId") Long templateId);
 }

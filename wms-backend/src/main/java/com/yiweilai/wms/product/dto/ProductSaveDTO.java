@@ -44,6 +44,9 @@ public class ProductSaveDTO {
     /** 状态：0-禁用 1-启用 */
     private Integer status = 1;
 
+    /** 预警模板ID（可选） */
+    private Long alertTemplateId;
+
     /** 创建商品时批量生成的码数 SKU 列表 */
     private List<SizeSkuDTO> skuList = new ArrayList<>();
 

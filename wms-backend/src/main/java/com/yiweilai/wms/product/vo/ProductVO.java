@@ -42,6 +42,12 @@ public class ProductVO {
     /** 状态：0-禁用 1-启用 */
     private Integer status;
 
+    /** 预警模板ID */
+    private Long alertTemplateId;
+
+    /** 预警模板名称 */
+    private String alertTemplateName;
+
     /** SKU列表 */
     private List<ProductSkuVO> skuList;
 

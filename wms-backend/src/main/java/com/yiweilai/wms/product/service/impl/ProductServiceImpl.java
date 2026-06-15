@@ -2,6 +2,10 @@ package com.yiweilai.wms.product.service.impl;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.yiweilai.wms.alert.entity.StockAlertConfig;
+import com.yiweilai.wms.alert.entity.StockAlertTemplate;
+import com.yiweilai.wms.alert.mapper.StockAlertConfigMapper;
+import com.yiweilai.wms.alert.mapper.StockAlertTemplateMapper;
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
@@ -43,6 +47,8 @@ public class ProductServiceImpl implements ProductService {
     private final WarehouseShelfMapper shelfMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final StockAlertTemplateMapper alertTemplateMapper;
+    private final StockAlertConfigMapper alertConfigMapper;
 
     @Override
     public PageResult<ProductVO> findByPage(ProductQueryDTO query) {
@@ -140,6 +146,15 @@ public class ProductServiceImpl implements ProductService {
                 vo.setCategoryName(shelf.getCategoryName());
             }
         }
+
+        // 查询预警模板信息
+        if (product.getAlertTemplateId() != null) {
+            StockAlertTemplate template = alertTemplateMapper.findById(product.getAlertTemplateId());
+            if (template != null) {
+                vo.setAlertTemplateName(template.getName());
+            }
+        }
+
         return vo;
     }
 
@@ -186,10 +201,44 @@ public class ProductServiceImpl implements ProductService {
             sku.setStatus(product.getStatus() == null ? 1 : product.getStatus());
             skuMapper.insert(sku);
 
+            // 如果商品关联了预警模板，自动创建预警配置
+            applyAlertTemplate(product.getAlertTemplateId(), sku.getId());
+
             int quantity = normalizeQuantity(item.getQuantity());
             if (quantity > 0) {
                 inboundInitialStock(sku.getId(), inboundShelf, quantity);
             }
+        }
+    }
+
+    /**
+     * 应用预警模板到SKU
+     */
+    private void applyAlertTemplate(Long templateId, Long skuId) {
+        if (templateId == null) {
+            return;
+        }
+
+        StockAlertTemplate template = alertTemplateMapper.findById(templateId);
+        if (template == null || template.getEnabled() != 1) {
+            return;
+        }
+
+        // 检查是否已有预警配置
+        StockAlertConfig existingConfig = alertConfigMapper.findBySkuId(skuId);
+        if (existingConfig != null) {
+            // 更新现有配置
+            existingConfig.setLowStockThreshold(template.getLowStockThreshold());
+            existingConfig.setOutOfStockThreshold(template.getOutOfStockThreshold());
+            alertConfigMapper.update(existingConfig);
+        } else {
+            // 创建新配置
+            StockAlertConfig config = new StockAlertConfig();
+            config.setSkuId(skuId);
+            config.setLowStockThreshold(template.getLowStockThreshold());
+            config.setOutOfStockThreshold(template.getOutOfStockThreshold());
+            config.setEnabled(1);
+            alertConfigMapper.insert(config);
         }
     }
 

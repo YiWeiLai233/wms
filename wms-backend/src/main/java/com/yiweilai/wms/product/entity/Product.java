@@ -34,6 +34,9 @@ public class Product {
     /** 状态：0-禁用 1-启用 */
     private Integer status;
 
+    /** 预警模板ID */
+    private Long alertTemplateId;
+
     /** 创建时间 */
     private LocalDateTime createdAt;
 
