@@ -205,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getAllSkuList, createSku, updateSku, deleteSku, getProductList } from '@/api/product'
@@ -213,7 +213,6 @@ import type { Sku, Product } from '@/api/product'
 import { adjustStock } from '@/api/stock'
 import { getShelfList, getWarehouseList } from '@/api/warehouse'
 import type { Warehouse, WarehouseShelf } from '@/api/warehouse'
-import { useTable } from '@/composables/useTable'
 import PageHeader from '@/components/PageHeader.vue'
 
 type SkuListItem = Sku & { productName?: string; shelfCode?: string; categoryName?: string }
@@ -229,9 +228,52 @@ interface SkuMatrixRow {
   sizeMap: Record<string, SkuListItem>
 }
 
-const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<SkuListItem>(getAllSkuList)
+// 不使用 useTable 的分页，改为获取全部数据后前端分组分页
+const allSkuData = ref<SkuListItem[]>([])
+const loading = ref(false)
+const pagination = reactive({
+  page: 1,
+  size: 50,
+  total: 0,
+})
+const searchParams = reactive<Record<string, any>>({})
 
-pagination.size = 50
+async function fetchAllSkuData() {
+  loading.value = true
+  try {
+    // 获取所有SKU（不分页）
+    const res = await getAllSkuList({ page: 1, size: 9999, ...searchParams })
+    allSkuData.value = res.data.list || []
+  } catch {
+    allSkuData.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleSearch() {
+  pagination.page = 1
+  fetchAllSkuData()
+}
+
+function handleReset() {
+  Object.keys(searchParams).forEach((key) => {
+    searchParams[key] = undefined
+  })
+  pagination.page = 1
+  fetchAllSkuData()
+}
+
+function handlePageChange(page: number) {
+  pagination.page = page
+}
+
+function handleSizeChange(size: number) {
+  pagination.size = size
+  pagination.page = 1
+}
+
+const fetchData = fetchAllSkuData
 
 const productOptions = ref<Product[]>([])
 const warehouseOptions = ref<Warehouse[]>([])
@@ -292,16 +334,17 @@ const selectedProductShelf = computed(() => {
 })
 
 const sizeColumns = computed(() => {
-  const sizes = tableData.value
+  const sizes = allSkuData.value
     .map((sku) => normalizeSizeValue(sku.sizeValue))
     .filter(Boolean)
   return Array.from(new Set(sizes)).sort(compareSizeValue)
 })
 
-const skuMatrixRows = computed(() => {
+// 所有分组后的行
+const allSkuMatrixRows = computed(() => {
   const rowMap = new Map<string, SkuMatrixRow>()
 
-  tableData.value.forEach((sku) => {
+  allSkuData.value.forEach((sku) => {
     const key = String(sku.productId || getBaseSkuCode(sku))
     let row = rowMap.get(key)
     if (!row) {
@@ -330,6 +373,18 @@ const skuMatrixRows = computed(() => {
     skus: row.skus.slice().sort((a, b) => compareSizeValue(normalizeSizeValue(a.sizeValue), normalizeSizeValue(b.sizeValue))),
   }))
 })
+
+// 分页后的分组行（用于表格显示）
+const skuMatrixRows = computed(() => {
+  const start = (pagination.page - 1) * pagination.size
+  const end = start + pagination.size
+  return allSkuMatrixRows.value.slice(start, end)
+})
+
+// 监听分组行总数变化，更新分页
+watch(() => allSkuMatrixRows.value.length, (newTotal) => {
+  pagination.total = newTotal
+}, { immediate: true })
 
 function getStockTagType(quantity?: number, lowThreshold?: number, outThreshold?: number): string {
   const value = quantity ?? 0
@@ -408,6 +463,9 @@ function getShelfName(shelfId?: number, shelfCode?: string) {
 }
 
 onMounted(async () => {
+  // 加载SKU数据
+  fetchAllSkuData()
+
   try {
     const res = await getProductList({ page: 1, size: 100 })
     productOptions.value = res.data.list || []
