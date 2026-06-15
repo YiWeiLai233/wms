@@ -194,6 +194,12 @@
         </el-table-column>
         <el-table-column prop="warehouseName" label="仓库" width="120" />
         <el-table-column prop="reason" label="退货原因" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="shippingFee" label="退货快递费" width="110" align="right">
+          <template #default="{ row }">
+            <span v-if="row.shippingFee" class="text-red-500 font-bold">¥{{ row.shippingFee.toFixed(2) }}</span>
+            <span v-else class="text-gray-400">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="110" align="center">
           <template #default="{ row }">
             <el-tag :type="(RETURN_STATUS_MAP[row.status]?.color as any) || 'info'" size="small">

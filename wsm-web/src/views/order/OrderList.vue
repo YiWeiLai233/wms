@@ -363,6 +363,20 @@
         <el-form-item label="客户快递单号">
           <el-input v-model="returnForm.trackingNo" placeholder="客户退回的快递单号（选填）" />
         </el-form-item>
+
+        <el-divider content-position="left">退货快递费</el-divider>
+        <el-form-item label="费用模板">
+          <el-select v-model="returnForm.feeTemplateId" placeholder="选择模板自动计算" clearable style="width: 100%" @change="handleReturnTemplateChange">
+            <el-option v-for="t in returnTemplateList" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="预估重量(kg)">
+          <el-input-number v-model="returnForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="快递费用">
+          <el-input-number v-model="returnForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
+          <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="returnForm.remark" type="textarea" :rows="2" />
         </el-form-item>
@@ -419,6 +433,9 @@
         </el-form-item>
         <el-form-item label="客户快递单号">
           <el-input v-model="batchReturnForm.trackingNo" placeholder="客户退回的快递单号（选填）" />
+        </el-form-item>
+        <el-form-item label="退货快递费">
+          <el-input-number v-model="batchReturnForm.shippingFee" :min="0" :precision="2" style="width: 100%" placeholder="快递费用（选填）" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="batchReturnForm.remark" type="textarea" :rows="2" placeholder="备注信息（选填）" />
@@ -500,7 +517,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -665,6 +682,7 @@ const batchReturnFormRef = ref<FormInstance>()
 const batchReturnForm = reactive({
   reason: '',
   trackingNo: '',
+  shippingFee: undefined as number | undefined,
   remark: '',
 })
 const batchReturnRules: FormRules = {
@@ -684,6 +702,7 @@ async function handleBatchReturnSubmit() {
       reason: batchReturnForm.reason,
       remark: batchReturnForm.remark || undefined,
       trackingNo: batchReturnForm.trackingNo || undefined,
+      shippingFee: batchReturnForm.shippingFee,
     })
     ElMessage.success(`批量退货成功，共创建 ${res.data?.length || 0} 个退货单`)
     batchReturnDialogVisible.value = false
@@ -724,12 +743,87 @@ const returnForm = reactive({
   orderId: 0,
   reason: '',
   trackingNo: '',
+  shippingFee: undefined as number | undefined,
+  feeTemplateId: undefined as number | undefined,
+  estimatedWeight: undefined as number | undefined,
   remark: '',
   items: [] as ReturnItemForm[],
 })
 
 const returnRules: FormRules = {
   reason: [{ required: true, message: '请输入退货原因', trigger: 'blur' }],
+}
+
+const returnTemplateList = ref<any[]>([])
+const returnTemplateDetail = ref<any>(null) // 缓存模板详情
+
+// 监听重量变化，自动计算快递费
+watch(
+  () => returnForm.estimatedWeight,
+  () => {
+    if (returnForm.estimatedWeight && returnForm.estimatedWeight > 0 && returnTemplateDetail.value) {
+      calculateReturnFee()
+    }
+  }
+)
+
+async function handleReturnTemplateChange(templateId: number | undefined) {
+  if (templateId) {
+    // 加载模板详情并缓存
+    try {
+      const { getTemplateDetail } = await import('@/api/express')
+      const res = await getTemplateDetail(templateId)
+      returnTemplateDetail.value = res.data
+    } catch {
+      returnTemplateDetail.value = null
+    }
+    // 如果已有重量，重新计算
+    if (returnForm.estimatedWeight && returnForm.estimatedWeight > 0) {
+      calculateReturnFee()
+    }
+  } else {
+    returnTemplateDetail.value = null
+  }
+}
+
+function calculateReturnFee() {
+  if (!returnTemplateDetail.value || !returnForm.estimatedWeight || returnForm.estimatedWeight <= 0) return
+
+  const template = returnTemplateDetail.value
+
+  // 首重续重类型
+  if (template.templateType === 'FIRST_CONTINUE') {
+    const firstWeight = template.firstWeight || 1
+    const firstFee = template.firstFee || 0
+    const additionalWeight = template.additionalWeight || 1
+    const additionalFee = template.additionalFee || 0
+
+    if (returnForm.estimatedWeight <= firstWeight) {
+      returnForm.shippingFee = firstFee
+    } else {
+      const extraWeight = returnForm.estimatedWeight - firstWeight
+      const extraUnits = Math.ceil(extraWeight / additionalWeight)
+      returnForm.shippingFee = firstFee + extraUnits * additionalFee
+    }
+  }
+  // 阶梯计费类型
+  else if (template.steps && template.steps.length > 0) {
+    const sortedSteps = [...template.steps].sort((a: any, b: any) => a.minWeight - b.minWeight)
+    const matchedStep = sortedSteps.find((s: any) =>
+      returnForm.estimatedWeight >= s.minWeight && returnForm.estimatedWeight < s.maxWeight
+    )
+    if (matchedStep) {
+      returnForm.shippingFee = matchedStep.fee
+    } else {
+      const lastStep = sortedSteps[sortedSteps.length - 1]
+      if (returnForm.estimatedWeight >= lastStep.minWeight) {
+        returnForm.shippingFee = lastStep.fee
+      } else {
+        returnForm.shippingFee = undefined
+        ElMessage.warning('未找到匹配的费用阶梯')
+      }
+    }
+  }
 }
 
 // 文档导入相关
@@ -1128,6 +1222,10 @@ async function openReturnDialog(row: Order) {
   Object.assign(returnForm, {
     orderId: row.id,
     reason: '',
+    trackingNo: '',
+    shippingFee: undefined,
+    feeTemplateId: undefined,
+    estimatedWeight: undefined,
     remark: '',
     items: (order.items || []).map((item) => ({
       checked: true,
@@ -1139,6 +1237,26 @@ async function openReturnDialog(row: Order) {
       quantity: item.quantity,
     })),
   })
+
+  // 加载快递费用模板（优先选择"退货"公司）
+  try {
+    const { getCompanyList, getTemplateListByCompany } = await import('@/api/express')
+    const companyRes = await getCompanyList()
+    const companies = companyRes.data || []
+    // 优先查找名称包含"退货"的公司
+    const returnCompany = companies.find((c: any) => c.name.includes('退货'))
+    const targetCompany = returnCompany || companies[0]
+    if (targetCompany) {
+      const templateRes = await getTemplateListByCompany(targetCompany.id)
+      returnTemplateList.value = templateRes.data || []
+      // 自动选择默认模板
+      const defaultTemplate = returnTemplateList.value.find((t: any) => t.isDefault === 1)
+      if (defaultTemplate) {
+        returnForm.feeTemplateId = defaultTemplate.id
+      }
+    }
+  } catch {}
+
   returnDialogVisible.value = true
 }
 
@@ -1161,6 +1279,9 @@ async function handleReturn() {
       orderId: returnForm.orderId,
       reason: returnForm.reason,
       trackingNo: returnForm.trackingNo || undefined,
+      shippingFee: returnForm.shippingFee,
+      feeTemplateId: returnForm.feeTemplateId,
+      estimatedWeight: returnForm.estimatedWeight,
       remark: returnForm.remark,
       items,
     })

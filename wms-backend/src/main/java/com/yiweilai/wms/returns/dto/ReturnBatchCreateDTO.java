@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -22,6 +23,9 @@ public class ReturnBatchCreateDTO {
 
     /** 客户快递单号 */
     private String trackingNo;
+
+    /** 退货快递费 */
+    private BigDecimal shippingFee;
 
     /** 备注 */
     private String remark;

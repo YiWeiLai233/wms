@@ -49,6 +49,9 @@
         <el-table-column prop="trackingNo" label="客户快递单号" width="140">
           <template #default="{ row }">{{ row.trackingNo || '-' }}</template>
         </el-table-column>
+        <el-table-column prop="shippingFee" label="退货快递费" width="110" align="right">
+          <template #default="{ row }">{{ row.shippingFee ? `¥${row.shippingFee.toFixed(2)}` : '-' }}</template>
+        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
@@ -100,6 +103,8 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="退货原因">{{ detail.reason }}</el-descriptions-item>
+        <el-descriptions-item label="客户快递单号">{{ detail.trackingNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="退货快递费">{{ detail.shippingFee ? `¥${detail.shippingFee.toFixed(2)}` : '-' }}</el-descriptions-item>
         <el-descriptions-item label="备注">{{ detail.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
 

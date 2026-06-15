@@ -1,6 +1,7 @@
 package com.yiweilai.wms.returns.entity;
 
 import lombok.Data;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -37,6 +38,9 @@ public class ReturnOrder {
 
     /** 客户退货快递单号 */
     private String trackingNo;
+
+    /** 退货快递费 */
+    private BigDecimal shippingFee;
 
     /** 备注 */
     private String remark;

@@ -12,6 +12,10 @@ import com.yiweilai.wms.product.entity.Product;
 import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.express.entity.ExpressFeeStep;
+import com.yiweilai.wms.express.entity.ExpressFeeTemplate;
+import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
+import com.yiweilai.wms.express.mapper.ExpressFeeTemplateMapper;
 import com.yiweilai.wms.returns.dto.ReturnBatchCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnCheckDTO;
 import com.yiweilai.wms.returns.dto.ReturnConfirmDTO;
@@ -58,6 +62,8 @@ public class ReturnServiceImpl implements ReturnService {
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
     private final WarehouseMapper warehouseMapper;
+    private final ExpressFeeStepMapper feeStepMapper;
+    private final ExpressFeeTemplateMapper feeTemplateMapper;
 
     @Override
     public PageResult<ReturnOrderVO> findByPage(ReturnQueryDTO query) {
@@ -113,6 +119,12 @@ public class ReturnServiceImpl implements ReturnService {
         // 生成退货单号
         String returnNo = "RT" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
 
+        // 计算快递费
+        java.math.BigDecimal shippingFee = dto.getShippingFee();
+        if (shippingFee == null && dto.getFeeTemplateId() != null && dto.getEstimatedWeight() != null) {
+            shippingFee = calculateFeeByTemplate(dto.getFeeTemplateId(), dto.getEstimatedWeight());
+        }
+
         // 创建退货单
         ReturnOrder returnOrder = new ReturnOrder();
         returnOrder.setReturnNo(returnNo);
@@ -123,6 +135,7 @@ public class ReturnServiceImpl implements ReturnService {
         returnOrder.setReason(dto.getReason());
         returnOrder.setRemark(dto.getRemark());
         returnOrder.setTrackingNo(dto.getTrackingNo());
+        returnOrder.setShippingFee(shippingFee);
         returnOrderMapper.insert(returnOrder);
 
         // 创建退货明细
@@ -187,6 +200,7 @@ public class ReturnServiceImpl implements ReturnService {
             returnOrder.setStatus("PENDING_CHECK");
             returnOrder.setReason(dto.getReason());
             returnOrder.setTrackingNo(dto.getTrackingNo());
+            returnOrder.setShippingFee(dto.getShippingFee());
             returnOrder.setRemark(dto.getRemark());
             returnOrderMapper.insert(returnOrder);
 
@@ -334,6 +348,69 @@ public class ReturnServiceImpl implements ReturnService {
         log.setQuantityAfter(stock.getQuantity() + quantity);
         log.setRemark("退货入库");
         stockLogMapper.insert(log);
+    }
+
+    /**
+     * 根据模板计算快递费用
+     */
+    private java.math.BigDecimal calculateFeeByTemplate(Long templateId, java.math.BigDecimal weight) {
+        if (templateId == null) {
+            // 使用默认模板
+            var defaultTemplate = feeTemplateMapper.findDefault();
+            if (defaultTemplate != null) {
+                templateId = defaultTemplate.getId();
+            } else {
+                return null;
+            }
+        }
+
+        // 查询模板信息
+        var template = feeTemplateMapper.findById(templateId);
+        if (template == null) {
+            return null;
+        }
+
+        // 首重续重类型
+        if ("FIRST_CONTINUE".equals(template.getTemplateType())) {
+            return calculateFirstContinueFee(template, weight);
+        }
+
+        // 阶梯计费类型（默认）
+        ExpressFeeStep step = feeStepMapper.findByTemplateIdAndWeight(templateId, weight);
+        if (step != null) {
+            return step.getFee();
+        }
+
+        return null;
+    }
+
+    /**
+     * 首重续重计费
+     */
+    private java.math.BigDecimal calculateFirstContinueFee(ExpressFeeTemplate template, java.math.BigDecimal weight) {
+        if (template.getFirstWeight() == null || template.getFirstFee() == null) {
+            return null;
+        }
+
+        java.math.BigDecimal firstWeight = template.getFirstWeight();
+        java.math.BigDecimal firstFee = template.getFirstFee();
+
+        // 重量不超过首重
+        if (weight.compareTo(firstWeight) <= 0) {
+            return firstFee;
+        }
+
+        // 超过首重，计算续重费用
+        if (template.getAdditionalWeight() == null || template.getAdditionalFee() == null) {
+            return firstFee;
+        }
+
+        java.math.BigDecimal additionalWeight = weight.subtract(firstWeight);
+        // 向上取整续重重量
+        java.math.BigDecimal additionalUnits = additionalWeight.divide(template.getAdditionalWeight(), 0, java.math.RoundingMode.UP);
+        java.math.BigDecimal additionalFee = additionalUnits.multiply(template.getAdditionalFee());
+
+        return firstFee.add(additionalFee);
     }
 
     @Override

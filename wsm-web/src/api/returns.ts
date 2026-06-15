@@ -23,6 +23,7 @@ export interface ReturnOrder {
   status: string
   reason: string
   trackingNo?: string
+  shippingFee?: number
   remark: string
   items?: ReturnItem[]
   createdAt: string
@@ -39,12 +40,21 @@ export function getReturnDetail(id: number) {
 }
 
 // 创建退货单
-export function createReturn(data: { orderId: number; reason: string; trackingNo?: string; remark?: string; items: { skuId: number; quantity: number }[] }) {
+export function createReturn(data: {
+  orderId: number
+  reason: string
+  trackingNo?: string
+  shippingFee?: number
+  feeTemplateId?: number
+  estimatedWeight?: number
+  remark?: string
+  items: { skuId: number; quantity: number }[]
+}) {
   return request.post<any, ApiResponse<number>>('/returns/create', data)
 }
 
 // 批量创建退货单
-export function createBatchReturn(data: { orderIds: number[]; reason: string; trackingNo?: string; remark?: string }) {
+export function createBatchReturn(data: { orderIds: number[]; reason: string; trackingNo?: string; shippingFee?: number; remark?: string }) {
   return request.post<any, ApiResponse<number[]>>('/returns/create-batch', data)
 }
 

@@ -13,6 +13,7 @@
         <result column="status" property="status"/>
         <result column="reason" property="reason"/>
         <result column="tracking_no" property="trackingNo"/>
+        <result column="shipping_fee" property="shippingFee"/>
         <result column="remark" property="remark"/>
         <result column="operator_id" property="operatorId"/>
         <result column="operator_name" property="operatorName"/>
@@ -25,7 +26,7 @@
         SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
                so.platform_order_no AS platform_order_no,
                ro.warehouse_id,
-               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.remark,
+               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.shipping_fee, ro.remark,
                ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
         FROM return_order ro
         LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0
@@ -53,7 +54,7 @@
         SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
                so.platform_order_no AS platform_order_no,
                ro.warehouse_id,
-               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.remark,
+               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.shipping_fee, ro.remark,
                ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
         FROM return_order ro
         LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0
@@ -62,8 +63,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO return_order (return_no, order_id, order_no, warehouse_id, status, reason, tracking_no, remark)
-        VALUES (#{returnNo}, #{orderId}, #{orderNo}, #{warehouseId}, #{status}, #{reason}, #{trackingNo}, #{remark})
+        INSERT INTO return_order (return_no, order_id, order_no, warehouse_id, status, reason, tracking_no, shipping_fee, remark)
+        VALUES (#{returnNo}, #{orderId}, #{orderNo}, #{warehouseId}, #{status}, #{reason}, #{trackingNo}, #{shippingFee}, #{remark})
     </insert>
 
     <update id="updateStatus">
@@ -74,7 +75,7 @@
         SELECT ro.id, ro.return_no, ro.order_id, ro.order_no,
                so.platform_order_no AS platform_order_no,
                ro.warehouse_id,
-               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.remark,
+               w.name AS warehouse_name, ro.status, ro.reason, ro.tracking_no, ro.shipping_fee, ro.remark,
                ro.operator_id, ro.operator_name, ro.deleted, ro.created_at, ro.updated_at
         FROM return_order ro
         LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0

@@ -2,6 +2,7 @@ package com.yiweilai.wms.returns.vo;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,6 +41,9 @@ public class ReturnOrderVO {
 
     /** 客户退货快递单号 */
     private String trackingNo;
+
+    /** 退货快递费 */
+    private BigDecimal shippingFee;
 
     /** 备注 */
     private String remark;

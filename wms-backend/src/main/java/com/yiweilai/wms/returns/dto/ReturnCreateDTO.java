@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -25,6 +26,15 @@ public class ReturnCreateDTO {
 
     /** 客户退货快递单号 */
     private String trackingNo;
+
+    /** 退货快递费 */
+    private BigDecimal shippingFee;
+
+    /** 快递费用模板ID（用于自动计算快递费） */
+    private Long feeTemplateId;
+
+    /** 预估重量（用于自动计算快递费） */
+    private BigDecimal estimatedWeight;
 
     /** 备注 */
     private String remark;
