@@ -28,6 +28,7 @@ import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductBarcodeMapper;
 import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.product.util.ProductImageHelper;
 import com.yiweilai.wms.express.entity.ExpressFeeStep;
 import com.yiweilai.wms.express.entity.ExpressFeeTemplate;
 import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
@@ -36,6 +37,7 @@ import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
+import com.yiweilai.wms.stock.service.StockService;
 import com.yiweilai.wms.warehouse.entity.Warehouse;
 import com.yiweilai.wms.warehouse.entity.WarehouseShelf;
 import com.yiweilai.wms.warehouse.mapper.WarehouseMapper;
@@ -74,6 +76,8 @@ public class OutboundServiceImpl implements OutboundService {
     private final ProductBarcodeMapper productBarcodeMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final StockService stockService;
+    private final ProductImageHelper productImageHelper;
     private final WarehouseMapper warehouseMapper;
     private final WarehouseShelfMapper shelfMapper;
     private final ExpressFeeStepMapper feeStepMapper;
@@ -427,52 +431,6 @@ public class OutboundServiceImpl implements OutboundService {
         return fee;
     }
 
-    /**
-     * 扣减库存（核心方法，每次扣减前重新查询避免数据过期）
-     */
-    private void deductStock(Long skuId, int quantity, String outboundNo, Long warehouseId) {
-        int remaining = quantity;
-        while (remaining > 0) {
-            List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
-            if (availableStocks.isEmpty()) {
-                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
-            }
-
-            boolean deducted = false;
-            for (Stock stock : availableStocks) {
-                int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
-                int deductQty = Math.min(beforeQty, remaining);
-                if (deductQty <= 0) continue;
-
-                int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
-                if (affected == 0) continue;
-
-                writeOutboundLog(skuId, warehouseId, beforeQty, deductQty, outboundNo);
-                remaining -= deductQty;
-                deducted = true;
-                break;
-            }
-
-            if (!deducted) {
-                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
-            }
-        }
-    }
-
-    private void writeOutboundLog(Long skuId, Long warehouseId, int beforeQty,
-                                  int deductQty, String outboundNo) {
-        StockLog log = new StockLog();
-        log.setBizType("OUTBOUND");
-        log.setBizNo(outboundNo);
-        log.setSkuId(skuId);
-        log.setWarehouseId(warehouseId);
-        log.setQuantityBefore(beforeQty);
-        log.setQuantityChange(-deductQty);
-        log.setQuantityAfter(beforeQty - deductQty);
-        log.setRemark("出库扣减");
-        stockLogMapper.insert(log);
-    }
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void cancel(Long id) {
@@ -548,20 +506,7 @@ public class OutboundServiceImpl implements OutboundService {
         vo.setWarehouseName(warehouseName);
 
         // 查询SKU图片
-        if (item.getSkuId() != null) {
-            ProductSku sku = productSkuMapper.findById(item.getSkuId());
-            if (sku != null) {
-                String image = sku.getImage();
-                // 如果SKU没有图片，查询SPU主图
-                if (image == null || image.isEmpty()) {
-                    Product product = productMapper.findById(sku.getProductId());
-                    if (product != null) {
-                        image = product.getMainImage();
-                    }
-                }
-                vo.setSkuImage(image);
-            }
-        }
+        vo.setSkuImage(productImageHelper.getSkuImage(item.getSkuId()));
 
         // 查询货架编码
         if (item.getShelfId() != null) {

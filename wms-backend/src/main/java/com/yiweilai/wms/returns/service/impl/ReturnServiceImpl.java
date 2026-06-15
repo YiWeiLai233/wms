@@ -12,6 +12,7 @@ import com.yiweilai.wms.product.entity.Product;
 import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.product.util.ProductImageHelper;
 import com.yiweilai.wms.express.entity.ExpressFeeStep;
 import com.yiweilai.wms.express.entity.ExpressFeeTemplate;
 import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
@@ -59,6 +60,7 @@ public class ReturnServiceImpl implements ReturnService {
     private final SalesOrderItemMapper salesOrderItemMapper;
     private final ProductSkuMapper productSkuMapper;
     private final ProductMapper productMapper;
+    private final ProductImageHelper productImageHelper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
     private final WarehouseMapper warehouseMapper;
@@ -461,20 +463,7 @@ public class ReturnServiceImpl implements ReturnService {
         BeanUtils.copyProperties(item, vo);
 
         // 查询SKU图片
-        if (item.getSkuId() != null) {
-            ProductSku sku = productSkuMapper.findById(item.getSkuId());
-            if (sku != null) {
-                String image = sku.getImage();
-                // 如果SKU没有图片，查询SPU主图
-                if (image == null || image.isEmpty()) {
-                    Product product = productMapper.findById(sku.getProductId());
-                    if (product != null) {
-                        image = product.getMainImage();
-                    }
-                }
-                vo.setSkuImage(image);
-            }
-        }
+        vo.setSkuImage(productImageHelper.getSkuImage(item.getSkuId()));
 
         return vo;
     }
