@@ -17,7 +17,9 @@ import com.yiweilai.wms.order.vo.OrderItemVO;
 import com.yiweilai.wms.order.vo.OrderVO;
 import com.yiweilai.wms.privacy.crypto.PrivacyCryptoService;
 import com.yiweilai.wms.privacy.crypto.PrivacyHashService;
+import com.yiweilai.wms.product.entity.Product;
 import com.yiweilai.wms.product.entity.ProductSku;
+import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
@@ -45,6 +47,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper orderItemMapper;
+    private final ProductMapper productMapper;
     private final ProductSkuMapper productSkuMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
