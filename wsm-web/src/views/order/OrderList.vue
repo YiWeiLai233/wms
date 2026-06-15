@@ -1,20 +1,25 @@
 <template>
   <div class="page-container">
-    <PageHeader title="订单管理">
-      <template #actions>
-        <el-button type="primary" icon="Upload" @click="openImportDialog">手动导入</el-button>
-        <el-button type="success" icon="Document" @click="fileImportDialogVisible = true">文档导入</el-button>
-        <el-button type="warning" icon="TopRight" :type="selectMode === 'outbound' ? 'warning' : ''" @click="toggleSelectMode('outbound')">
-          {{ selectMode === 'outbound' ? '取消选择' : '批量出库' }}
-        </el-button>
-        <el-button type="danger" icon="BottomLeft" :type="selectMode === 'return' ? 'danger' : ''" @click="toggleSelectMode('return')">
-          {{ selectMode === 'return' ? '取消选择' : '批量退货' }}
-        </el-button>
-        <el-button v-if="selectMode && selectedOrders.length > 0" type="primary" @click="handleBatchAction">
-          确认{{ selectMode === 'outbound' ? '出库' : '退货' }} ({{ selectedOrders.length }})
-        </el-button>
-      </template>
-    </PageHeader>
+    <PageHeader title="订单管理" />
+
+    <!-- 操作栏 -->
+    <div class="action-bar">
+      <div class="flex-1"></div>
+      <el-button type="primary" icon="Upload" @click="openImportDialog">手动导入</el-button>
+      <el-button type="info" icon="Document" @click="fileImportDialogVisible = true">文档导入</el-button>
+      <el-button type="success" icon="TopRight" @click="toggleSelectMode('outbound')">
+        {{ selectMode === 'outbound' ? '取消选择' : '批量出库' }}
+      </el-button>
+      <el-button type="warning" icon="BottomLeft" @click="toggleSelectMode('return')">
+        {{ selectMode === 'return' ? '取消选择' : '批量退货' }}
+      </el-button>
+      <el-button type="danger" icon="Close" @click="toggleSelectMode('cancel')">
+        {{ selectMode === 'cancel' ? '取消选择' : '批量取消' }}
+      </el-button>
+      <el-button v-if="selectMode && selectedOrders.length > 0" type="primary" @click="handleBatchAction">
+        确认{{ selectMode === 'outbound' ? '出库' : selectMode === 'return' ? '退货' : '取消' }} ({{ selectedOrders.length }})
+      </el-button>
+    </div>
 
     <div class="card mb-4">
       <el-form :model="searchParams" inline>
@@ -48,7 +53,7 @@
       <!-- 选择模式提示 -->
       <el-alert
         v-if="selectMode"
-        :title="selectMode === 'outbound' ? '批量出库模式：请勾选需要出库的订单（仅待出库状态可选）' : '批量退货模式：请勾选需要退货的订单（仅已发货状态可选）'"
+        :title="selectMode === 'outbound' ? '批量出库模式：请勾选需要出库的订单（仅待出库状态可选）' : selectMode === 'return' ? '批量退货模式：请勾选需要退货的订单（仅已发货状态可选）' : '批量取消模式：请勾选需要取消的订单（仅待付款/待出库状态可选）'"
         :type="selectMode === 'outbound' ? 'warning' : 'error'"
         show-icon
         :closable="false"
@@ -61,7 +66,7 @@
         v-loading="loading"
         stripe
         border
-        :class="selectMode === 'outbound' ? 'outbound-mode' : selectMode === 'return' ? 'return-mode' : ''"
+        :class="selectMode === 'outbound' ? 'outbound-mode' : selectMode === 'return' ? 'return-mode' : selectMode === 'cancel' ? 'cancel-mode' : ''"
         :row-class-name="getRowClassName"
         @selection-change="handleSelectionChange"
       >
@@ -610,6 +615,7 @@ function isSelectable(row: Order) {
   if (!selectMode.value) return false
   if (selectMode.value === 'outbound') return row.orderStatus === 'WAIT_OUTBOUND'
   if (selectMode.value === 'return') return row.orderStatus === 'SHIPPED'
+  if (selectMode.value === 'cancel') return row.orderStatus === 'WAIT_PAY' || row.orderStatus === 'WAIT_OUTBOUND'
   return false
 }
 
@@ -617,10 +623,11 @@ function getRowClassName({ row }: { row: Order }) {
   if (!selectMode.value) return ''
   if (selectMode.value === 'outbound' && row.orderStatus === 'WAIT_OUTBOUND') return 'selectable-row'
   if (selectMode.value === 'return' && row.orderStatus === 'SHIPPED') return 'selectable-row'
+  if (selectMode.value === 'cancel' && (row.orderStatus === 'WAIT_PAY' || row.orderStatus === 'WAIT_OUTBOUND')) return 'selectable-row'
   return 'disabled-row'
 }
 
-function toggleSelectMode(mode: 'outbound' | 'return') {
+function toggleSelectMode(mode: 'outbound' | 'return' | 'cancel') {
   if (selectMode.value === mode) {
     // 取消选择模式
     selectMode.value = null
@@ -639,8 +646,42 @@ async function handleBatchAction() {
 
   if (selectMode.value === 'outbound') {
     await handleBatchOutbound()
-  } else {
+  } else if (selectMode.value === 'return') {
     await handleBatchReturn()
+  } else if (selectMode.value === 'cancel') {
+    await handleBatchCancel()
+  }
+}
+
+async function handleBatchCancel() {
+  const validOrders = selectedOrders.value.filter(o =>
+    o.orderStatus === 'WAIT_PAY' || o.orderStatus === 'WAIT_OUTBOUND'
+  )
+  if (validOrders.length === 0) {
+    ElMessage.warning('请选择待付款或待出库的订单')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(`确定要取消 ${validOrders.length} 个订单吗？将恢复已扣减的库存`, '批量取消订单', { type: 'warning' })
+  } catch {
+    return
+  }
+
+  let successCount = 0
+  for (const order of validOrders) {
+    try {
+      await updateOrderStatus(order.id, 'CANCELLED')
+      successCount++
+    } catch {}
+  }
+
+  if (successCount > 0) {
+    ElMessage.success(`成功取消 ${successCount} 个订单`)
+    selectedOrders.value = []
+    selectMode.value = null
+    tableRef.value?.clearSelection()
+    fetchData()
   }
 }
 
@@ -1318,15 +1359,28 @@ async function handleImport() {
 }
 </script>
 
+<style scoped>
+/* 操作栏 */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+</style>
+
 <style>
-/* 批量出库模式 - 黄色选择框 */
+/* 批量出库模式 - 绿色选择框 */
 .outbound-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
-  border-color: #fadb14 !important;
-  background-color: #fadb14 !important;
-  box-shadow: 0 0 0 1px #fadb14;
+  border-color: #67c23a !important;
+  background-color: #67c23a !important;
+  box-shadow: 0 0 0 1px #67c23a;
 }
 .outbound-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner::after {
-  border-color: #333 !important;
+  border-color: #fff !important;
 }
 .outbound-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner {
   background-color: #409eff !important;
@@ -1337,11 +1391,11 @@ async function handleImport() {
   border-color: #fff !important;
 }
 
-/* 批量退货模式 - 红色选择框 */
+/* 批量退货模式 - 橙色选择框 */
 .return-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
-  border-color: #ff4d4f !important;
-  background-color: #ff4d4f !important;
-  box-shadow: 0 0 0 1px #ff4d4f;
+  border-color: #e6a23c !important;
+  background-color: #e6a23c !important;
+  box-shadow: 0 0 0 1px #e6a23c;
 }
 .return-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner::after {
   border-color: #fff !important;
@@ -1352,6 +1406,24 @@ async function handleImport() {
   box-shadow: none;
 }
 .return-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+
+/* 批量取消模式 - 红色选择框 */
+.cancel-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
+  border-color: #f56c6c !important;
+  background-color: #f56c6c !important;
+  box-shadow: 0 0 0 1px #f56c6c;
+}
+.cancel-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+.cancel-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+  box-shadow: none;
+}
+.cancel-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner::after {
   border-color: #fff !important;
 }
 
