@@ -28,5 +28,5 @@ public interface ReportService {
     /**
      * 快递费用统计
      */
-    ExpressFeeReportVO getExpressFeeReport(String startTime, String endTime, Long expressCompanyId);
+    ExpressFeeReportVO getExpressFeeReport(String orderNo, String platformOrderNo, String startTime, String endTime, Long expressCompanyId);
 }

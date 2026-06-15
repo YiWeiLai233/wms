@@ -51,9 +51,11 @@ public class ReportController {
      */
     @GetMapping("/express-fee")
     public Result<ExpressFeeReportVO> getExpressFeeReport(
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String platformOrderNo,
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime,
             @RequestParam(required = false) Long expressCompanyId) {
-        return Result.success(reportService.getExpressFeeReport(startTime, endTime, expressCompanyId));
+        return Result.success(reportService.getExpressFeeReport(orderNo, platformOrderNo, startTime, endTime, expressCompanyId));
     }
 }

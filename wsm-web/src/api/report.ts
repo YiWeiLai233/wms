@@ -43,23 +43,30 @@ export function getOutboundReport() {
 }
 
 // 快递费用统计
-export function getExpressFeeReport(params: { startTime?: string; endTime?: string; expressCompanyId?: number }) {
+export function getExpressFeeReport(params: { orderNo?: string; platformOrderNo?: string; startTime?: string; endTime?: string; expressCompanyId?: number }) {
   return request.get<any, ApiResponse<ExpressFeeReport>>('/reports/express-fee', { params })
 }
 
 export interface ExpressFeeReport {
   totalFee: number
   totalCount: number
+  outboundFee: number
+  outboundCount: number
+  returnFee: number
+  returnCount: number
   items: ExpressFeeItem[]
 }
 
 export interface ExpressFeeItem {
-  outboundId: number
-  outboundNo: string
+  id: number
+  bizNo: string
   orderNo: string
+  platformOrderNo: string
+  bizType: string
+  bizTypeName: string
   expressCompanyId: number
   expressCompanyName: string
   trackingNo: string
   shippingFee: number
-  shippedAt: string
+  createdAt: string
 }

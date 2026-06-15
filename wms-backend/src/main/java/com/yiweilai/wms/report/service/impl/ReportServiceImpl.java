@@ -318,55 +318,133 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public ExpressFeeReportVO getExpressFeeReport(String startTime, String endTime, Long expressCompanyId) {
+    public ExpressFeeReportVO getExpressFeeReport(String orderNo, String platformOrderNo, String startTime, String endTime, Long expressCompanyId) {
         ExpressFeeReportVO vo = new ExpressFeeReportVO();
 
-        // 构建查询条件
-        StringBuilder where = new StringBuilder("WHERE oo.deleted = 0 AND oo.status = 'SHIPPED' AND oo.shipping_fee IS NOT NULL");
-        List<Object> params = new ArrayList<>();
+        List<Object> outboundParams = new ArrayList<>();
+        StringBuilder outboundWhere = new StringBuilder("WHERE oo.deleted = 0 AND oo.status = 'SHIPPED' AND oo.shipping_fee IS NOT NULL");
 
+        List<Object> returnParams = new ArrayList<>();
+        StringBuilder returnWhere = new StringBuilder("WHERE ro.deleted = 0 AND ro.status IN ('PENDING_CHECK','SELLABLE','DEFECTIVE','SCRAPPED','COMPLETED') AND ro.shipping_fee IS NOT NULL");
+
+        if (orderNo != null && !orderNo.isEmpty()) {
+            outboundWhere.append(" AND oo.order_no LIKE ?");
+            outboundParams.add("%" + orderNo + "%");
+            returnWhere.append(" AND ro.order_no LIKE ?");
+            returnParams.add("%" + orderNo + "%");
+        }
+        if (platformOrderNo != null && !platformOrderNo.isEmpty()) {
+            outboundWhere.append(" AND so.platform_order_no LIKE ?");
+            outboundParams.add("%" + platformOrderNo + "%");
+            returnWhere.append(" AND so.platform_order_no LIKE ?");
+            returnParams.add("%" + platformOrderNo + "%");
+        }
         if (startTime != null && !startTime.isEmpty()) {
-            where.append(" AND oo.shipped_at >= ?");
-            params.add(startTime);
+            outboundWhere.append(" AND oo.shipped_at >= ?");
+            outboundParams.add(startTime);
+            returnWhere.append(" AND ro.created_at >= ?");
+            returnParams.add(startTime);
         }
         if (endTime != null && !endTime.isEmpty()) {
-            where.append(" AND oo.shipped_at <= ?");
-            params.add(endTime + " 23:59:59");
+            outboundWhere.append(" AND oo.shipped_at <= ?");
+            outboundParams.add(endTime + " 23:59:59");
+            returnWhere.append(" AND ro.created_at <= ?");
+            returnParams.add(endTime + " 23:59:59");
         }
         if (expressCompanyId != null) {
-            where.append(" AND oo.express_company_id = ?");
-            params.add(expressCompanyId);
+            outboundWhere.append(" AND oo.express_company_id = ?");
+            outboundParams.add(expressCompanyId);
+            // 退货单没有快递公司字段，跳过此条件
         }
 
-        // 查询汇总
-        String summarySql = "SELECT COALESCE(SUM(oo.shipping_fee), 0) AS total_fee, COUNT(*) AS total_count " +
-                "FROM outbound_order oo " + where;
-        Map<String, Object> summary = jdbcTemplate.queryForMap(summarySql, params.toArray());
-        vo.setTotalFee(summary.get("total_fee") != null ? new BigDecimal(summary.get("total_fee").toString()) : BigDecimal.ZERO);
-        vo.setTotalCount(summary.get("total_count") != null ? ((Number) summary.get("total_count")).longValue() : 0L);
-
-        // 查询明细
-        String detailSql = "SELECT oo.id AS outbound_id, oo.outbound_no, oo.order_no, " +
-                "oo.express_company_id, ec.name AS express_company_name, " +
-                "oo.tracking_no, oo.shipping_fee, oo.shipped_at " +
+        // 查询出库汇总
+        String outboundSummarySql = "SELECT COALESCE(SUM(oo.shipping_fee), 0) AS total_fee, COUNT(*) AS total_count " +
                 "FROM outbound_order oo " +
-                "LEFT JOIN express_company ec ON oo.express_company_id = ec.id AND ec.deleted = 0 " +
-                where + " ORDER BY oo.shipped_at DESC";
+                "LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0 " +
+                outboundWhere;
+        Map<String, Object> outboundSummary = jdbcTemplate.queryForMap(outboundSummarySql, outboundParams.toArray());
+        BigDecimal outboundFee = outboundSummary.get("total_fee") != null ? new BigDecimal(outboundSummary.get("total_fee").toString()) : BigDecimal.ZERO;
+        Long outboundCount = outboundSummary.get("total_count") != null ? ((Number) outboundSummary.get("total_count")).longValue() : 0L;
+        vo.setOutboundFee(outboundFee);
+        vo.setOutboundCount(outboundCount);
 
-        List<ExpressFeeReportVO.ExpressFeeItem> items = jdbcTemplate.query(detailSql, (rs, rowNum) -> {
+        // 查询退货汇总
+        String returnSummarySql = "SELECT COALESCE(SUM(ro.shipping_fee), 0) AS total_fee, COUNT(*) AS total_count " +
+                "FROM return_order ro " +
+                "LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0 " +
+                returnWhere;
+        Map<String, Object> returnSummary = jdbcTemplate.queryForMap(returnSummarySql, returnParams.toArray());
+        BigDecimal returnFee = returnSummary.get("total_fee") != null ? new BigDecimal(returnSummary.get("total_fee").toString()) : BigDecimal.ZERO;
+        Long returnCount = returnSummary.get("total_count") != null ? ((Number) returnSummary.get("total_count")).longValue() : 0L;
+        vo.setReturnFee(returnFee);
+        vo.setReturnCount(returnCount);
+
+        // 汇总
+        vo.setTotalFee(outboundFee.add(returnFee));
+        vo.setTotalCount(outboundCount + returnCount);
+
+        // 查询出库明细
+        String outboundDetailSql = "SELECT oo.id, oo.outbound_no AS biz_no, oo.order_no, so.platform_order_no, " +
+                "'OUTBOUND' AS biz_type, '出库' AS biz_type_name, " +
+                "oo.express_company_id, ec.name AS express_company_name, " +
+                "oo.tracking_no, oo.shipping_fee, oo.shipped_at AS created_at " +
+                "FROM outbound_order oo " +
+                "LEFT JOIN sales_order so ON oo.order_id = so.id AND so.deleted = 0 " +
+                "LEFT JOIN express_company ec ON oo.express_company_id = ec.id AND ec.deleted = 0 " +
+                outboundWhere;
+
+        List<ExpressFeeReportVO.ExpressFeeItem> outboundItems = jdbcTemplate.query(outboundDetailSql, (rs, rowNum) -> {
             ExpressFeeReportVO.ExpressFeeItem item = new ExpressFeeReportVO.ExpressFeeItem();
-            item.setOutboundId(rs.getLong("outbound_id"));
-            item.setOutboundNo(rs.getString("outbound_no"));
+            item.setId(rs.getLong("id"));
+            item.setBizNo(rs.getString("biz_no"));
             item.setOrderNo(rs.getString("order_no"));
+            item.setPlatformOrderNo(rs.getString("platform_order_no"));
+            item.setBizType(rs.getString("biz_type"));
+            item.setBizTypeName(rs.getString("biz_type_name"));
             item.setExpressCompanyId(rs.getLong("express_company_id"));
             item.setExpressCompanyName(rs.getString("express_company_name"));
             item.setTrackingNo(rs.getString("tracking_no"));
             item.setShippingFee(rs.getBigDecimal("shipping_fee"));
-            item.setShippedAt(rs.getString("shipped_at"));
+            item.setCreatedAt(rs.getString("created_at"));
             return item;
-        }, params.toArray());
+        }, outboundParams.toArray());
 
-        vo.setItems(items);
+        // 查询退货明细
+        String returnDetailSql = "SELECT ro.id, ro.return_no AS biz_no, ro.order_no, so.platform_order_no, " +
+                "'RETURN' AS biz_type, '退货' AS biz_type_name, " +
+                "NULL AS express_company_id, '退货' AS express_company_name, " +
+                "ro.tracking_no, ro.shipping_fee, ro.created_at " +
+                "FROM return_order ro " +
+                "LEFT JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0 " +
+                returnWhere;
+
+        List<ExpressFeeReportVO.ExpressFeeItem> returnItems = jdbcTemplate.query(returnDetailSql, (rs, rowNum) -> {
+            ExpressFeeReportVO.ExpressFeeItem item = new ExpressFeeReportVO.ExpressFeeItem();
+            item.setId(rs.getLong("id"));
+            item.setBizNo(rs.getString("biz_no"));
+            item.setOrderNo(rs.getString("order_no"));
+            item.setPlatformOrderNo(rs.getString("platform_order_no"));
+            item.setBizType(rs.getString("biz_type"));
+            item.setBizTypeName(rs.getString("biz_type_name"));
+            item.setExpressCompanyId(rs.getLong("express_company_id"));
+            item.setExpressCompanyName(rs.getString("express_company_name"));
+            item.setTrackingNo(rs.getString("tracking_no"));
+            item.setShippingFee(rs.getBigDecimal("shipping_fee"));
+            item.setCreatedAt(rs.getString("created_at"));
+            return item;
+        }, returnParams.toArray());
+
+        // 合并并按时间排序
+        List<ExpressFeeReportVO.ExpressFeeItem> allItems = new ArrayList<>();
+        allItems.addAll(outboundItems);
+        allItems.addAll(returnItems);
+        allItems.sort((a, b) -> {
+            if (a.getCreatedAt() == null) return 1;
+            if (b.getCreatedAt() == null) return -1;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+
+        vo.setItems(allItems);
         return vo;
     }
 }
