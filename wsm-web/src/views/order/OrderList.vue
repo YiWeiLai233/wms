@@ -213,7 +213,7 @@
         <el-table v-if="selectedSkuGroup" :data="selectedSkuGroup.skus" border size="small" class="mb-3" max-height="350">
           <el-table-column label="图片" width="60" align="center">
             <template #default="{ row }">
-              <ImagePreview :src="row.image" />
+              <ImagePreview :src="row.image || row.mainImage" />
             </template>
           </el-table-column>
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
@@ -388,7 +388,7 @@ interface ReturnItemForm {
   quantity: number
 }
 
-type SkuListItem = Sku & { productName?: string }
+type SkuListItem = Sku & { productName?: string; mainImage?: string }
 
 interface SkuGroup {
   key: string
@@ -545,7 +545,7 @@ function addSkuToImport(sku: SkuListItem) {
     sizeValue: sku.sizeValue || '',
     quantity: 1,
     unitPrice: sku.salePrice || 0,
-    image: sku.image || '',
+    image: sku.image || sku.mainImage || '',
   })
 }
 

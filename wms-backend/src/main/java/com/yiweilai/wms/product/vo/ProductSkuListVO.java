@@ -65,6 +65,9 @@ public class ProductSkuListVO {
     /** 分类名称 */
     private String categoryName;
 
+    /** 商品主图（SPU图片） */
+    private String mainImage;
+
     /** 低库存阈值（来自预警配置） */
     private Integer lowStockThreshold;
 

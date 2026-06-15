@@ -95,6 +95,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             Product product = productMap.get(sku.getProductId());
             if (product != null) {
                 vo.setProductName(product.getName());
+                vo.setMainImage(product.getMainImage());
                 if (product.getShelfId() != null) {
                     WarehouseShelf shelf = shelfMap.get(product.getShelfId());
                     if (shelf != null) {
