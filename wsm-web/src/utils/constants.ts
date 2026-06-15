@@ -1,7 +1,7 @@
 export const ORDER_STATUS_MAP: Record<string, { label: string; color: string; effect?: string }> = {
   WAIT_PAY: { label: '待付款', color: 'info' },
   WAIT_OUTBOUND: { label: '待出库', color: 'warning' },
-  OUTBOUNDING: { label: '出库中', color: 'primary' },
+  OUTBOUNDING: { label: '待发货', color: 'primary' },
   SHIPPED: { label: '已发货', color: 'success' },
   FINISHED: { label: '已完成', color: 'success', effect: 'dark' },
   CANCELLED: { label: '已取消', color: 'danger' },
@@ -11,7 +11,7 @@ export const ORDER_STATUS_MAP: Record<string, { label: string; color: string; ef
 }
 
 export const OUTBOUND_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  WAIT_PICKING: { label: '待拣货', color: 'warning' },
+  WAIT_PICKING: { label: '待发货', color: 'warning' },
   PICKING: { label: '拣货中', color: '' },
   PICKED: { label: '已拣货', color: 'success' },
   SHIPPED: { label: '已发货', color: 'success' },
@@ -101,7 +101,7 @@ export const MENU_LIST: MenuItem[] = [
     icon: 'Document',
     children: [
       { title: '订单管理', path: '/order/list' },
-      { title: '出库管理', path: '/outbound/list' },
+      { title: '发货管理', path: '/outbound/list' },
       { title: '退货管理', path: '/returns/list' },
     ],
   },

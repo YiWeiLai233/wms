@@ -127,12 +127,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/order/OrderList.vue'),
         meta: { title: '订单管理', icon: 'Document' },
       },
-      // 出库管理
+      // 发货管理
       {
         path: 'outbound/list',
         name: 'OutboundList',
         component: () => import('@/views/outbound/OutboundList.vue'),
-        meta: { title: '出库管理', icon: 'TopRight' },
+        meta: { title: '发货管理', icon: 'TopRight' },
       },
       // 退货管理
       {

@@ -36,19 +36,24 @@ export interface OutboundOrder {
   createdAt: string
 }
 
-// 出库单列表
+// 发货单列表
 export function getOutboundList(params: PageParams & { outboundNo?: string; orderNo?: string; platformOrderNo?: string; status?: string; warehouseId?: number }) {
   return request.get<any, ApiResponse<PageResult<OutboundOrder>>>('/outbound/list', { params })
 }
 
-// 出库单详情
+// 发货单详情
 export function getOutboundDetail(id: number) {
   return request.get<any, ApiResponse<OutboundOrder>>(`/outbound/${id}`)
 }
 
-// 创建出库单
+// 创建发货单
 export function createOutbound(data: { orderId: number; remark?: string }) {
   return request.post<any, ApiResponse<number>>('/outbound/create', data)
+}
+
+// 批量创建发货单
+export function createBatchOutbound(data: { orderIds: number[]; remark?: string }) {
+  return request.post<any, ApiResponse<number[]>>('/outbound/create-batch', data)
 }
 
 // 扫码核对
@@ -56,7 +61,7 @@ export function scanOutbound(data: { outboundId: number; scanCode: string; shelf
   return request.post<any, ApiResponse<void>>('/outbound/scan', data)
 }
 
-// 确认出库
+// 确认发货
 export function confirmOutbound(data: {
   outboundId: number
   trackingNo?: string
@@ -68,7 +73,17 @@ export function confirmOutbound(data: {
   return request.post<any, ApiResponse<void>>('/outbound/confirm', data)
 }
 
-// 取消出库单
+// 更新发货单信息
+export function updateOutbound(id: number, data: {
+  trackingNo?: string
+  expressCompanyId?: number
+  shippingFee?: number
+  remark?: string
+}) {
+  return request.put<any, ApiResponse<void>>(`/outbound/${id}`, data)
+}
+
+// 取消发货单
 export function cancelOutbound(id: number) {
   return request.post<any, ApiResponse<void>>(`/outbound/${id}/cancel`)
 }

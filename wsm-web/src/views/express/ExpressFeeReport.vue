@@ -39,7 +39,7 @@
     <!-- 明细表格 -->
     <div class="card">
       <el-table :data="reportData.items || []" v-loading="loading" stripe border>
-        <el-table-column prop="outboundNo" label="出库单号" width="160" />
+        <el-table-column prop="outboundNo" label="发货单号" width="160" />
         <el-table-column prop="orderNo" label="订单号" width="140" />
         <el-table-column prop="expressCompanyName" label="快递公司" width="120">
           <template #default="{ row }">{{ row.expressCompanyName || '-' }}</template>

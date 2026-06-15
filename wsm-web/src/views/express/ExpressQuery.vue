@@ -120,7 +120,7 @@
       </el-form>
 
       <el-table :data="tableData" v-loading="loading" stripe border>
-        <el-table-column prop="outboundNo" label="出库单号" width="160" />
+        <el-table-column prop="outboundNo" label="发货单号" width="160" />
         <el-table-column prop="orderNo" label="订单号" width="140" />
         <el-table-column prop="trackingNo" label="快递单号" width="150">
           <template #default="{ row }">
