@@ -38,6 +38,15 @@
     <div class="card">
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column prop="orderNo" label="订单号" width="160" />
+        <el-table-column label="平台" width="120">
+          <template #default="{ row }">
+            <div v-if="row.platformName" class="flex items-center gap-1">
+              <div v-if="row.platformColor" class="w-3 h-3 rounded" :style="{ backgroundColor: row.platformColor }"></div>
+              <span>{{ row.platformName }}</span>
+            </div>
+            <span v-else class="text-gray-400">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="platformOrderNo" label="平台单号" width="160" show-overflow-tooltip />
         <el-table-column prop="warehouseName" label="仓库" width="120" />
         <el-table-column prop="receiverName" label="收件人" width="90" />
@@ -109,6 +118,13 @@
     <el-dialog v-model="detailVisible" title="订单详情" width="760px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="订单号">{{ detail.orderNo }}</el-descriptions-item>
+        <el-descriptions-item label="平台">
+          <div v-if="detail.platformName" class="flex items-center gap-1">
+            <div v-if="detail.platformColor" class="w-3 h-3 rounded" :style="{ backgroundColor: detail.platformColor }"></div>
+            <span>{{ detail.platformName }}</span>
+          </div>
+          <span v-else>-</span>
+        </el-descriptions-item>
         <el-descriptions-item label="平台单号">{{ detail.platformOrderNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="仓库">{{ detail.warehouseName || detail.warehouseId }}</el-descriptions-item>
         <el-descriptions-item label="状态">
@@ -140,12 +156,24 @@
     <el-dialog v-model="importDialogVisible" title="导入订单" width="900px" destroy-on-close>
       <el-form ref="importFormRef" :model="importForm" :rules="importRules" label-width="90px">
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
+            <el-form-item label="平台">
+              <el-select v-model="importForm.platformId" placeholder="选择平台" clearable style="width: 100%">
+                <el-option v-for="p in platforms" :key="p.id" :label="p.name" :value="p.id">
+                  <div class="flex items-center gap-2">
+                    <div v-if="p.color" class="w-3 h-3 rounded" :style="{ backgroundColor: p.color }"></div>
+                    <span>{{ p.name }}</span>
+                  </div>
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="平台单号">
               <el-input v-model="importForm.platformOrderNo" placeholder="平台订单号" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="仓库" prop="warehouseId">
               <el-select v-model="importForm.warehouseId" placeholder="选择仓库" style="width: 100%" @change="handleImportWarehouseChange">
                 <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
@@ -325,6 +353,8 @@ import { getAllSkuList } from '@/api/product'
 import type { Sku } from '@/api/product'
 import { getWarehouseList } from '@/api/warehouse'
 import type { Warehouse } from '@/api/warehouse'
+import { getPlatformOptions } from '@/api/platform'
+import type { Platform } from '@/api/platform'
 import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { ORDER_STATUS_MAP } from '@/utils/constants'
@@ -363,6 +393,7 @@ interface ImportItemForm {
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<Order>(getOrderList)
 
 const warehouses = ref<Warehouse[]>([])
+const platforms = ref<Platform[]>([])
 const skuList = ref<SkuListItem[]>([])
 const detailVisible = ref(false)
 const detail = ref<Partial<Order>>({})
@@ -372,6 +403,7 @@ const importing = ref(false)
 const importFormRef = ref<FormInstance>()
 const importForm = reactive({
   platformOrderNo: '',
+  platformId: undefined as number | undefined,
   warehouseId: undefined as number | undefined,
   receiverName: '',
   receiverPhone: '',
@@ -595,6 +627,13 @@ onMounted(async () => {
   } catch {
     warehouses.value = []
   }
+  // 加载平台列表
+  try {
+    const res = await getPlatformOptions()
+    platforms.value = res.data || []
+  } catch {
+    platforms.value = []
+  }
   // 加载SKU列表
   try {
     const res = await getAllSkuList({ page: 1, size: 1000 })
@@ -607,6 +646,7 @@ onMounted(async () => {
 async function openImportDialog() {
   Object.assign(importForm, {
     platformOrderNo: '',
+    platformId: undefined,
     warehouseId: undefined,
     receiverName: '',
     receiverPhone: '',

@@ -103,6 +103,7 @@ public class OrderServiceImpl implements OrderService {
         SalesOrder order = new SalesOrder();
         order.setOrderNo(orderNo);
         order.setPlatformOrderNo(dto.getPlatformOrderNo());
+        order.setPlatformId(dto.getPlatformId());
         order.setWarehouseId(dto.getWarehouseId());
         order.setReceiverName(dto.getReceiverName());
         order.setReceiverPhone(dto.getReceiverPhone());
