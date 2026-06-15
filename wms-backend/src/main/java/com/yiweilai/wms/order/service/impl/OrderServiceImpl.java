@@ -22,10 +22,12 @@ import com.yiweilai.wms.product.entity.Product;
 import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.product.util.ProductImageHelper;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
+import com.yiweilai.wms.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -52,6 +54,8 @@ public class OrderServiceImpl implements OrderService {
     private final ProductMapper productMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final StockService stockService;
+    private final ProductImageHelper productImageHelper;
     private final PrivacyCryptoService privacyCryptoService;
     private final PrivacyHashService privacyHashService;
 
@@ -100,8 +104,9 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long importOrder(OrderImportDTO dto) {
-        // 生成订单号
-        String orderNo = "SO" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+        // 生成订单号（精确到毫秒 + 4位随机数，避免重复）
+        String orderNo = "SO" + new SimpleDateFormat("yyyyMMddHHmmssSSS").format(new Date())
+                + String.format("%04d", (int) (Math.random() * 10000));
 
         // 创建订单
         SalesOrder order = new SalesOrder();
@@ -142,7 +147,7 @@ public class OrderServiceImpl implements OrderService {
 
             // 刷单订单不扣减真实库存
             if (!isBrushOrder) {
-                deductStock(itemDTO.getSkuId(), itemDTO.getQuantity(), orderNo, dto.getWarehouseId());
+                stockService.deductStock(itemDTO.getSkuId(), itemDTO.getQuantity(), orderNo, dto.getWarehouseId(), "OUTBOUND", "订单导入扣减库存");
             }
         }
 
@@ -280,48 +285,6 @@ public class OrderServiceImpl implements OrderService {
         };
     }
 
-    /**
-     * 扣减库存（每次扣减前重新查询，避免同SKU多次扣减时数据过期）
-     */
-    private void deductStock(Long skuId, int quantity, String orderNo, Long warehouseId) {
-        int remaining = quantity;
-        while (remaining > 0) {
-            List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
-            if (availableStocks.isEmpty()) {
-                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
-            }
-
-            boolean deducted = false;
-            for (Stock stock : availableStocks) {
-                int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
-                int deductQty = Math.min(beforeQty, remaining);
-                if (deductQty <= 0) continue;
-
-                int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
-                if (affected == 0) continue;
-
-                StockLog log = new StockLog();
-                log.setBizType("OUTBOUND");
-                log.setBizNo(orderNo);
-                log.setSkuId(skuId);
-                log.setWarehouseId(warehouseId);
-                log.setQuantityBefore(beforeQty);
-                log.setQuantityChange(-deductQty);
-                log.setQuantityAfter(beforeQty - deductQty);
-                log.setRemark("订单导入扣减库存");
-                stockLogMapper.insert(log);
-
-                remaining -= deductQty;
-                deducted = true;
-                break; // 扣成功了就跳出 for 循环，重新查询最新库存
-            }
-
-            if (!deducted) {
-                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需扣: " + remaining);
-            }
-        }
-    }
-
     private OrderVO convertToVO(SalesOrder order) {
         OrderVO vo = new OrderVO();
         BeanUtils.copyProperties(order, vo);
@@ -347,21 +310,8 @@ public class OrderServiceImpl implements OrderService {
         OrderItemVO vo = new OrderItemVO();
         BeanUtils.copyProperties(item, vo);
 
-        // 查询SKU图片，如果没有则使用SPU主图
-        if (item.getSkuId() != null) {
-            ProductSku sku = productSkuMapper.findById(item.getSkuId());
-            if (sku != null) {
-                String image = sku.getImage();
-                // 如果SKU没有图片，查询SPU主图
-                if (image == null || image.isEmpty()) {
-                    Product product = productMapper.findById(sku.getProductId());
-                    if (product != null) {
-                        image = product.getMainImage();
-                    }
-                }
-                vo.setSkuImage(image);
-            }
-        }
+        // 查询SKU图片
+        vo.setSkuImage(productImageHelper.getSkuImage(item.getSkuId()));
 
         return vo;
     }

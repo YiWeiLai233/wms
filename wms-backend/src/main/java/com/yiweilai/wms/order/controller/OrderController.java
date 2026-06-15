@@ -210,27 +210,48 @@ public class OrderController {
             OrderImportDTO currentOrder = null;
             String lastOrderNo = "";
             Row headerRow = sheet.getRow(0);
-            String headerText = headerRow == null ? "" : getCellValue(headerRow, 0) + "," + getCellValue(headerRow, 1) + "," + getCellValue(headerRow, 5);
-            boolean legacyTemplate = headerText.contains("warehouseId") || headerText.contains("expressCompany");
-            boolean hasPlatform = headerText.contains("platform");
+
+            // 读取所有表头，构建列名映射
+            Map<String, Integer> columnMap = new java.util.HashMap<>();
+            if (headerRow != null) {
+                for (int c = 0; c < headerRow.getLastCellNum(); c++) {
+                    String header = getCellValue(headerRow, c).toLowerCase().trim();
+                    if (!header.isEmpty()) {
+                        columnMap.put(header, c);
+                    }
+                }
+            }
+
+            // 根据表头名称获取列索引
+            int orderNoIdx = columnMap.getOrDefault("platformorderno", 0);
+            int platformIdx = columnMap.getOrDefault("platform", -1);
+            int receiverNameIdx = columnMap.getOrDefault("receivername", 1);
+            int receiverPhoneIdx = columnMap.getOrDefault("receiverphone", 2);
+            int receiverAddressIdx = columnMap.getOrDefault("receiveraddress", 3);
+            int remarkIdx = columnMap.getOrDefault("remark", 4);
+            int skuCodeIdx = columnMap.getOrDefault("skucode", 5);
+            int quantityIdx = columnMap.getOrDefault("quantity", 6);
+            int unitPriceIdx = columnMap.getOrDefault("unitprice", 7);
+
+            boolean hasPlatform = platformIdx >= 0;
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                String orderNo = getCellValue(row, 0);
+                String orderNo = getCellValue(row, orderNoIdx);
                 if (orderNo.isEmpty()) continue;
 
-                String platformName = hasPlatform ? getCellValue(row, 1) : "";
-                String receiverName = legacyTemplate ? getCellValue(row, 2) : getCellValue(row, hasPlatform ? 2 : 1);
-                String receiverPhone = legacyTemplate ? getCellValue(row, 3) : getCellValue(row, hasPlatform ? 3 : 2);
-                String receiverAddress = legacyTemplate ? getCellValue(row, 4) : getCellValue(row, hasPlatform ? 4 : 3);
-                String remark = legacyTemplate ? getCellValue(row, 6) : getCellValue(row, hasPlatform ? 5 : 4);
-                String skuCode = legacyTemplate ? getCellValue(row, 7) : getCellValue(row, hasPlatform ? 6 : 5);
-                String quantityStr = legacyTemplate ? getCellValue(row, 9) : getCellValue(row, hasPlatform ? 7 : 6);
-                String priceStr = legacyTemplate ? getCellValue(row, 10) : getCellValue(row, hasPlatform ? 8 : 7);
+                String platformName = hasPlatform ? getCellValue(row, platformIdx) : "";
+                String receiverName = getCellValue(row, receiverNameIdx);
+                String receiverPhone = getCellValue(row, receiverPhoneIdx);
+                String receiverAddress = getCellValue(row, receiverAddressIdx);
+                String remark = getCellValue(row, remarkIdx);
+                String skuCode = getCellValue(row, skuCodeIdx);
+                String quantityStr = getCellValue(row, quantityIdx);
+                String priceStr = getCellValue(row, unitPriceIdx);
 
-                int quantity = quantityStr.isEmpty() ? 1 : Integer.parseInt(quantityStr);
+                int quantity = quantityStr.isEmpty() ? 1 : (int) Double.parseDouble(quantityStr);
                 BigDecimal unitPrice = priceStr.isEmpty() ? BigDecimal.ZERO : new BigDecimal(priceStr);
 
                 // 如果是新订单号，创建新的订单
@@ -306,7 +327,11 @@ public class OrderController {
         if (value == null || value.isBlank()) {
             return defaultValue;
         }
-        return Integer.parseInt(value.trim());
+        try {
+            return (int) Double.parseDouble(value.trim());
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     private BigDecimal parseBigDecimal(String value, BigDecimal defaultValue) {
