@@ -185,7 +185,7 @@
           <el-table-column prop="name" label="SKU名称" min-width="150" show-overflow-tooltip />
           <el-table-column prop="availableQty" label="可用库存" width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="getStockTagType(row.availableQty)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
+              <el-tag :type="getStockTagType(row.availableQty, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="90" align="center">
@@ -474,10 +474,12 @@ function getBaseSkuName(sku: SkuListItem) {
   return sku.productName || stripSizeSuffix(sku.name, size) || sku.name
 }
 
-function getStockTagType(quantity?: number): string {
+function getStockTagType(quantity?: number, lowThreshold?: number, outThreshold?: number): string {
   const value = quantity ?? 0
-  if (value <= 0) return 'danger'
-  if (value <= 10) return 'warning'
+  const low = lowThreshold ?? 10
+  const out = outThreshold ?? 0
+  if (value <= out) return 'danger'
+  if (value <= low) return 'warning'
   return 'success'
 }
 

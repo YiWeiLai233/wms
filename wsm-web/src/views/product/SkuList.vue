@@ -49,7 +49,7 @@
         </el-table-column>
         <el-table-column v-for="size in sizeColumns" :key="size" :label="size" width="72" align="center">
           <template #default="{ row }">
-            <el-tag v-if="getSizeStock(row, size) !== undefined" :type="getStockTagType(getSizeStock(row, size))" size="small">
+            <el-tag v-if="getSizeStock(row, size) !== undefined" :type="getStockTagType(getSizeStock(row, size), getSizeSku(row, size)?.lowStockThreshold, getSizeSku(row, size)?.outOfStockThreshold)" size="small">
               {{ getSizeStock(row, size) }}
             </el-tag>
             <span v-else class="text-gray-400">-</span>
@@ -160,7 +160,7 @@
         <el-table-column prop="name" label="SKU名称" min-width="150" show-overflow-tooltip />
         <el-table-column prop="availableQty" label="库存数量" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStockTagType(row.availableQty)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
+            <el-tag :type="getStockTagType(row.availableQty, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="210" fixed="right">
@@ -331,10 +331,12 @@ const skuMatrixRows = computed(() => {
   }))
 })
 
-function getStockTagType(quantity?: number): string {
+function getStockTagType(quantity?: number, lowThreshold?: number, outThreshold?: number): string {
   const value = quantity ?? 0
-  if (value <= 0) return 'danger'
-  if (value <= 10) return 'warning'
+  const low = lowThreshold ?? 10
+  const out = outThreshold ?? 0
+  if (value <= out) return 'danger'
+  if (value <= low) return 'warning'
   return 'success'
 }
 
@@ -373,6 +375,10 @@ function getSizeStock(row: SkuMatrixRow, sizeValue: string) {
   const sku = row.sizeMap[sizeValue]
   if (!sku) return undefined
   return sku.availableQty ?? sku.quantity ?? 0
+}
+
+function getSizeSku(row: SkuMatrixRow, sizeValue: string) {
+  return row.sizeMap[sizeValue]
 }
 
 function getMatrixShelf(row: SkuMatrixRow) {

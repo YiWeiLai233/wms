@@ -65,6 +65,12 @@ public class ProductSkuListVO {
     /** 分类名称 */
     private String categoryName;
 
+    /** 低库存阈值（来自预警配置） */
+    private Integer lowStockThreshold;
+
+    /** 缺货阈值（来自预警配置） */
+    private Integer outOfStockThreshold;
+
     /** 创建时间 */
     private LocalDateTime createdAt;
 
