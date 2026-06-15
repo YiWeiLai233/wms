@@ -33,7 +33,10 @@ public class ProductVO {
     /** 货架编码 */
     private String shelfCode;
 
-    /** 分类名称（货架名称） */
+    /** 货架名称 */
+    private String shelfName;
+
+    /** 分类名称 */
     private String categoryName;
 
     /** 主图URL */

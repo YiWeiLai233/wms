@@ -182,6 +182,7 @@ public class ProductServiceImpl implements ProductService {
             WarehouseShelf shelf = shelfMapper.findById(product.getShelfId());
             if (shelf != null) {
                 vo.setShelfCode(shelf.getCode());
+                vo.setShelfName(shelf.getName());
                 vo.setCategoryName(shelf.getCategoryName());
             }
         }

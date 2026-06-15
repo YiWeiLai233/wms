@@ -9,7 +9,7 @@ export interface Product {
   warehouseName?: string
   shelfId: number
   shelfCode: string
-  shelfName: string
+  shelfName?: string
   categoryName: string
   mainImage: string
   description: string

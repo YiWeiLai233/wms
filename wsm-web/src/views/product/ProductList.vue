@@ -39,7 +39,7 @@
           <template #default="{ row }">{{ row.warehouseName || '-' }}</template>
         </el-table-column>
         <el-table-column label="货架" width="120">
-          <template #default="{ row }">{{ row.shelfCode }} - {{ getShelfName(row.shelfId) }}</template>
+          <template #default="{ row }">{{ row.shelfCode }} - {{ row.shelfName || '-' }}</template>
         </el-table-column>
         <el-table-column prop="categoryName" label="分类" width="80" />
         <el-table-column prop="price" label="参考售价" width="100" align="right">
