@@ -17,6 +17,9 @@ export interface Order {
   id: number
   orderNo: string
   platformOrderNo: string
+  platformId?: number
+  platformName?: string
+  platformColor?: string
   warehouseId: number
   warehouseName: string
   receiverName: string
@@ -31,6 +34,7 @@ export interface Order {
 
 export interface OrderImportData {
   platformOrderNo?: string
+  platformId?: number
   warehouseId?: number
   receiverName: string
   receiverPhone: string

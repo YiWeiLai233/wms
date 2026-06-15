@@ -21,6 +21,15 @@ public class OrderVO {
     /** 平台订单号 */
     private String platformOrderNo;
 
+    /** 平台ID */
+    private Long platformId;
+
+    /** 平台名称 */
+    private String platformName;
+
+    /** 平台颜色 */
+    private String platformColor;
+
     /** 快递公司 */
     private String expressCompany;
 

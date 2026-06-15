@@ -114,6 +114,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/StockAlertTemplate.vue'),
         meta: { title: '预警模板管理', icon: 'Document' },
       },
+      {
+        path: 'system/platforms',
+        name: 'PlatformList',
+        component: () => import('@/views/system/PlatformList.vue'),
+        meta: { title: '平台管理', icon: 'Platform' },
+      },
       // 订单管理
       {
         path: 'order/list',

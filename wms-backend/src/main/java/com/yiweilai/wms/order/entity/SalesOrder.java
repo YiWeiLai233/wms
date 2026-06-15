@@ -19,6 +19,15 @@ public class SalesOrder {
     /** 平台订单号 */
     private String platformOrderNo;
 
+    /** 平台ID */
+    private Long platformId;
+
+    /** 平台名称（关联查询） */
+    private String platformName;
+
+    /** 平台颜色（关联查询） */
+    private String platformColor;
+
     /** 快递公司 */
     private String expressCompany;
 

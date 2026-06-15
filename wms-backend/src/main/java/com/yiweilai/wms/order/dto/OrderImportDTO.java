@@ -17,6 +17,9 @@ public class OrderImportDTO {
     /** 平台订单号 */
     private String platformOrderNo;
 
+    /** 平台ID */
+    private Long platformId;
+
     /** 仓库ID */
     @NotNull(message = "仓库不能为空")
     private Long warehouseId;
