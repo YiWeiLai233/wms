@@ -227,6 +227,43 @@ public class ReportServiceImpl implements ReportService {
 
         vo.setTopSkus(topSkus);
 
+        // 近7天各平台SKU销量
+        List<DashboardVO.PlatformSkuSales> platformSkuSalesList = new ArrayList<>();
+        List<Map<String, Object>> platformsForSku = jdbcTemplate.queryForList(
+                "SELECT id, name, color FROM platform WHERE deleted = 0 AND enabled = 1 ORDER BY id");
+
+        for (Map<String, Object> platform : platformsForSku) {
+            Long pId = ((Number) platform.get("id")).longValue();
+            String pName = (String) platform.get("name");
+            String pColor = (String) platform.get("color");
+
+            DashboardVO.PlatformSkuSales platformSales = new DashboardVO.PlatformSkuSales();
+            platformSales.setPlatformId(pId);
+            platformSales.setPlatformName(pName);
+            platformSales.setPlatformColor(pColor != null ? pColor : "#94a3b8");
+
+            List<DashboardVO.SkuDaySales> skuSalesList = jdbcTemplate.query(
+                    "SELECT DATE(o.shipped_at) as sale_date, oi.sku_name, SUM(oi.quantity) as total_qty " +
+                    "FROM outbound_order o " +
+                    "JOIN outbound_order_item oi ON o.id = oi.outbound_id " +
+                    "JOIN sales_order so ON o.order_id = so.id AND so.deleted = 0 " +
+                    "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? AND so.platform_id = ? " +
+                    "GROUP BY DATE(o.shipped_at), oi.sku_name " +
+                    "ORDER BY sale_date, oi.sku_name",
+                    (rs, rowNum) -> {
+                        DashboardVO.SkuDaySales sds = new DashboardVO.SkuDaySales();
+                        sds.setDate(rs.getString("sale_date"));
+                        sds.setSkuName(rs.getString("sku_name"));
+                        sds.setQuantity(rs.getLong("total_qty"));
+                        return sds;
+                    }, monthStart, pId);
+
+            platformSales.setSkuSales(skuSalesList);
+            platformSkuSalesList.add(platformSales);
+        }
+
+        vo.setPlatformSkuSales(platformSkuSalesList);
+
         return vo;
     }
 

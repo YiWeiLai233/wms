@@ -37,6 +37,9 @@ public class DashboardVO {
     /** 本月出货量TOP10 SKU */
     private List<SkuRank> topSkus;
 
+    /** 近7天各平台SKU销量 */
+    private List<PlatformSkuSales> platformSkuSales;
+
     /**
      * 平台趋势
      */
@@ -87,6 +90,27 @@ public class DashboardVO {
         private Long platformId;
         private String platformName;
         private String platformColor;
+        private Long quantity;
+    }
+
+    /**
+     * 平台SKU销量
+     */
+    @Data
+    public static class PlatformSkuSales {
+        private Long platformId;
+        private String platformName;
+        private String platformColor;
+        private List<SkuDaySales> skuSales;
+    }
+
+    /**
+     * SKU每日销量
+     */
+    @Data
+    public static class SkuDaySales {
+        private String date;
+        private String skuName;
         private Long quantity;
     }
 }

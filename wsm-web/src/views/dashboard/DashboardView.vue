@@ -108,6 +108,30 @@
         </div>
       </el-col>
     </el-row>
+
+    <!-- 近7天各平台SKU销量趋势 -->
+    <el-row :gutter="20" class="mt-4">
+      <el-col :span="24">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量趋势</h3>
+          </div>
+          <v-chart class="combo-chart" :option="platformSkuComboOption" autoresize />
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 近7天各平台SKU销量热力图 -->
+    <el-row :gutter="20" class="mt-4">
+      <el-col :span="24">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量热力图</h3>
+          </div>
+          <v-chart class="heatmap-chart" :option="platformSkuHeatmapOption" autoresize />
+        </div>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -116,8 +140,8 @@ import { ref, computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart, PieChart, BarChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { LineChart, PieChart, BarChart, HeatmapChart, RadarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, RadarComponent } from 'echarts/components'
 import { WarningFilled, Warning, CircleCheck } from '@element-plus/icons-vue'
 import { getDashboard } from '@/api/report'
 import type { DashboardData } from '@/api/report'
@@ -126,7 +150,7 @@ import type { StockAlertStatus } from '@/api/stockAlert'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 
-use([CanvasRenderer, LineChart, PieChart, BarChart, GridComponent, TooltipComponent, LegendComponent])
+use([CanvasRenderer, LineChart, PieChart, BarChart, HeatmapChart, RadarChart, GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, RadarComponent])
 
 const dashboard = ref<DashboardData>({
   todayOrderCount: 0,
@@ -360,6 +384,301 @@ const barOption = computed(() => {
   }
 })
 
+const platformSkuComboOption = computed(() => {
+  const platformSales = dashboard.value.platformSkuSales || []
+  if (platformSales.length === 0) {
+    return { series: [] }
+  }
+
+  // 收集所有日期
+  const allDates = new Set<string>()
+  platformSales.forEach((ps) => {
+    ps.skuSales?.forEach((s) => allDates.add(s.date))
+  })
+  const dates = Array.from(allDates).sort()
+
+  // 收集所有SKU名称
+  const allSkuNames = new Set<string>()
+  platformSales.forEach((ps) => {
+    ps.skuSales?.forEach((s) => allSkuNames.add(s.skuName))
+  })
+  const skuNames = Array.from(allSkuNames)
+
+  // 平台颜色
+  const platformColors: Record<string, string> = {}
+  const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+  platformSales.forEach((ps, idx) => {
+    platformColors[ps.platformName] = ps.platformColor || defaultColors[idx % defaultColors.length]
+  })
+
+  // SKU透明度配置（用于区分同一平台不同SKU）
+  const skuOpacity = [1, 0.75, 0.5, 0.35, 0.25]
+
+  // 构建系列：每个平台-SKU组合一个系列
+  const series: any[] = []
+  const legendData: string[] = []
+
+  platformSales.forEach((ps) => {
+    const baseColor = platformColors[ps.platformName]
+
+    skuNames.forEach((skuName, sIdx) => {
+      const seriesName = `${ps.platformName} - ${skuName}`
+      legendData.push(seriesName)
+
+      // 计算该平台该SKU每天的销量
+      const data = dates.map((date) => {
+        const skuData = ps.skuSales?.find((s) => s.skuName === skuName && s.date === date)
+        return skuData?.quantity || 0
+      })
+
+      series.push({
+        name: seriesName,
+        type: 'bar',
+        stack: ps.platformName,
+        data,
+        itemStyle: {
+          color: baseColor,
+          opacity: skuOpacity[sIdx % skuOpacity.length],
+        },
+        emphasis: {
+          itemStyle: {
+            opacity: 1,
+            shadowBlur: 10,
+            shadowColor: 'rgba(0,0,0,0.3)',
+          },
+        },
+      })
+    })
+  })
+
+  // 添加总计折线图
+  const totalData = dates.map((date) => {
+    let total = 0
+    platformSales.forEach((ps) => {
+      const daySales = ps.skuSales?.filter((s) => s.date === date) || []
+      daySales.forEach((s) => total += s.quantity)
+    })
+    return total
+  })
+
+  series.push({
+    name: '总计',
+    type: 'line',
+    data: totalData,
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 10,
+    lineStyle: {
+      width: 3,
+      color: '#f97316',
+    },
+    itemStyle: {
+      color: '#f97316',
+      borderColor: '#fff',
+      borderWidth: 3,
+    },
+    label: {
+      show: true,
+      position: 'top',
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: '#f97316',
+    },
+  })
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow',
+        shadowStyle: { color: 'rgba(0,0,0,0.05)' },
+      },
+      formatter: (params: any) => {
+        let result = `<div style="font-weight:bold;margin-bottom:8px">${params[0]?.axisValue || ''}</div>`
+        const platformTotals = new Map<string, { total: number; color: string; items: { name: string; value: number }[] }>()
+
+        params.forEach((p: any) => {
+          if (p.seriesType === 'bar' && p.value > 0) {
+            const parts = p.seriesName.split(' - ')
+            const platformName = parts[0]
+            const skuName = parts.slice(1).join(' - ')
+
+            if (!platformTotals.has(platformName)) {
+              platformTotals.set(platformName, { total: 0, color: p.color, items: [] })
+            }
+            const platform = platformTotals.get(platformName)!
+            platform.total += p.value
+            platform.items.push({ name: skuName, value: p.value })
+          }
+        })
+
+        // 按平台显示
+        platformTotals.forEach((platform, platformName) => {
+          result += `<div style="margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:6px;font-weight:bold">
+              <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${platform.color}"></span>
+              <span>${platformName} (${platform.total})</span>
+            </div>`
+          platform.items.forEach((item) => {
+            result += `<div style="padding-left:20px;font-size:12px;color:#6b7280">
+              ${item.name}: ${item.value}
+            </div>`
+          })
+          result += '</div>'
+        })
+
+        // 显示总计
+        const grandTotal = Array.from(platformTotals.values()).reduce((sum, p) => sum + p.total, 0)
+        if (grandTotal > 0) {
+          result += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-weight:bold;color:#f97316">
+            总计: ${grandTotal}
+          </div>`
+        }
+
+        return result
+      },
+    },
+    legend: {
+      data: [...legendData, '总计'],
+      bottom: 0,
+      textStyle: { color: '#6b7280', fontSize: 10 },
+      type: 'scroll',
+      pageTextStyle: { color: '#6b7280' },
+      pageIconColor: '#6b7280',
+      pageIconInactiveColor: '#d1d5db',
+    },
+    grid: {
+      left: 60,
+      right: 40,
+      top: 40,
+      bottom: 70,
+    },
+    xAxis: {
+      type: 'category',
+      data: dates.map((d) => d.slice(5)),
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisLabel: { color: '#6b7280', fontSize: 12 },
+    },
+    yAxis: {
+      type: 'value',
+      name: '销量',
+      axisLine: { show: false },
+      axisLabel: { color: '#6b7280' },
+      splitLine: { lineStyle: { color: '#f3f4f6' } },
+    },
+    series,
+  }
+})
+
+const platformSkuHeatmapOption = computed(() => {
+  const platformSales = dashboard.value.platformSkuSales || []
+  if (platformSales.length === 0) {
+    return { series: [] }
+  }
+
+  // 收集所有SKU名称
+  const allSkuNames = new Set<string>()
+  platformSales.forEach((ps) => {
+    ps.skuSales?.forEach((s) => allSkuNames.add(s.skuName))
+  })
+  const skuNames = Array.from(allSkuNames)
+
+  // 收集所有平台名称
+  const platformNames = platformSales.map((ps) => ps.platformName)
+
+  // 构建热力图数据: [平台index, SKUindex, 总销量]
+  const heatmapData: [number, number, number][] = []
+  let maxVal = 0
+
+  platformSales.forEach((ps, pIdx) => {
+    // 统计该平台每个SKU的总销量
+    const skuTotalMap = new Map<string, number>()
+    ps.skuSales?.forEach((s) => {
+      const current = skuTotalMap.get(s.skuName) || 0
+      skuTotalMap.set(s.skuName, current + s.quantity)
+    })
+
+    skuNames.forEach((skuName, sIdx) => {
+      const value = skuTotalMap.get(skuName) || 0
+      if (value > 0) {
+        heatmapData.push([pIdx, sIdx, value])
+        maxVal = Math.max(maxVal, value)
+      }
+    })
+  })
+
+  return {
+    tooltip: {
+      position: 'top',
+      formatter: (params: any) => {
+        const platform = platformNames[params.data[0]] || ''
+        const sku = skuNames[params.data[1]] || ''
+        const value = params.data[2]
+        return `<div style="font-weight:bold">${platform}</div>
+                <div>${sku}: <strong>${value}</strong> 件</div>`
+      },
+    },
+    grid: {
+      left: 120,
+      right: 40,
+      top: 20,
+      bottom: 60,
+    },
+    xAxis: {
+      type: 'category',
+      data: platformNames,
+      splitArea: { show: true },
+      axisLabel: {
+        color: '#374151',
+        fontSize: 12,
+        fontWeight: 'bold',
+      },
+    },
+    yAxis: {
+      type: 'category',
+      data: skuNames,
+      splitArea: { show: true },
+      axisLabel: {
+        color: '#374151',
+        fontSize: 11,
+        width: 100,
+        overflow: 'truncate',
+      },
+    },
+    visualMap: {
+      min: 0,
+      max: maxVal || 10,
+      calculable: true,
+      orient: 'horizontal',
+      left: 'center',
+      bottom: 0,
+      inRange: {
+        color: ['#fef2f2', '#fecaca', '#f87171', '#ef4444', '#b91c1c'],
+      },
+      textStyle: { color: '#6b7280' },
+    },
+    series: [
+      {
+        name: '销量',
+        type: 'heatmap',
+        data: heatmapData,
+        label: {
+          show: true,
+          fontSize: 12,
+          fontWeight: 'bold',
+          color: '#374151',
+        },
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.5)',
+          },
+        },
+      },
+    ],
+  }
+})
+
 const alertTab = ref<'outOfStock' | 'lowStock'>('outOfStock')
 const outOfStockList = ref<StockAlertStatus[]>([])
 const lowStockList = ref<StockAlertStatus[]>([])
@@ -390,6 +709,14 @@ onMounted(async () => {
 }
 .bar-chart {
   height: 300px;
+  width: 100%;
+}
+.heatmap-chart {
+  height: 400px;
+  width: 100%;
+}
+.combo-chart {
+  height: 450px;
   width: 100%;
 }
 .alert-card {

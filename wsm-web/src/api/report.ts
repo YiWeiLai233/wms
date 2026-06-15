@@ -11,6 +11,7 @@ export interface DashboardData {
   orderTrend: { date: string; count: number }[]
   orderStatusDistribution: { status: string; statusName: string; count: number }[]
   topSkus: { skuId: number; skuCode: string; skuName: string; totalQuantity: number; platformQuantities?: { platformId: number; platformName: string; platformColor: string; quantity: number }[] }[]
+  platformSkuSales?: { platformId: number; platformName: string; platformColor: string; skuSales: { date: string; skuName: string; quantity: number }[] }[]
 }
 
 export interface StockReport {
