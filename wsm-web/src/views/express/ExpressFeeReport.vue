@@ -6,16 +6,7 @@
     <div class="card mb-4">
       <el-form :model="queryForm" inline>
         <el-form-item label="日期范围">
-          <el-date-picker
-            v-model="queryForm.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            :shortcuts="dateShortcuts"
-            style="width: 280px"
-          />
+          <DateRangePicker v-model="queryForm.dateRange" width="280px" @change="handleQuery" />
         </el-form-item>
         <el-form-item label="快递公司">
           <el-select v-model="queryForm.expressCompanyId" placeholder="全部" clearable style="width: 150px">
@@ -81,66 +72,11 @@ import type { ExpressFeeReport } from '@/api/report'
 import { getCompanyList } from '@/api/express'
 import type { ExpressCompany } from '@/api/express'
 import PageHeader from '@/components/PageHeader.vue'
+import DateRangePicker from '@/components/DateRangePicker.vue'
 
 const loading = ref(false)
 const companyList = ref<ExpressCompany[]>([])
 const reportData = ref<ExpressFeeReport>({ totalFee: 0, totalCount: 0, items: [] })
-
-const dateShortcuts = [
-  {
-    text: '本周',
-    value: () => {
-      const now = new Date()
-      const day = now.getDay() || 7
-      const start = new Date(now)
-      start.setDate(now.getDate() - day + 1)
-      return [start, now]
-    },
-  },
-  {
-    text: '本月',
-    value: () => {
-      const now = new Date()
-      const start = new Date(now.getFullYear(), now.getMonth(), 1)
-      return [start, now]
-    },
-  },
-  {
-    text: '本季度',
-    value: () => {
-      const now = new Date()
-      const quarter = Math.floor(now.getMonth() / 3)
-      const start = new Date(now.getFullYear(), quarter * 3, 1)
-      return [start, now]
-    },
-  },
-  {
-    text: '本年',
-    value: () => {
-      const now = new Date()
-      const start = new Date(now.getFullYear(), 0, 1)
-      return [start, now]
-    },
-  },
-  {
-    text: '最近7天',
-    value: () => {
-      const now = new Date()
-      const start = new Date()
-      start.setDate(now.getDate() - 6)
-      return [start, now]
-    },
-  },
-  {
-    text: '最近30天',
-    value: () => {
-      const now = new Date()
-      const start = new Date()
-      start.setDate(now.getDate() - 29)
-      return [start, now]
-    },
-  },
-]
 
 const queryForm = reactive({
   dateRange: [] as string[],

@@ -20,15 +20,7 @@
           <el-input v-model="searchParams.platformOrderNo" placeholder="平台订单号" clearable style="width: 160px" @keyup.enter="handleDateSearch" />
         </el-form-item>
         <el-form-item label="时间范围">
-          <el-date-picker
-            v-model="dateRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 360px"
-          />
+          <DateRangePicker v-model="dateRange" width="360px" @change="handleDateSearch" />
         </el-form-item>
         <el-form-item label="仓库">
           <el-select v-model="searchParams.warehouseId" placeholder="全部" clearable style="width: 160px">
@@ -99,6 +91,7 @@ import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { STOCK_BIZ_TYPE_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
+import DateRangePicker from '@/components/DateRangePicker.vue'
 
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange } = useTable<StockLog>(getStockLogs)
 
@@ -113,8 +106,8 @@ onMounted(async () => {
 })
 
 function handleDateSearch() {
-  searchParams.startTime = dateRange.value?.[0]
-  searchParams.endTime = dateRange.value?.[1]
+  searchParams.startTime = dateRange.value?.[0] || undefined
+  searchParams.endTime = dateRange.value?.[1] || undefined
   handleSearch()
 }
 
