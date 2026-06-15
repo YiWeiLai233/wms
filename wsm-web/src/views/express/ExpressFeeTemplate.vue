@@ -60,10 +60,10 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip>
+        <el-table-column prop="remark" label="备注" min-width="80" show-overflow-tooltip>
           <template #default="{ row }">{{ row.remark || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
             <el-button type="primary" link icon="Edit" @click="openDialog(row)">编辑</el-button>

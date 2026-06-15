@@ -271,7 +271,7 @@
 
         <el-divider content-position="left">订单明细</el-divider>
         <div class="mb-3">
-          <el-select v-model="selectedSkuGroupKey" placeholder="请先选择仓库" filterable clearable style="width: 100%" :disabled="!importForm.warehouseId">
+          <el-select v-model="selectedSkuGroupKey" :placeholder="importForm.warehouseId ? '请选择SKU/商品' : '请先选择仓库'" filterable clearable style="width: 100%" :disabled="!importForm.warehouseId">
             <el-option
               v-for="group in skuGroups"
               :key="group.key"

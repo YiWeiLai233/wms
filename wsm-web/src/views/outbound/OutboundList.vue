@@ -535,6 +535,7 @@ async function openConfirmDialog(row: OutboundOrder) {
   confirmForm.feeTemplateId = undefined
   confirmForm.estimatedWeight = 0
   confirmForm.shippingFee = undefined
+  confirmTemplateDetail.value = null
   templateList.value = []
 
   // 加载发货单详情（包含订单明细）
@@ -549,6 +550,13 @@ async function openConfirmDialog(row: OutboundOrder) {
   try {
     const res = await getCompanyList()
     companyList.value = res.data || []
+    // 自动选择第一个快递公司（如果有）
+    if (companyList.value.length > 0) {
+      const firstCompany = companyList.value[0]
+      confirmForm.expressCompanyId = firstCompany.id
+      // 加载该公司的模板并选择默认模板
+      await handleCompanyChange(firstCompany.id)
+    }
   } catch {
     companyList.value = []
   }
