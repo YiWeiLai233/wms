@@ -22,7 +22,7 @@ public class HttpAiServiceClient implements AiServiceClient {
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(5))
+            .connectTimeout(Duration.ofSeconds(10))
             .build();
 
     @Value("${ai.service.base-url:http://localhost:8010}")
@@ -66,7 +66,7 @@ public class HttpAiServiceClient implements AiServiceClient {
             String requestBody = objectMapper.writeValueAsString(body);
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(normalizedBaseUrl() + path))
-                    .timeout(Duration.ofSeconds(30))
+                    .timeout(Duration.ofSeconds(120))
                     .header("Content-Type", "application/json")
                     .header("X-AI-Service-Token", token)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
