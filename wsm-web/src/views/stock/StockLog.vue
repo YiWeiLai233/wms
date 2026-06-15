@@ -5,6 +5,9 @@
     <!-- 搜索栏 -->
     <div class="card mb-4">
       <el-form :model="searchParams" inline>
+        <el-form-item label="SKU编码">
+          <el-input v-model="searchParams.skuCode" placeholder="SKU编码" clearable style="width: 140px" @keyup.enter="handleDateSearch" />
+        </el-form-item>
         <el-form-item label="业务类型">
           <el-select v-model="searchParams.bizType" placeholder="全部" clearable style="width: 120px">
             <el-option label="入库" value="INBOUND" />

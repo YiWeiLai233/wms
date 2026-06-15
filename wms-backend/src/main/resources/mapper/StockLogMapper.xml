@@ -47,6 +47,9 @@
             <if test="skuId != null">
                 AND sl.sku_id = #{skuId}
             </if>
+            <if test="skuCode != null and skuCode != ''">
+                AND ps.sku_code LIKE CONCAT('%', #{skuCode}, '%')
+            </if>
             <if test="warehouseId != null">
                 AND sl.warehouse_id = #{warehouseId}
             </if>

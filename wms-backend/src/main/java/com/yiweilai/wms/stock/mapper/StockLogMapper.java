@@ -19,6 +19,7 @@ public interface StockLogMapper {
                               @Param("bizNo") String bizNo,
                               @Param("platformOrderNo") String platformOrderNo,
                               @Param("skuId") Long skuId,
+                              @Param("skuCode") String skuCode,
                               @Param("warehouseId") Long warehouseId,
                               @Param("startTime") String startTime,
                               @Param("endTime") String endTime);

@@ -34,6 +34,7 @@ public class StockLogServiceImpl implements StockLogService {
                 query.getBizNo(),
                 query.getPlatformOrderNo(),
                 query.getSkuId(),
+                query.getSkuCode(),
                 query.getWarehouseId(),
                 query.getStartTime(),
                 query.getEndTime());

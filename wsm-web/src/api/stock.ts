@@ -84,6 +84,7 @@ export function getStockLogs(params: PageParams & {
   bizNo?: string
   platformOrderNo?: string
   skuId?: number
+  skuCode?: string
   warehouseId?: number
   startTime?: string
   endTime?: string

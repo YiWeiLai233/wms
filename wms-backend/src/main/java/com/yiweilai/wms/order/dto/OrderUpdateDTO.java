@@ -1,6 +1,5 @@
 package com.yiweilai.wms.order.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
@@ -9,8 +8,7 @@ import lombok.Data;
 @Data
 public class OrderUpdateDTO {
 
-    /** 订单ID */
-    @NotNull(message = "订单ID不能为空")
+    /** 订单ID（从路径参数设置） */
     private Long id;
 
     /** 平台ID */

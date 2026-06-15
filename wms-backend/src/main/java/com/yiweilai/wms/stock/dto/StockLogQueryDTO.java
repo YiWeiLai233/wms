@@ -26,6 +26,9 @@ public class StockLogQueryDTO {
     /** SKU ID */
     private Long skuId;
 
+    /** SKU编码 */
+    private String skuCode;
+
     /** 仓库ID */
     private Long warehouseId;
 

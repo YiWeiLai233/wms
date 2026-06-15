@@ -1,6 +1,5 @@
 package com.yiweilai.wms.outbound.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -11,8 +10,7 @@ import java.math.BigDecimal;
 @Data
 public class OutboundUpdateDTO {
 
-    /** 发货单ID */
-    @NotNull(message = "发货单ID不能为空")
+    /** 发货单ID（从路径参数设置） */
     private Long id;
 
     /** 快递单号 */
