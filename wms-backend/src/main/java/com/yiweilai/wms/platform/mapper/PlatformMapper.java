@@ -25,6 +25,11 @@ public interface PlatformMapper {
     Platform findById(@Param("id") Long id);
 
     /**
+     * 根据名称查询
+     */
+    Platform findByName(@Param("name") String name);
+
+    /**
      * 查询启用的平台列表（用于下拉选择）
      */
     List<PlatformVO> findEnabledList();

@@ -5,8 +5,11 @@ import com.yiweilai.wms.common.Result;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
 import com.yiweilai.wms.order.dto.OrderQueryDTO;
 import com.yiweilai.wms.order.dto.OrderStatusUpdateDTO;
+import com.yiweilai.wms.order.dto.OrderUpdateDTO;
 import com.yiweilai.wms.order.service.OrderService;
 import com.yiweilai.wms.order.vo.OrderVO;
+import com.yiweilai.wms.platform.entity.Platform;
+import com.yiweilai.wms.platform.mapper.PlatformMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 订单 Controller
@@ -32,6 +36,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final PlatformMapper platformMapper;
 
     /**
      * 订单列表（分页）
@@ -61,20 +66,35 @@ public class OrderController {
      * 文档导入订单
      */
     @PostMapping("/import-file")
-    public Result<Integer> importFromFile(@RequestParam("file") MultipartFile file,
+    public Result<Object> importFromFile(@RequestParam("file") MultipartFile file,
                                           @RequestParam("warehouseId") Long warehouseId) {
         try {
             List<OrderImportDTO> orders = parseFile(file, warehouseId);
             int count = 0;
-            for (OrderImportDTO dto : orders) {
+            List<String> errors = new ArrayList<>();
+            for (int i = 0; i < orders.size(); i++) {
+                OrderImportDTO dto = orders.get(i);
                 try {
                     orderService.importOrder(dto);
                     count++;
                 } catch (Exception e) {
-                    log.warn("导入订单失败: {}", e.getMessage());
+                    String errorMsg = e.getMessage();
+                    log.warn("导入订单失败: {}", errorMsg);
+                    // 提取关键错误信息
+                    String orderInfo = dto.getPlatformOrderNo() != null ? "订单[" + dto.getPlatformOrderNo() + "]" : "第" + (i + 1) + "个订单";
+                    errors.add(orderInfo + ": " + errorMsg);
                 }
             }
-            return Result.success(count);
+            if (errors.isEmpty()) {
+                return Result.success(count);
+            } else {
+                // 返回成功数量和失败详情
+                Map<String, Object> result = new java.util.HashMap<>();
+                result.put("successCount", count);
+                result.put("totalCount", orders.size());
+                result.put("errors", errors);
+                return Result.success(result);
+            }
         } catch (Exception e) {
             log.error("文件解析失败", e);
             return Result.error(400, "文件解析失败: " + e.getMessage());
@@ -110,6 +130,7 @@ public class OrderController {
                 throw new IllegalArgumentException("文件为空");
             }
             boolean legacyTemplate = headerLine.contains("expressCompany") || headerLine.contains("warehouseId");
+            boolean hasPlatform = headerLine.contains("platform");
 
             String line;
             OrderImportDTO currentOrder = null;
@@ -119,23 +140,24 @@ public class OrderController {
                 if (line.trim().isEmpty()) continue;
 
                 String[] parts = line.split(",", -1);
-                int minColumns = legacyTemplate ? 8 : 6;
+                int minColumns = legacyTemplate ? 8 : (hasPlatform ? 7 : 6);
                 if (parts.length < minColumns) {
                     continue;
                 }
 
                 String orderNo = getCsvValue(parts, 0);
-                String receiverName = legacyTemplate ? getCsvValue(parts, 2) : getCsvValue(parts, 1);
-                String receiverPhone = legacyTemplate ? getCsvValue(parts, 3) : getCsvValue(parts, 2);
-                String receiverAddress = legacyTemplate ? getCsvValue(parts, 4) : getCsvValue(parts, 3);
+                String platformName = hasPlatform ? getCsvValue(parts, 1) : "";
+                String receiverName = legacyTemplate ? getCsvValue(parts, 2) : getCsvValue(parts, hasPlatform ? 2 : 1);
+                String receiverPhone = legacyTemplate ? getCsvValue(parts, 3) : getCsvValue(parts, hasPlatform ? 3 : 2);
+                String receiverAddress = legacyTemplate ? getCsvValue(parts, 4) : getCsvValue(parts, hasPlatform ? 4 : 3);
                 String remark = legacyTemplate
                         ? getCsvValue(parts, 6)
-                        : getCsvValue(parts, 4);
+                        : getCsvValue(parts, hasPlatform ? 5 : 4);
                 String skuCode = legacyTemplate
                         ? getCsvValue(parts, 7)
-                        : getCsvValue(parts, 5);
-                int quantity = parseInteger(legacyTemplate ? getCsvValue(parts, 9) : getCsvValue(parts, 6), 1);
-                BigDecimal unitPrice = parseBigDecimal(legacyTemplate ? getCsvValue(parts, 10) : getCsvValue(parts, 7), BigDecimal.ZERO);
+                        : getCsvValue(parts, hasPlatform ? 6 : 5);
+                int quantity = parseInteger(legacyTemplate ? getCsvValue(parts, 9) : getCsvValue(parts, hasPlatform ? 7 : 6), 1);
+                BigDecimal unitPrice = parseBigDecimal(legacyTemplate ? getCsvValue(parts, 10) : getCsvValue(parts, hasPlatform ? 8 : 7), BigDecimal.ZERO);
 
                 // 如果是新订单号，创建新的订单
                 if (!orderNo.equals(lastOrderNo)) {
@@ -146,6 +168,15 @@ public class OrderController {
                     currentOrder.setReceiverPhone(receiverPhone);
                     currentOrder.setReceiverAddress(receiverAddress);
                     currentOrder.setRemark(remark);
+
+                    // 解析平台
+                    if (hasPlatform && !platformName.isEmpty()) {
+                        Platform platform = platformMapper.findByName(platformName);
+                        if (platform != null) {
+                            currentOrder.setPlatformId(platform.getId());
+                        }
+                    }
+
                     currentOrder.setItems(new ArrayList<>());
                     orders.add(currentOrder);
                     lastOrderNo = orderNo;
@@ -181,6 +212,7 @@ public class OrderController {
             Row headerRow = sheet.getRow(0);
             String headerText = headerRow == null ? "" : getCellValue(headerRow, 0) + "," + getCellValue(headerRow, 1) + "," + getCellValue(headerRow, 5);
             boolean legacyTemplate = headerText.contains("warehouseId") || headerText.contains("expressCompany");
+            boolean hasPlatform = headerText.contains("platform");
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -189,13 +221,14 @@ public class OrderController {
                 String orderNo = getCellValue(row, 0);
                 if (orderNo.isEmpty()) continue;
 
-                String receiverName = legacyTemplate ? getCellValue(row, 2) : getCellValue(row, 1);
-                String receiverPhone = legacyTemplate ? getCellValue(row, 3) : getCellValue(row, 2);
-                String receiverAddress = legacyTemplate ? getCellValue(row, 4) : getCellValue(row, 3);
-                String remark = legacyTemplate ? getCellValue(row, 6) : getCellValue(row, 4);
-                String skuCode = legacyTemplate ? getCellValue(row, 7) : getCellValue(row, 5);
-                String quantityStr = legacyTemplate ? getCellValue(row, 9) : getCellValue(row, 6);
-                String priceStr = legacyTemplate ? getCellValue(row, 10) : getCellValue(row, 7);
+                String platformName = hasPlatform ? getCellValue(row, 1) : "";
+                String receiverName = legacyTemplate ? getCellValue(row, 2) : getCellValue(row, hasPlatform ? 2 : 1);
+                String receiverPhone = legacyTemplate ? getCellValue(row, 3) : getCellValue(row, hasPlatform ? 3 : 2);
+                String receiverAddress = legacyTemplate ? getCellValue(row, 4) : getCellValue(row, hasPlatform ? 4 : 3);
+                String remark = legacyTemplate ? getCellValue(row, 6) : getCellValue(row, hasPlatform ? 5 : 4);
+                String skuCode = legacyTemplate ? getCellValue(row, 7) : getCellValue(row, hasPlatform ? 6 : 5);
+                String quantityStr = legacyTemplate ? getCellValue(row, 9) : getCellValue(row, hasPlatform ? 7 : 6);
+                String priceStr = legacyTemplate ? getCellValue(row, 10) : getCellValue(row, hasPlatform ? 8 : 7);
 
                 int quantity = quantityStr.isEmpty() ? 1 : Integer.parseInt(quantityStr);
                 BigDecimal unitPrice = priceStr.isEmpty() ? BigDecimal.ZERO : new BigDecimal(priceStr);
@@ -209,6 +242,15 @@ public class OrderController {
                     currentOrder.setReceiverPhone(receiverPhone);
                     currentOrder.setReceiverAddress(receiverAddress);
                     currentOrder.setRemark(remark);
+
+                    // 解析平台
+                    if (hasPlatform && !platformName.isEmpty()) {
+                        Platform platform = platformMapper.findByName(platformName);
+                        if (platform != null) {
+                            currentOrder.setPlatformId(platform.getId());
+                        }
+                    }
+
                     currentOrder.setItems(new ArrayList<>());
                     orders.add(currentOrder);
                     lastOrderNo = orderNo;
@@ -282,6 +324,17 @@ public class OrderController {
                                      @Valid @RequestBody OrderStatusUpdateDTO dto) {
         dto.setOrderId(id);
         orderService.updateStatus(dto);
+        return Result.success();
+    }
+
+    /**
+     * 更新订单信息
+     */
+    @PutMapping("/{id}")
+    public Result<Void> update(@PathVariable Long id,
+                               @Valid @RequestBody OrderUpdateDTO dto) {
+        dto.setId(id);
+        orderService.update(dto);
         return Result.success();
     }
 }

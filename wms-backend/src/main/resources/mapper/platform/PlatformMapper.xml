@@ -42,6 +42,12 @@
         WHERE id = #{id} AND deleted = 0
     </select>
 
+    <select id="findByName" resultMap="BaseResultMap">
+        SELECT id, name, color, enabled, remark, deleted, created_at, updated_at
+        FROM platform
+        WHERE name = #{name} AND deleted = 0
+    </select>
+
     <select id="findEnabledList" resultMap="VOResultMap">
         SELECT id, name, color
         FROM platform
