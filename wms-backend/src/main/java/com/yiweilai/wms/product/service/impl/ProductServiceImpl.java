@@ -120,8 +120,36 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        // 检查预警模板是否发生变化
+        Long oldTemplateId = product.getAlertTemplateId();
+        Long newTemplateId = dto.getAlertTemplateId();
+
         BeanUtils.copyProperties(dto, product);
         productMapper.update(product);
+
+        // 如果预警模板发生变化，应用新模板到所有关联的SKU
+        if (newTemplateId != null && !newTemplateId.equals(oldTemplateId)) {
+            applyAlertTemplateToAllSkus(product.getId(), newTemplateId);
+        }
+    }
+
+    /**
+     * 应用预警模板到商品的所有SKU
+     */
+    private void applyAlertTemplateToAllSkus(Long productId, Long templateId) {
+        StockAlertTemplate template = alertTemplateMapper.findById(templateId);
+        if (template == null || template.getEnabled() != 1) {
+            return;
+        }
+
+        List<ProductSku> skuList = skuMapper.findByProductId(productId);
+        if (skuList == null || skuList.isEmpty()) {
+            return;
+        }
+
+        for (ProductSku sku : skuList) {
+            applyAlertTemplate(templateId, sku.getId());
+        }
     }
 
     @Override
