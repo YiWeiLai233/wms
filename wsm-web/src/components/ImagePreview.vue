@@ -5,7 +5,7 @@
     </div>
 
     <!-- 图片预览 -->
-    <el-dialog v-model="visible" title="图片预览" width="600px" destroy-on-close>
+    <el-dialog v-model="visible" title="图片预览" width="600px" destroy-on-close append-to-body>
       <div class="preview-container">
         <img :src="src" alt="预览" class="preview-image" @error="handleError" />
       </div>
