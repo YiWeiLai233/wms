@@ -6,6 +6,8 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Paths;
+
 /**
  * Web MVC 配置
  */
@@ -17,14 +19,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 获取绝对路径
+        String absolutePath = Paths.get(imageStoragePath).toAbsolutePath().toUri().toString();
+
         // 映射图片存储目录
-        // 确保路径以/结尾
-        String location = imageStoragePath;
-        if (!location.endsWith("/") && !location.endsWith("\\")) {
-            location = location + "/";
-        }
         registry.addResourceHandler("/images/**")
-                .addResourceLocations("file:" + location);
+                .addResourceLocations(absolutePath);
     }
 
     @Override
