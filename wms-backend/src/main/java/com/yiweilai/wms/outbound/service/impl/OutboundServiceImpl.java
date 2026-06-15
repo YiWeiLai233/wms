@@ -10,6 +10,7 @@ import com.yiweilai.wms.outbound.dto.OutboundConfirmDTO;
 import com.yiweilai.wms.outbound.dto.OutboundCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundQueryDTO;
 import com.yiweilai.wms.outbound.dto.OutboundScanDTO;
+import com.yiweilai.wms.outbound.dto.OutboundUpdateDTO;
 import com.yiweilai.wms.outbound.entity.OutboundOrder;
 import com.yiweilai.wms.outbound.entity.OutboundOrderItem;
 import com.yiweilai.wms.outbound.mapper.OutboundOrderItemMapper;
@@ -21,9 +22,11 @@ import com.yiweilai.wms.order.entity.SalesOrder;
 import com.yiweilai.wms.order.entity.SalesOrderItem;
 import com.yiweilai.wms.order.mapper.SalesOrderItemMapper;
 import com.yiweilai.wms.order.mapper.SalesOrderMapper;
+import com.yiweilai.wms.product.entity.Product;
 import com.yiweilai.wms.product.entity.ProductBarcode;
 import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductBarcodeMapper;
+import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import com.yiweilai.wms.express.entity.ExpressFeeStep;
 import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
@@ -32,7 +35,9 @@ import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
+import com.yiweilai.wms.warehouse.entity.Warehouse;
 import com.yiweilai.wms.warehouse.entity.WarehouseShelf;
+import com.yiweilai.wms.warehouse.mapper.WarehouseMapper;
 import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,9 +69,11 @@ public class OutboundServiceImpl implements OutboundService {
     private final SalesOrderMapper salesOrderMapper;
     private final SalesOrderItemMapper salesOrderItemMapper;
     private final ProductSkuMapper productSkuMapper;
+    private final ProductMapper productMapper;
     private final ProductBarcodeMapper productBarcodeMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final WarehouseMapper warehouseMapper;
     private final WarehouseShelfMapper shelfMapper;
     private final ExpressFeeStepMapper feeStepMapper;
     private final ExpressFeeTemplateMapper feeTemplateMapper;
@@ -99,9 +106,20 @@ public class OutboundServiceImpl implements OutboundService {
 
         OutboundOrderVO vo = convertToVO(order);
 
+        // 查询仓库信息
+        Long warehouseId = order.getWarehouseId();
+        String warehouseName = null;
+        if (warehouseId != null) {
+            Warehouse warehouse = warehouseMapper.findById(warehouseId);
+            if (warehouse != null) {
+                warehouseName = warehouse.getName();
+            }
+        }
+
         // 查询出库明细
+        final String finalWarehouseName = warehouseName;
         List<OutboundOrderItemVO> items = outboundOrderItemMapper.findByOutboundId(id).stream()
-                .map(this::convertToItemVO)
+                .map(item -> convertToItemVO(item, warehouseId, finalWarehouseName))
                 .collect(Collectors.toList());
         vo.setItems(items);
 
@@ -283,6 +301,30 @@ public class OutboundServiceImpl implements OutboundService {
         salesOrderMapper.updateShippedAt(order.getOrderId());
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(OutboundUpdateDTO dto) {
+        OutboundOrder order = outboundOrderMapper.findById(dto.getId());
+        if (order == null) {
+            throw new BusinessException(ErrorCode.OUTBOUND_NOT_FOUND);
+        }
+
+        // 只有已发货状态可以编辑
+        if (!"SHIPPED".equals(order.getStatus())) {
+            throw new BusinessException(ErrorCode.OUTBOUND_STATUS_ERROR, "只有已发货状态的发货单可以编辑");
+        }
+
+        // 更新快递信息
+        if (dto.getExpressCompanyId() != null || dto.getTrackingNo() != null || dto.getShippingFee() != null) {
+            outboundOrderMapper.updateExpressInfo(dto.getId(), dto.getExpressCompanyId(), dto.getTrackingNo(), dto.getShippingFee());
+        }
+
+        // 更新备注
+        if (dto.getRemark() != null) {
+            outboundOrderMapper.updateRemark(dto.getId(), dto.getRemark());
+        }
+    }
+
     /**
      * 根据模板计算快递费用
      */
@@ -455,9 +497,29 @@ public class OutboundServiceImpl implements OutboundService {
         return vo;
     }
 
-    private OutboundOrderItemVO convertToItemVO(OutboundOrderItem item) {
+    private OutboundOrderItemVO convertToItemVO(OutboundOrderItem item, Long warehouseId, String warehouseName) {
         OutboundOrderItemVO vo = new OutboundOrderItemVO();
         BeanUtils.copyProperties(item, vo);
+
+        // 设置仓库信息
+        vo.setWarehouseId(warehouseId);
+        vo.setWarehouseName(warehouseName);
+
+        // 查询SKU图片
+        if (item.getSkuId() != null) {
+            ProductSku sku = productSkuMapper.findById(item.getSkuId());
+            if (sku != null) {
+                String image = sku.getImage();
+                // 如果SKU没有图片，查询SPU主图
+                if (image == null || image.isEmpty()) {
+                    Product product = productMapper.findById(sku.getProductId());
+                    if (product != null) {
+                        image = product.getMainImage();
+                    }
+                }
+                vo.setSkuImage(image);
+            }
+        }
 
         // 查询货架编码
         if (item.getShelfId() != null) {

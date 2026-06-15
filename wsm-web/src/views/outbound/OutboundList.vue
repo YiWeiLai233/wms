@@ -1,15 +1,15 @@
 <template>
   <div class="page-container">
-    <PageHeader title="出库管理">
+    <PageHeader title="发货管理">
       <template #actions>
-        <el-button type="primary" icon="Plus" @click="openDialog()">新增出库单</el-button>
+        <el-button type="primary" icon="Plus" @click="openDialog()">新增发货单</el-button>
       </template>
     </PageHeader>
 
     <div class="card mb-4">
       <el-form :model="searchParams" inline>
-        <el-form-item label="出库单号">
-          <el-input v-model="searchParams.outboundNo" placeholder="出库单号" clearable style="width: 160px" @keyup.enter="handleSearch" />
+        <el-form-item label="发货单号">
+          <el-input v-model="searchParams.outboundNo" placeholder="发货单号" clearable style="width: 160px" @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="订单号">
           <el-input v-model="searchParams.orderNo" placeholder="订单号" clearable style="width: 160px" @keyup.enter="handleSearch" />
@@ -36,7 +36,7 @@
 
     <div class="card">
       <el-table :data="tableData" v-loading="loading" stripe border>
-        <el-table-column prop="outboundNo" label="出库单号" min-width="160" />
+        <el-table-column prop="outboundNo" label="发货单号" min-width="160" />
         <el-table-column prop="orderNo" label="订单号" min-width="140" />
         <el-table-column prop="platformOrderNo" label="平台单号" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.platformOrderNo || '-' }}</template>
@@ -61,9 +61,18 @@
         <el-table-column prop="createdAt" label="创建时间" min-width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" min-width="250" fixed="right">
+        <el-table-column label="操作" min-width="300" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
+            <el-button
+              v-if="row.status === 'SHIPPED'"
+              type="warning"
+              link
+              icon="Edit"
+              @click="openEditDialog(row)"
+            >
+              编辑
+            </el-button>
             <el-button
               v-if="row.status === 'WAIT_PICKING' || row.status === 'PICKING'"
               type="success"
@@ -71,11 +80,11 @@
               icon="Check"
               @click="openConfirmDialog(row)"
             >
-              出库
+              发货
             </el-button>
             <el-popconfirm
               v-if="row.status === 'WAIT_PICKING' || row.status === 'PICKING'"
-              title="确定取消该出库单吗？取消后订单将标记为出库失败"
+              title="确定取消该发货单吗？取消后订单将标记为出库失败"
               @confirm="handleCancel(row.id)"
             >
               <template #reference>
@@ -99,8 +108,8 @@
       </div>
     </div>
 
-    <!-- 新增出库单弹窗 -->
-    <el-dialog v-model="dialogVisible" title="新增出库单" width="520px" destroy-on-close>
+    <!-- 新增发货单弹窗 -->
+    <el-dialog v-model="dialogVisible" title="新增发货单" width="520px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="选择订单" prop="orderId">
           <el-select v-model="form.orderId" placeholder="请选择订单" filterable style="width: 100%">
@@ -118,9 +127,9 @@
     </el-dialog>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="出库单详情" width="760px">
+    <el-dialog v-model="detailVisible" title="发货单详情" width="760px">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="出库单号">{{ detail.outboundNo }}</el-descriptions-item>
+        <el-descriptions-item label="发货单号">{{ detail.outboundNo }}</el-descriptions-item>
         <el-descriptions-item label="订单号">{{ detail.orderNo }}</el-descriptions-item>
         <el-descriptions-item label="平台单号">{{ detail.platformOrderNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="仓库">{{ detail.warehouseName || detail.warehouseId }}</el-descriptions-item>
@@ -132,25 +141,60 @@
         <el-descriptions-item label="快递公司">{{ detail.expressCompanyName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="快递单号">{{ detail.trackingNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="快递费用">{{ detail.shippingFee ? `¥${detail.shippingFee.toFixed(2)}` : '-' }}</el-descriptions-item>
-        <el-descriptions-item label="出库备注">{{ detail.remark || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="发货备注">{{ detail.remark || '-' }}</el-descriptions-item>
         <el-descriptions-item label="订单备注">{{ detail.orderRemark || '-' }}</el-descriptions-item>
       </el-descriptions>
 
-      <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">出库明细</h4>
+      <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">发货明细</h4>
       <el-table :data="detail.items || []" border size="small">
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.skuImage" />
+          </template>
+        </el-table-column>
         <el-table-column prop="skuCode" label="SKU编码" width="130" />
         <el-table-column prop="skuName" label="SKU名称" min-width="100" />
         <el-table-column prop="sizeValue" label="码数" width="80" align="center">
           <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
         </el-table-column>
+        <el-table-column label="仓库" width="100" align="center">
+          <template #default="{ row }">{{ row.warehouseName || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="quantity" label="应出" width="80" align="center" />
       </el-table>
+    </el-dialog>
+
+    <!-- 编辑发货单弹窗 -->
+    <el-dialog v-model="editDialogVisible" title="编辑发货单" width="580px" destroy-on-close>
+      <el-form ref="editFormRef" :model="editForm" label-width="90px">
+        <el-form-item label="发货单号">
+          <el-input :model-value="editForm.outboundNo" disabled />
+        </el-form-item>
+        <el-form-item label="快递公司">
+          <el-select v-model="editForm.expressCompanyId" placeholder="请选择快递公司" style="width: 100%" clearable>
+            <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="快递单号">
+          <el-input v-model="editForm.trackingNo" placeholder="请输入快递单号" />
+        </el-form-item>
+        <el-form-item label="快递费用">
+          <el-input-number v-model="editForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="editForm.remark" type="textarea" :rows="2" placeholder="备注信息" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editing" @click="handleEdit">保存</el-button>
+      </template>
     </el-dialog>
 
     <!-- 扫码弹窗 -->
     <el-dialog v-model="scanDialogVisible" title="扫码拣货" width="780px" destroy-on-close>
       <el-descriptions :column="3" border class="mb-4">
-        <el-descriptions-item label="出库单号">{{ scanDetail.outboundNo }}</el-descriptions-item>
+        <el-descriptions-item label="发货单号">{{ scanDetail.outboundNo }}</el-descriptions-item>
         <el-descriptions-item label="订单号">{{ scanDetail.orderNo }}</el-descriptions-item>
         <el-descriptions-item label="仓库">{{ scanDetail.warehouseName || scanDetail.warehouseId }}</el-descriptions-item>
       </el-descriptions>
@@ -187,8 +231,34 @@
       </el-table>
     </el-dialog>
 
-    <!-- 确认出库弹窗 -->
-    <el-dialog v-model="confirmDialogVisible" title="确认出库" width="580px" destroy-on-close>
+    <!-- 确认发货弹窗 -->
+    <el-dialog v-model="confirmDialogVisible" title="确认发货" width="760px" destroy-on-close>
+      <el-descriptions :column="2" border class="mb-4" size="small">
+        <el-descriptions-item label="发货单号">{{ confirmDetail.outboundNo }}</el-descriptions-item>
+        <el-descriptions-item label="订单号">{{ confirmDetail.orderNo }}</el-descriptions-item>
+        <el-descriptions-item label="平台单号">{{ confirmDetail.platformOrderNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="订单备注">{{ confirmDetail.orderRemark || '-' }}</el-descriptions-item>
+      </el-descriptions>
+
+      <h4 class="mb-2 text-sm font-semibold text-gray-700">订单明细</h4>
+      <el-table :data="confirmDetail.items || []" border size="small" class="mb-4" max-height="250">
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.skuImage" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="skuCode" label="SKU编码" width="130" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="仓库" width="100" align="center">
+          <template #default="{ row }">{{ row.warehouseName || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="quantity" label="数量" width="80" align="center" />
+      </el-table>
+
+      <el-divider content-position="left">快递信息</el-divider>
       <el-form label-width="100px">
         <el-form-item label="快递单号">
           <el-input v-model="confirmForm.trackingNo" placeholder="请输入快递单号（选填）" />
@@ -213,7 +283,7 @@
       </el-form>
       <template #footer>
         <el-button @click="confirmDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="confirming" @click="handleConfirm">确认出库</el-button>
+        <el-button type="primary" :loading="confirming" @click="handleConfirm">确认发货</el-button>
       </template>
     </el-dialog>
   </div>
@@ -224,7 +294,7 @@ import { reactive, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { cancelOutbound, confirmOutbound, createOutbound, getOutboundDetail, getOutboundList, scanOutbound } from '@/api/outbound'
+import { cancelOutbound, confirmOutbound, createOutbound, getOutboundDetail, getOutboundList, scanOutbound, updateOutbound } from '@/api/outbound'
 import type { OutboundOrder } from '@/api/outbound'
 import { getOrderList } from '@/api/order'
 import type { Order } from '@/api/order'
@@ -236,6 +306,7 @@ import { useTable } from '@/composables/useTable'
 import { formatDateTime } from '@/utils/format'
 import { OUTBOUND_STATUS_MAP } from '@/utils/constants'
 import PageHeader from '@/components/PageHeader.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
 
 const route = useRoute()
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<OutboundOrder>(getOutboundList)
@@ -260,6 +331,19 @@ const rules: FormRules = {
 // 详情弹窗
 const detailVisible = ref(false)
 const detail = ref<OutboundOrder | Record<string, never>>({})
+
+// 编辑弹窗
+const editDialogVisible = ref(false)
+const editing = ref(false)
+const editFormRef = ref<FormInstance>()
+const editForm = reactive({
+  id: 0,
+  outboundNo: '',
+  expressCompanyId: undefined as number | undefined,
+  trackingNo: '',
+  shippingFee: undefined as number | undefined,
+  remark: '',
+})
 
 // 扫码弹窗
 const scanDialogVisible = ref(false)
@@ -311,7 +395,7 @@ function getOutboundStatusLabel(row: any) {
 async function openDialog() {
   form.orderId = undefined
   form.remark = ''
-  // 加载待出库的订单
+  // 加载待发货的订单
   try {
     const res = await getOrderList({ page: 1, size: 100, orderStatus: 'WAIT_OUTBOUND' })
     orderList.value = res.data.list || []
@@ -327,7 +411,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     await createOutbound({ orderId: form.orderId!, remark: form.remark })
-    ElMessage.success('出库单创建成功')
+    ElMessage.success('发货单创建成功')
     dialogVisible.value = false
     fetchData()
   } catch {} finally {
@@ -341,6 +425,37 @@ async function viewDetail(row: OutboundOrder) {
     detail.value = res.data
     detailVisible.value = true
   } catch {}
+}
+
+async function openEditDialog(row: OutboundOrder) {
+  const res = await getOutboundDetail(row.id)
+  const outbound = res.data
+  Object.assign(editForm, {
+    id: row.id,
+    outboundNo: outbound.outboundNo || '',
+    expressCompanyId: outbound.expressCompanyId || undefined,
+    trackingNo: outbound.trackingNo || '',
+    shippingFee: outbound.shippingFee || undefined,
+    remark: outbound.remark || '',
+  })
+  editDialogVisible.value = true
+}
+
+async function handleEdit() {
+  editing.value = true
+  try {
+    await updateOutbound(editForm.id, {
+      expressCompanyId: editForm.expressCompanyId,
+      trackingNo: editForm.trackingNo || undefined,
+      shippingFee: editForm.shippingFee,
+      remark: editForm.remark,
+    })
+    ElMessage.success('保存成功')
+    editDialogVisible.value = false
+    fetchData()
+  } catch {} finally {
+    editing.value = false
+  }
 }
 
 async function openScanDialog(row: OutboundOrder) {
@@ -388,9 +503,10 @@ async function handleScan() {
   }
 }
 
-// 确认出库弹窗
+// 确认发货弹窗
 const confirmDialogVisible = ref(false)
 const confirming = ref(false)
+const confirmDetail = ref<OutboundOrder | Record<string, never>>({})
 const confirmForm = reactive({
   outboundId: 0,
   trackingNo: '',
@@ -418,6 +534,14 @@ async function openConfirmDialog(row: OutboundOrder) {
   confirmForm.estimatedWeight = 0
   confirmForm.shippingFee = undefined
   templateList.value = []
+
+  // 加载发货单详情（包含订单明细）
+  try {
+    const res = await getOutboundDetail(row.id)
+    confirmDetail.value = res.data
+  } catch {
+    confirmDetail.value = {}
+  }
 
   // 加载快递公司列表
   try {
@@ -486,7 +610,7 @@ async function calculateFeeByTemplate() {
 async function handleCancel(id: number) {
   try {
     await cancelOutbound(id)
-    ElMessage.success('出库单已取消')
+    ElMessage.success('发货单已取消')
     fetchData()
   } catch {}
 }
@@ -501,7 +625,7 @@ async function handleConfirm() {
     return
   }
   try {
-    await ElMessageBox.confirm('确认出库后将扣减库存，确定继续吗？', '确认出库', { type: 'warning' })
+    await ElMessageBox.confirm('确认发货后将扣减库存，确定继续吗？', '确认发货', { type: 'warning' })
   } catch {
     return
   }
@@ -516,7 +640,7 @@ async function handleConfirm() {
       estimatedWeight: confirmForm.estimatedWeight > 0 ? confirmForm.estimatedWeight : undefined,
       shippingFee: confirmForm.shippingFee,
     })
-    ElMessage.success('出库确认成功')
+    ElMessage.success('发货确认成功')
     confirmDialogVisible.value = false
     fetchData()
   } catch {} finally {

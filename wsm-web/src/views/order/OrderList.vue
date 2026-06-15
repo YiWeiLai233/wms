@@ -4,6 +4,15 @@
       <template #actions>
         <el-button type="primary" icon="Upload" @click="openImportDialog">手动导入</el-button>
         <el-button type="success" icon="Document" @click="fileImportDialogVisible = true">文档导入</el-button>
+        <el-button type="warning" icon="TopRight" :type="selectMode === 'outbound' ? 'warning' : ''" @click="toggleSelectMode('outbound')">
+          {{ selectMode === 'outbound' ? '取消选择' : '批量出库' }}
+        </el-button>
+        <el-button type="danger" icon="BottomLeft" :type="selectMode === 'return' ? 'danger' : ''" @click="toggleSelectMode('return')">
+          {{ selectMode === 'return' ? '取消选择' : '批量退货' }}
+        </el-button>
+        <el-button v-if="selectMode && selectedOrders.length > 0" type="primary" @click="handleBatchAction">
+          确认{{ selectMode === 'outbound' ? '出库' : '退货' }} ({{ selectedOrders.length }})
+        </el-button>
       </template>
     </PageHeader>
 
@@ -36,7 +45,27 @@
     </div>
 
     <div class="card">
-      <el-table :data="tableData" v-loading="loading" stripe border>
+      <!-- 选择模式提示 -->
+      <el-alert
+        v-if="selectMode"
+        :title="selectMode === 'outbound' ? '批量出库模式：请勾选需要出库的订单（仅待出库状态可选）' : '批量退货模式：请勾选需要退货的订单（仅已发货状态可选）'"
+        :type="selectMode === 'outbound' ? 'warning' : 'error'"
+        show-icon
+        :closable="false"
+        class="mb-3"
+      />
+
+      <el-table
+        ref="tableRef"
+        :data="tableData"
+        v-loading="loading"
+        stripe
+        border
+        :class="selectMode === 'outbound' ? 'outbound-mode' : selectMode === 'return' ? 'return-mode' : ''"
+        :row-class-name="getRowClassName"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="50" :selectable="isSelectable" />
         <el-table-column prop="orderNo" label="订单号" width="160" />
         <el-table-column label="平台" width="120">
           <template #default="{ row }">
@@ -65,11 +94,14 @@
         <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="400" fixed="right">
+        <el-table-column label="操作" width="450" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link icon="View" @click="viewDetail(row)">详情</el-button>
+            <el-button type="warning" link icon="Edit" @click="openEditDialog(row)">
+              编辑
+            </el-button>
             <el-button v-if="row.orderStatus === 'WAIT_OUTBOUND'" type="success" link icon="TopRight" @click="createOutboundOrder(row)">
-              创建出库单
+              出库
             </el-button>
             <el-popconfirm
               v-if="row.orderStatus === 'WAIT_PAY' || row.orderStatus === 'WAIT_OUTBOUND'"
@@ -81,7 +113,7 @@
               </template>
             </el-popconfirm>
             <el-button v-if="row.orderStatus === 'OUTBOUNDING'" type="primary" link icon="TopRight" @click="router.push({ path: '/outbound/list', query: { orderNo: row.orderNo } })">
-              出库管理
+              发货管理
             </el-button>
             <el-button v-if="row.orderStatus === 'SHIPPED'" type="warning" link icon="BottomLeft" @click="openReturnDialog(row)">
               退货
@@ -151,11 +183,49 @@
         <el-table-column prop="sizeValue" label="码数" width="80" align="center">
           <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
         </el-table-column>
+        <el-table-column label="仓库" width="100" align="center">
+          <template #default>{{ detail.warehouseName || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="quantity" label="数量" width="80" align="center" />
         <el-table-column prop="totalPrice" label="小计" width="90" align="right">
           <template #default="{ row }">¥{{ row.totalPrice?.toFixed(2) }}</template>
         </el-table-column>
       </el-table>
+    </el-dialog>
+
+    <!-- 编辑订单弹窗 -->
+    <el-dialog v-model="editDialogVisible" title="编辑订单" width="600px" destroy-on-close>
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="90px">
+        <el-form-item label="平台">
+          <el-select v-model="editForm.platformId" placeholder="选择平台" clearable style="width: 100%">
+            <el-option v-for="p in platforms" :key="p.id" :label="p.name" :value="p.id">
+              <div class="flex items-center gap-2">
+                <div v-if="p.color" class="w-3 h-3 rounded" :style="{ backgroundColor: p.color }"></div>
+                <span>{{ p.name }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="平台单号">
+          <el-input v-model="editForm.platformOrderNo" placeholder="平台订单号" />
+        </el-form-item>
+        <el-form-item label="收件人" prop="receiverName">
+          <el-input v-model="editForm.receiverName" placeholder="收件人姓名" />
+        </el-form-item>
+        <el-form-item label="电话" prop="receiverPhone">
+          <el-input v-model="editForm.receiverPhone" placeholder="收件人电话" />
+        </el-form-item>
+        <el-form-item label="地址" prop="receiverAddress">
+          <el-input v-model="editForm.receiverAddress" placeholder="收件地址" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="editForm.remark" type="textarea" :rows="2" placeholder="订单备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editing" @click="handleEdit">保存</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog v-model="importDialogVisible" title="导入订单" width="900px" destroy-on-close>
@@ -273,7 +343,22 @@
     <el-dialog v-model="returnDialogVisible" title="创建退货单" width="760px" destroy-on-close>
       <el-form ref="returnFormRef" :model="returnForm" :rules="returnRules" label-width="90px">
         <el-form-item label="退货原因" prop="reason">
-          <el-input v-model="returnForm.reason" placeholder="请输入退货原因" />
+          <el-select
+            v-model="returnForm.reason"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="请选择或输入退货原因"
+            style="width: 100%"
+          >
+            <el-option label="七天无理由退货" value="七天无理由退货" />
+            <el-option label="商品质量问题" value="商品质量问题" />
+            <el-option label="商品与描述不符" value="商品与描述不符" />
+            <el-option label="发错货" value="发错货" />
+            <el-option label="物流问题" value="物流问题" />
+            <el-option label="客户取消订单" value="客户取消订单" />
+            <el-option label="其他" value="其他" />
+          </el-select>
         </el-form-item>
         <el-form-item label="客户快递单号">
           <el-input v-model="returnForm.trackingNo" placeholder="客户退回的快递单号（选填）" />
@@ -308,20 +393,75 @@
       </template>
     </el-dialog>
 
+    <!-- 批量退货弹窗 -->
+    <el-dialog v-model="batchReturnDialogVisible" title="批量退货" width="500px" destroy-on-close>
+      <el-form ref="batchReturnFormRef" :model="batchReturnForm" :rules="batchReturnRules" label-width="90px">
+        <el-form-item label="退货订单">
+          <div class="text-sm text-gray-600">已选择 {{ selectedOrders.length }} 个订单</div>
+        </el-form-item>
+        <el-form-item label="退货原因" prop="reason">
+          <el-select
+            v-model="batchReturnForm.reason"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="请选择或输入退货原因"
+            style="width: 100%"
+          >
+            <el-option label="七天无理由退货" value="七天无理由退货" />
+            <el-option label="商品质量问题" value="商品质量问题" />
+            <el-option label="商品与描述不符" value="商品与描述不符" />
+            <el-option label="发错货" value="发错货" />
+            <el-option label="物流问题" value="物流问题" />
+            <el-option label="客户取消订单" value="客户取消订单" />
+            <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="客户快递单号">
+          <el-input v-model="batchReturnForm.trackingNo" placeholder="客户退回的快递单号（选填）" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="batchReturnForm.remark" type="textarea" :rows="2" placeholder="备注信息（选填）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchReturnDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchReturning" @click="handleBatchReturnSubmit">确认退货</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 文档导入弹窗 -->
-    <el-dialog v-model="fileImportDialogVisible" title="文档导入订单" width="600px" destroy-on-close>
+    <el-dialog v-model="fileImportDialogVisible" title="文档导入订单" width="680px" destroy-on-close>
+      <el-alert type="info" :closable="false" class="mb-4">
+        <template #title>
+          <div class="text-sm">
+            <p class="font-semibold mb-1">导入说明：</p>
+            <ul class="list-disc pl-4 space-y-1">
+              <li>支持 Excel (.xlsx, .xls) 和 CSV (.csv) 文件，文件大小不超过 10MB</li>
+              <li>同一订单号的多行会合并为一个订单（多SKU）</li>
+              <li>SKU编码必须是系统中已存在的编码</li>
+            </ul>
+          </div>
+        </template>
+      </el-alert>
+
       <div class="mb-4">
-        <p class="text-sm text-gray-600 mb-2">支持 Excel (.xlsx) 和 CSV (.csv) 文件，文件大小不超过 10MB</p>
-        <p class="text-sm text-gray-600 mb-4">
-          模板格式：
-          <el-button type="primary" link icon="Download" @click="downloadTemplate">下载模板</el-button>
-        </p>
+        <el-button type="primary" link icon="Download" @click="downloadTemplate">下载导入模板</el-button>
       </div>
+
+      <el-form :model="fileImportForm" label-width="80px">
+        <el-form-item label="目标仓库" required>
+          <el-select v-model="fileImportForm.warehouseId" placeholder="请选择目标仓库" style="width: 100%">
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
 
       <el-upload
         ref="uploadRef"
         :action="uploadUrl"
         :headers="uploadHeaders"
+        :data="uploadData"
         :before-upload="beforeUpload"
         :on-success="handleUploadSuccess"
         :on-error="handleUploadError"
@@ -330,6 +470,7 @@
         :limit="1"
         accept=".xlsx,.xls,.csv"
         drag
+        class="mt-2"
       >
         <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
         <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
@@ -338,17 +479,21 @@
         </template>
       </el-upload>
 
-      <el-form v-if="fileImportForm.warehouseId !== undefined" :model="fileImportForm" label-width="80px" class="mt-4">
-        <el-form-item label="目标仓库">
-          <el-select v-model="fileImportForm.warehouseId" placeholder="选择仓库" style="width: 100%">
-            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+      <el-divider content-position="left">模板格式</el-divider>
+      <el-table :data="templateFormatData" border size="small" class="mb-2">
+        <el-table-column prop="field" label="字段名" width="120" />
+        <el-table-column prop="required" label="必填" width="60" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.required ? 'danger' : 'info'" size="small">{{ row.required ? '是' : '否' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="example" label="示例" min-width="150" />
+        <el-table-column prop="desc" label="说明" min-width="150" />
+      </el-table>
 
       <template #footer>
         <el-button @click="fileImportDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="fileImporting" @click="handleFileImport">开始导入</el-button>
+        <el-button type="primary" :loading="fileImporting" :disabled="!fileImportForm.warehouseId" @click="handleFileImport">开始导入</el-button>
       </template>
     </el-dialog>
   </div>
@@ -357,12 +502,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { getOrderDetail, getOrderList, importOrder, updateOrderStatus } from '@/api/order'
+import { getOrderDetail, getOrderList, importOrder, updateOrder, updateOrderStatus } from '@/api/order'
 import type { Order } from '@/api/order'
-import { createOutbound } from '@/api/outbound'
+import { createOutbound, createBatchOutbound } from '@/api/outbound'
+import { createBatchReturn } from '@/api/returns'
 import { createReturn, cancelReturnByOrderId } from '@/api/returns'
 import { getAllSkuList } from '@/api/product'
 import type { Sku } from '@/api/product'
@@ -415,6 +561,140 @@ const skuList = ref<SkuListItem[]>([])
 const detailVisible = ref(false)
 const detail = ref<Partial<Order>>({})
 
+// 编辑订单相关
+const editDialogVisible = ref(false)
+const editing = ref(false)
+const editFormRef = ref<FormInstance>()
+const editForm = reactive({
+  id: 0,
+  platformId: undefined as number | undefined,
+  platformOrderNo: '',
+  receiverName: '',
+  receiverPhone: '',
+  receiverAddress: '',
+  remark: '',
+})
+const editRules: FormRules = {
+  receiverName: [{ required: true, message: '请输入收件人', trigger: 'blur' }],
+  receiverPhone: [{ required: true, message: '请输入电话', trigger: 'blur' }],
+  receiverAddress: [{ required: true, message: '请输入地址', trigger: 'blur' }],
+}
+
+// 批量操作相关
+const selectMode = ref<'outbound' | 'return' | null>(null)
+const selectedOrders = ref<Order[]>([])
+const tableRef = ref()
+
+function handleSelectionChange(selection: Order[]) {
+  selectedOrders.value = selection
+}
+
+function isSelectable(row: Order) {
+  if (!selectMode.value) return false
+  if (selectMode.value === 'outbound') return row.orderStatus === 'WAIT_OUTBOUND'
+  if (selectMode.value === 'return') return row.orderStatus === 'SHIPPED'
+  return false
+}
+
+function getRowClassName({ row }: { row: Order }) {
+  if (!selectMode.value) return ''
+  if (selectMode.value === 'outbound' && row.orderStatus === 'WAIT_OUTBOUND') return 'selectable-row'
+  if (selectMode.value === 'return' && row.orderStatus === 'SHIPPED') return 'selectable-row'
+  return 'disabled-row'
+}
+
+function toggleSelectMode(mode: 'outbound' | 'return') {
+  if (selectMode.value === mode) {
+    // 取消选择模式
+    selectMode.value = null
+    selectedOrders.value = []
+    tableRef.value?.clearSelection()
+  } else {
+    // 切换选择模式，清空已选
+    selectMode.value = mode
+    selectedOrders.value = []
+    tableRef.value?.clearSelection()
+  }
+}
+
+async function handleBatchAction() {
+  if (!selectMode.value || selectedOrders.value.length === 0) return
+
+  if (selectMode.value === 'outbound') {
+    await handleBatchOutbound()
+  } else {
+    await handleBatchReturn()
+  }
+}
+
+async function handleBatchOutbound() {
+  const orderIds = selectedOrders.value.map(o => o.id)
+  try {
+    await ElMessageBox.confirm(`确定要对 ${orderIds.length} 个订单进行出库吗？`, '批量出库', { type: 'warning' })
+  } catch {
+    return
+  }
+
+  try {
+    const res = await createBatchOutbound({ orderIds })
+    ElMessage.success(`批量出库成功，共创建 ${res.data?.length || 0} 个发货单`)
+    selectedOrders.value = []
+    selectMode.value = null
+    fetchData()
+  } catch {}
+}
+
+async function handleBatchReturn() {
+  // 只能对已发货的订单进行退货
+  const validOrders = selectedOrders.value.filter(o => o.orderStatus === 'SHIPPED')
+  if (validOrders.length === 0) {
+    ElMessage.warning('请选择已发货的订单')
+    return
+  }
+
+  // 打开批量退货弹窗
+  batchReturnForm.reason = ''
+  batchReturnForm.remark = ''
+  batchReturnDialogVisible.value = true
+}
+
+// 批量退货弹窗
+const batchReturnDialogVisible = ref(false)
+const batchReturning = ref(false)
+const batchReturnFormRef = ref<FormInstance>()
+const batchReturnForm = reactive({
+  reason: '',
+  trackingNo: '',
+  remark: '',
+})
+const batchReturnRules: FormRules = {
+  reason: [{ required: true, message: '请选择或输入退货原因', trigger: 'change' }],
+}
+
+async function handleBatchReturnSubmit() {
+  const valid = await batchReturnFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  const orderIds = selectedOrders.value.filter(o => o.orderStatus === 'SHIPPED').map(o => o.id)
+
+  batchReturning.value = true
+  try {
+    const res = await createBatchReturn({
+      orderIds,
+      reason: batchReturnForm.reason,
+      remark: batchReturnForm.remark || undefined,
+      trackingNo: batchReturnForm.trackingNo || undefined,
+    })
+    ElMessage.success(`批量退货成功，共创建 ${res.data?.length || 0} 个退货单`)
+    batchReturnDialogVisible.value = false
+    selectedOrders.value = []
+    selectMode.value = null
+    fetchData()
+  } catch {} finally {
+    batchReturning.value = false
+  }
+}
+
 const importDialogVisible = ref(false)
 const importing = ref(false)
 const importFormRef = ref<FormInstance>()
@@ -466,6 +746,22 @@ const uploadUrl = `${BASE_URL}/api/orders/import-file`
 const uploadHeaders = {
   Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
 }
+
+const uploadData = computed(() => ({
+  warehouseId: fileImportForm.warehouseId
+}))
+
+const templateFormatData = [
+  { field: 'platformOrderNo', required: true, example: 'TB20240101001', desc: '平台订单号，相同订单号会合并' },
+  { field: 'platform', required: false, example: '淘宝', desc: '平台名称，需与系统中平台名称一致' },
+  { field: 'receiverName', required: true, example: '张三', desc: '收件人姓名' },
+  { field: 'receiverPhone', required: true, example: '13800138000', desc: '收件人电话' },
+  { field: 'receiverAddress', required: true, example: '北京市朝阳区xxx路', desc: '收件地址' },
+  { field: 'remark', required: false, example: '尽快发货', desc: '订单备注' },
+  { field: 'skuCode', required: true, example: 'SPU001-42', desc: 'SKU编码，必须系统中存在' },
+  { field: 'quantity', required: false, example: '1', desc: '数量，默认1' },
+  { field: 'unitPrice', required: false, example: '59.90', desc: '单价，默认0' },
+]
 
 const skuGroups = computed(() => {
   const groupMap = new Map<string, SkuGroup>()
@@ -550,14 +846,35 @@ function addSkuToImport(sku: SkuListItem) {
 }
 
 function downloadTemplate() {
-  // 创建 CSV 模板内容
-  const template = 'platformOrderNo,receiverName,receiverPhone,receiverAddress,remark,skuCode,quantity,unitPrice\n示例单号001,张三,13800138000,北京市朝阳区xxx路xxx号,备注,SPU001-42,1,59.90'
-  const blob = new Blob(['﻿' + template], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = '订单导入模板.csv'
-  link.click()
-  URL.revokeObjectURL(link.href)
+  // 使用 xlsx 库生成 Excel 模板
+  import('xlsx').then((XLSX) => {
+    const headers = ['platformOrderNo', 'platform', 'receiverName', 'receiverPhone', 'receiverAddress', 'remark', 'skuCode', 'quantity', 'unitPrice']
+    const exampleRow1 = ['TB20240101001', '淘宝', '张三', '13800138000', '北京市朝阳区xxx路xxx号', '尽快发货', 'SPU001-42', 1, 59.90]
+    const exampleRow2 = ['TB20240101001', '淘宝', '张三', '13800138000', '北京市朝阳区xxx路xxx号', '尽快发货', 'SPU001-43', 2, 59.90]
+    const exampleRow3 = ['PDD20240101002', '拼多多', '李四', '13900139000', '上海市浦东新区xxx路xxx号', '', 'SPU002-36', 1, 89.00]
+
+    const data = [headers, exampleRow1, exampleRow2, exampleRow3]
+    const ws = XLSX.utils.aoa_to_sheet(data)
+
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 20 }, // platformOrderNo
+      { wch: 12 }, // platform
+      { wch: 10 }, // receiverName
+      { wch: 15 }, // receiverPhone
+      { wch: 30 }, // receiverAddress
+      { wch: 15 }, // remark
+      { wch: 15 }, // skuCode
+      { wch: 10 }, // quantity
+      { wch: 10 }, // unitPrice
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '订单导入模板')
+    XLSX.writeFile(wb, '订单导入模板.xlsx')
+  }).catch(() => {
+    ElMessage.error('生成模板失败，请确保已安装 xlsx 库')
+  })
 }
 
 function beforeUpload(file: File) {
@@ -586,14 +903,48 @@ function handleFileChange(file: any) {
 
 function handleUploadSuccess(response: any) {
   if (response.code === 200) {
-    ElMessage.success(`导入成功，共导入 ${response.data || 0} 条订单`)
-    fileImportDialogVisible.value = false
-    selectedFile.value = null
-    fetchData()
+    const data = response.data
+    if (data && data.errors && data.errors.length > 0) {
+      // 有部分失败
+      showImportResult(data)
+    } else {
+      // 全部成功
+      ElMessage.success(`导入成功，共导入 ${data || 0} 条订单`)
+      fileImportDialogVisible.value = false
+      selectedFile.value = null
+      fetchData()
+    }
   } else {
     ElMessage.error(response.message || '导入失败')
   }
   fileImporting.value = false
+}
+
+function showImportResult(data: any) {
+  const { successCount, totalCount, errors } = data
+  const errorList = errors.map((e: string) => `<li class="mb-1">${e}</li>`).join('')
+
+  ElMessageBox.alert(
+    `<div>
+      <p class="mb-2">导入完成：成功 <strong>${successCount}</strong> / 共 ${totalCount} 个订单</p>
+      ${errors.length > 0 ? `
+        <p class="mb-1 text-red-500 font-semibold">失败详情：</p>
+        <ul class="list-disc pl-5 text-sm text-red-600 max-h-60 overflow-y-auto">${errorList}</ul>
+      ` : ''}
+    </div>`,
+    '导入结果',
+    {
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '确定',
+      type: successCount > 0 ? 'warning' : 'error',
+    }
+  ).then(() => {
+    if (successCount > 0) {
+      fileImportDialogVisible.value = false
+      selectedFile.value = null
+      fetchData()
+    }
+  })
 }
 
 function handleUploadError() {
@@ -624,10 +975,17 @@ async function handleFileImport() {
     })
     const result = await response.json()
     if (result.code === 200) {
-      ElMessage.success(`导入成功，共导入 ${result.data || 0} 条订单`)
-      fileImportDialogVisible.value = false
-      selectedFile.value = null
-      fetchData()
+      const data = result.data
+      if (data && data.errors && data.errors.length > 0) {
+        // 有部分失败
+        showImportResult(data)
+      } else {
+        // 全部成功
+        ElMessage.success(`导入成功，共导入 ${data || 0} 条订单`)
+        fileImportDialogVisible.value = false
+        selectedFile.value = null
+        fetchData()
+      }
     } else {
       ElMessage.error(result.message || '导入失败')
     }
@@ -703,6 +1061,43 @@ async function viewDetail(row: Order) {
   } catch {}
 }
 
+async function openEditDialog(row: Order) {
+  const res = await getOrderDetail(row.id)
+  const order = res.data
+  Object.assign(editForm, {
+    id: row.id,
+    platformId: order.platformId || undefined,
+    platformOrderNo: order.platformOrderNo || '',
+    receiverName: order.receiverName || '',
+    receiverPhone: order.receiverPhone || '',
+    receiverAddress: order.receiverAddress || '',
+    remark: order.remark || '',
+  })
+  editDialogVisible.value = true
+}
+
+async function handleEdit() {
+  const valid = await editFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  editing.value = true
+  try {
+    await updateOrder(editForm.id, {
+      platformId: editForm.platformId,
+      platformOrderNo: editForm.platformOrderNo || undefined,
+      receiverName: editForm.receiverName,
+      receiverPhone: editForm.receiverPhone,
+      receiverAddress: editForm.receiverAddress,
+      remark: editForm.remark,
+    })
+    ElMessage.success('保存成功')
+    editDialogVisible.value = false
+    fetchData()
+  } catch {} finally {
+    editing.value = false
+  }
+}
+
 async function handleCancelOrder(row: Order) {
   try {
     await updateOrderStatus(row.id, 'CANCELLED')
@@ -722,7 +1117,7 @@ async function handleCancelReturn(row: Order) {
 async function createOutboundOrder(row: Order) {
   try {
     await createOutbound({ orderId: row.id })
-    ElMessage.success('出库单创建成功')
+    ElMessage.success('出库成功')
     fetchData()
   } catch {}
 }
@@ -801,3 +1196,58 @@ async function handleImport() {
   }
 }
 </script>
+
+<style>
+/* 批量出库模式 - 黄色选择框 */
+.outbound-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
+  border-color: #fadb14 !important;
+  background-color: #fadb14 !important;
+  box-shadow: 0 0 0 1px #fadb14;
+}
+.outbound-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner::after {
+  border-color: #333 !important;
+}
+.outbound-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+  box-shadow: none;
+}
+.outbound-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+
+/* 批量退货模式 - 红色选择框 */
+.return-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner {
+  border-color: #ff4d4f !important;
+  background-color: #ff4d4f !important;
+  box-shadow: 0 0 0 1px #ff4d4f;
+}
+.return-mode .el-table__row:not(.disabled-row) .el-checkbox__input .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+.return-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+  box-shadow: none;
+}
+.return-mode .el-table__row:not(.disabled-row) .el-checkbox__input.is-checked .el-checkbox__inner::after {
+  border-color: #fff !important;
+}
+
+/* 不可选择的行 - 半透明 */
+.disabled-row {
+  opacity: 0.5;
+}
+.disabled-row .el-checkbox__input .el-checkbox__inner {
+  background-color: #ebeef5 !important;
+  border-color: #dcdfe6 !important;
+}
+
+/* 可选择的行 - 浅色背景高亮 */
+.selectable-row {
+  background-color: #fdf6ec !important;
+}
+.selectable-row:hover td {
+  background-color: #faecd8 !important;
+}
+</style>

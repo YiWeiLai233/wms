@@ -28,6 +28,15 @@ public class OutboundOrderItemVO {
     /** 码数 */
     private String sizeValue;
 
+    /** SKU图片 */
+    private String skuImage;
+
+    /** 仓库ID */
+    private Long warehouseId;
+
+    /** 仓库名称 */
+    private String warehouseName;
+
     /** 应出数量 */
     private Integer quantity;
 
