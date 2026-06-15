@@ -306,11 +306,19 @@ public class OrderServiceImpl implements OrderService {
         OrderItemVO vo = new OrderItemVO();
         BeanUtils.copyProperties(item, vo);
 
-        // 查询SKU图片
+        // 查询SKU图片，如果没有则使用SPU主图
         if (item.getSkuId() != null) {
             ProductSku sku = productSkuMapper.findById(item.getSkuId());
             if (sku != null) {
-                vo.setSkuImage(sku.getImage());
+                String image = sku.getImage();
+                // 如果SKU没有图片，查询SPU主图
+                if (image == null || image.isEmpty()) {
+                    Product product = productMapper.findById(sku.getProductId());
+                    if (product != null) {
+                        image = product.getMainImage();
+                    }
+                }
+                vo.setSkuImage(image);
             }
         }
 
