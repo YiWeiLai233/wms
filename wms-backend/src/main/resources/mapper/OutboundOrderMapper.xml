@@ -113,4 +113,10 @@
         WHERE id = #{id} AND deleted = 0
     </update>
 
+    <update id="updateRemark">
+        UPDATE outbound_order
+        SET remark = #{remark}
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
 </mapper>

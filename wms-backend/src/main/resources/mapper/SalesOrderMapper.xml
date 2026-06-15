@@ -139,6 +139,21 @@
         WHERE id = #{id} AND deleted = 0
     </update>
 
+    <update id="update">
+        UPDATE sales_order
+        <set>
+            <if test="platformId != null">platform_id = #{platformId},</if>
+            <if test="platformOrderNo != null">platform_order_no = #{platformOrderNo},</if>
+            <if test="receiverName != null">receiver_name = #{receiverName},</if>
+            <if test="receiverPhone != null">receiver_phone = #{receiverPhone},</if>
+            <if test="receiverAddress != null">receiver_address = #{receiverAddress},</if>
+            <if test="receiverNameHash != null">receiver_name_hash = #{receiverNameHash},</if>
+            <if test="receiverPhoneHash != null">receiver_phone_hash = #{receiverPhoneHash},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
     <select id="findPrivacyMigrationBatch" resultMap="BaseResultMap">
         SELECT so.id, so.order_no, so.platform_order_no, so.warehouse_id, w.name AS warehouse_name,
                so.receiver_name, so.receiver_phone, so.receiver_address,

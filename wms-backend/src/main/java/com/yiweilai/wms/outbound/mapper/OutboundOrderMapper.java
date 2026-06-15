@@ -63,4 +63,10 @@ public interface OutboundOrderMapper {
                           @Param("expressCompanyId") Long expressCompanyId,
                           @Param("trackingNo") String trackingNo,
                           @Param("shippingFee") BigDecimal shippingFee);
+
+    /**
+     * 更新备注
+     */
+    int updateRemark(@Param("id") Long id,
+                     @Param("remark") String remark);
 }

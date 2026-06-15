@@ -4,6 +4,7 @@ import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
 import com.yiweilai.wms.order.dto.OrderQueryDTO;
 import com.yiweilai.wms.order.dto.OrderStatusUpdateDTO;
+import com.yiweilai.wms.order.dto.OrderUpdateDTO;
 import com.yiweilai.wms.order.vo.OrderVO;
 
 /**
@@ -30,4 +31,9 @@ public interface OrderService {
      * 更新订单状态
      */
     void updateStatus(OrderStatusUpdateDTO dto);
+
+    /**
+     * 更新订单信息
+     */
+    void update(OrderUpdateDTO dto);
 }

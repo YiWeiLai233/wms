@@ -58,6 +58,11 @@ public interface SalesOrderMapper {
     int updateShippedAt(@Param("id") Long id);
 
     /**
+     * 更新订单信息
+     */
+    int update(SalesOrder order);
+
+    /**
      * Batch query for privacy migration.
      */
     List<SalesOrder> findPrivacyMigrationBatch(@Param("lastId") Long lastId,

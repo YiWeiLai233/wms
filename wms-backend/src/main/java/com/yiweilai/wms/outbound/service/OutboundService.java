@@ -6,6 +6,7 @@ import com.yiweilai.wms.outbound.dto.OutboundConfirmDTO;
 import com.yiweilai.wms.outbound.dto.OutboundCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundQueryDTO;
 import com.yiweilai.wms.outbound.dto.OutboundScanDTO;
+import com.yiweilai.wms.outbound.dto.OutboundUpdateDTO;
 import com.yiweilai.wms.outbound.vo.OutboundOrderVO;
 
 import java.util.List;
@@ -44,6 +45,11 @@ public interface OutboundService {
      * 确认出库（扣减库存）
      */
     void confirm(OutboundConfirmDTO dto);
+
+    /**
+     * 更新发货单信息
+     */
+    void update(OutboundUpdateDTO dto);
 
     /**
      * 取消出库单

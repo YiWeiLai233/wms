@@ -7,6 +7,7 @@ import com.yiweilai.wms.outbound.dto.OutboundConfirmDTO;
 import com.yiweilai.wms.outbound.dto.OutboundCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundQueryDTO;
 import com.yiweilai.wms.outbound.dto.OutboundScanDTO;
+import com.yiweilai.wms.outbound.dto.OutboundUpdateDTO;
 import com.yiweilai.wms.outbound.service.OutboundService;
 import com.yiweilai.wms.outbound.vo.OutboundOrderVO;
 import jakarta.validation.Valid;
@@ -72,6 +73,17 @@ public class OutboundController {
     @PostMapping("/confirm")
     public Result<Void> confirm(@Valid @RequestBody OutboundConfirmDTO dto) {
         outboundService.confirm(dto);
+        return Result.success();
+    }
+
+    /**
+     * 更新发货单信息
+     */
+    @PutMapping("/{id}")
+    public Result<Void> update(@PathVariable Long id,
+                               @Valid @RequestBody OutboundUpdateDTO dto) {
+        dto.setId(id);
+        outboundService.update(dto);
         return Result.success();
     }
 
