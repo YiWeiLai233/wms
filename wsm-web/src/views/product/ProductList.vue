@@ -43,13 +43,13 @@
         <el-table-column label="仓库" width="100">
           <template #default="{ row }">{{ row.warehouseName || '-' }}</template>
         </el-table-column>
-        <el-table-column label="货架" width="120">
-          <template #default="{ row }">{{ row.shelfCode }} - {{ row.shelfName || '-' }}</template>
+        <el-table-column label="货架" width="140">
+          <template #default="{ row }">
+            <div>{{ row.shelfCode }} - {{ row.shelfName || '-' }}</div>
+            <div class="text-xs text-gray-400">¥{{ row.price?.toFixed(2) || '0.00' }}</div>
+          </template>
         </el-table-column>
         <el-table-column prop="categoryName" label="分类" width="80" />
-        <el-table-column prop="price" label="参考售价" width="100" align="right">
-          <template #default="{ row }">¥{{ row.price?.toFixed(2) || '0.00' }}</template>
-        </el-table-column>
         <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
@@ -118,19 +118,17 @@
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="分类">
               <el-input :model-value="selectedShelf?.categoryName || ''" disabled placeholder="选择货架后自动填充" />
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="参考售价" prop="price">
               <el-input-number v-model="form.price" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="状态" prop="status">
               <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
             </el-form-item>

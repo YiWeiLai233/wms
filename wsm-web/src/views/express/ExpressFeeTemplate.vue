@@ -201,25 +201,26 @@
           <el-divider content-position="left">首重续重配置</el-divider>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="首重(kg)">
+              <el-form-item label="首重(kg)" label-width="80px">
                 <el-input-number v-model="form.firstWeight" :min="0.1" :precision="2" style="width: 100%" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="首重费用(元)">
+              <el-form-item label="首重费用" label-width="80px">
                 <el-input-number v-model="form.firstFee" :min="0" :precision="2" style="width: 100%" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="续重(kg)">
+              <el-form-item label="续重(kg)" label-width="80px">
                 <el-input-number v-model="form.additionalWeight" :min="0.1" :precision="2" style="width: 100%" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="续重费用(元/kg)">
+              <el-form-item label="续重费用" label-width="80px">
                 <el-input-number v-model="form.additionalFee" :min="0" :precision="2" style="width: 100%" />
+                <div class="text-xs text-gray-400">元/kg</div>
               </el-form-item>
             </el-col>
           </el-row>
