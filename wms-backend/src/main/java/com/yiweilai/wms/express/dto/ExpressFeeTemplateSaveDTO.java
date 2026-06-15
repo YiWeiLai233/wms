@@ -24,6 +24,21 @@ public class ExpressFeeTemplateSaveDTO {
     @NotBlank(message = "模板名称不能为空")
     private String name;
 
+    /** 模板类型：LADDER-阶梯计费, FIRST_CONTINUE-首重续重 */
+    private String templateType = "LADDER";
+
+    /** 首重重量(kg)，首重续重类型使用 */
+    private BigDecimal firstWeight;
+
+    /** 首重费用(元)，首重续重类型使用 */
+    private BigDecimal firstFee;
+
+    /** 续重重量(kg)，首重续重类型使用 */
+    private BigDecimal additionalWeight;
+
+    /** 续重费用(元/kg)，首重续重类型使用 */
+    private BigDecimal additionalFee;
+
     /** 是否默认模板 */
     private Integer isDefault = 0;
 
@@ -33,8 +48,7 @@ public class ExpressFeeTemplateSaveDTO {
     /** 备注 */
     private String remark;
 
-    /** 费用阶梯列表 */
-    @NotNull(message = "费用阶梯不能为空")
+    /** 费用阶梯列表（阶梯计费类型使用） */
     private List<FeeStepDTO> steps;
 
     /**

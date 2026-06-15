@@ -6,6 +6,18 @@
       </template>
     </PageHeader>
 
+    <!-- 退货模板提醒 -->
+    <el-alert type="info" :closable="false" class="mb-4">
+      <template #title>
+        <div class="text-sm">
+          <span class="font-semibold">退货快递费提示：</span>
+          <span>如需创建退货单时自动计算快递费，请先在</span>
+          <el-button type="primary" link @click="$router.push('/express/companies')">快递公司管理</el-button>
+          <span>中创建名称包含「退货」的快递公司，然后在此处为其创建费用模板。</span>
+        </div>
+      </template>
+    </el-alert>
+
     <!-- 搜索 -->
     <div class="card mb-4">
       <el-form :model="searchParams" inline>
@@ -28,6 +40,13 @@
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column prop="companyName" label="快递公司" width="120" />
         <el-table-column prop="name" label="模板名称" min-width="100" />
+        <el-table-column prop="templateType" label="模板类型" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.templateType === 'FIRST_CONTINUE' ? 'warning' : 'primary'" size="small">
+              {{ row.templateType === 'FIRST_CONTINUE' ? '首重续重' : '阶梯计费' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="isDefault" label="默认" width="80" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.isDefault === 1" type="success" size="small">默认</el-tag>
@@ -75,31 +94,54 @@
       <el-descriptions :column="2" border class="mb-4">
         <el-descriptions-item label="快递公司">{{ detail.companyName }}</el-descriptions-item>
         <el-descriptions-item label="模板名称">{{ detail.name }}</el-descriptions-item>
+        <el-descriptions-item label="模板类型">
+          <el-tag :type="detail.templateType === 'LADDER' ? 'primary' : 'warning'" size="small">
+            {{ detail.templateType === 'LADDER' ? '阶梯计费' : '首重续重' }}
+          </el-tag>
+        </el-descriptions-item>
         <el-descriptions-item label="是否默认">
           <el-tag v-if="detail.isDefault === 1" type="success" size="small">是</el-tag>
           <span v-else>否</span>
         </el-descriptions-item>
-        <el-descriptions-item label="备注">{{ detail.remark || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
 
-      <h4 class="mb-2 text-sm font-semibold text-gray-700">费用阶梯</h4>
-      <el-table :data="detail.steps || []" border size="small">
-        <el-table-column prop="minWeight" label="最小重量(kg)" width="120" align="center">
-          <template #default="{ row }">{{ row.minWeight }} kg</template>
-        </el-table-column>
-        <el-table-column prop="maxWeight" label="最大重量(kg)" width="120" align="center">
-          <template #default="{ row }">{{ row.maxWeight }} kg</template>
-        </el-table-column>
-        <el-table-column prop="fee" label="费用(元)" min-width="100" align="center">
-          <template #default="{ row }">
-            <span class="text-red-500 font-bold">¥{{ row.fee.toFixed(2) }}</span>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 首重续重详情 -->
+      <template v-if="detail.templateType === 'FIRST_CONTINUE'">
+        <h4 class="mb-2 text-sm font-semibold text-gray-700">首重续重配置</h4>
+        <el-descriptions :column="2" border class="mb-4">
+          <el-descriptions-item label="首重">{{ detail.firstWeight }} kg</el-descriptions-item>
+          <el-descriptions-item label="首重费用">
+            <span class="text-red-500 font-bold">¥{{ detail.firstFee?.toFixed(2) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="续重">{{ detail.additionalWeight }} kg</el-descriptions-item>
+          <el-descriptions-item label="续重费用">
+            <span class="text-red-500 font-bold">¥{{ detail.additionalFee?.toFixed(2) }}/kg</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </template>
+
+      <!-- 阶梯详情 -->
+      <template v-if="detail.templateType === 'LADDER' || !detail.templateType">
+        <h4 class="mb-2 text-sm font-semibold text-gray-700">费用阶梯</h4>
+        <el-table :data="detail.steps || []" border size="small">
+          <el-table-column prop="minWeight" label="最小重量(kg)" width="120" align="center">
+            <template #default="{ row }">{{ row.minWeight }} kg</template>
+          </el-table-column>
+          <el-table-column prop="maxWeight" label="最大重量(kg)" width="120" align="center">
+            <template #default="{ row }">{{ row.maxWeight }} kg</template>
+          </el-table-column>
+          <el-table-column prop="fee" label="费用(元)" min-width="100" align="center">
+            <template #default="{ row }">
+              <span class="text-red-500 font-bold">¥{{ row.fee.toFixed(2) }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
     </el-dialog>
 
     <!-- 新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑模板' : '新增模板'" width="680px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑模板' : '新增模板'" width="750px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -116,13 +158,21 @@
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="设为默认">
+          <el-col :span="10">
+            <el-form-item label="模板类型" prop="templateType">
+              <el-select v-model="form.templateType" style="width: 100%">
+                <el-option label="阶梯计费" value="LADDER" />
+                <el-option label="首重续重" value="FIRST_CONTINUE" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="7">
+            <el-form-item label="设为默认" label-width="80px">
               <el-switch v-model="form.isDefault" :active-value="1" :inactive-value="0" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="状态">
+          <el-col :span="7">
+            <el-form-item label="状态" label-width="60px">
               <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
             </el-form-item>
           </el-col>
@@ -131,18 +181,49 @@
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="可选" />
         </el-form-item>
 
-        <!-- 费用阶梯 -->
-        <el-divider content-position="left">费用阶梯</el-divider>
-        <div v-for="(step, index) in form.steps" :key="index" class="flex items-center gap-2 mb-2">
-          <el-input-number v-model="step.minWeight" :min="0" :precision="2" placeholder="最小重量" style="width: 120px" />
-          <span class="text-gray-500">~</span>
-          <el-input-number v-model="step.maxWeight" :min="0" :precision="2" placeholder="最大重量" style="width: 120px" />
-          <span class="text-gray-500">kg，费用</span>
-          <el-input-number v-model="step.fee" :min="0" :precision="2" placeholder="费用" style="width: 100px" />
-          <span class="text-gray-500">元</span>
-          <el-button type="danger" icon="Delete" circle @click="removeStep(index)" />
-        </div>
-        <el-button type="primary" icon="Plus" @click="addStep">添加阶梯</el-button>
+        <!-- 阶梯计费 -->
+        <template v-if="form.templateType === 'LADDER'">
+          <el-divider content-position="left">费用阶梯</el-divider>
+          <div v-for="(step, index) in form.steps" :key="index" class="flex items-center gap-2 mb-2">
+            <el-input-number v-model="step.minWeight" :min="0" :precision="2" placeholder="最小重量" style="width: 130px" />
+            <span class="text-gray-500">~</span>
+            <el-input-number v-model="step.maxWeight" :min="0" :precision="2" placeholder="最大重量" style="width: 130px" />
+            <span class="text-gray-500">kg，费用</span>
+            <el-input-number v-model="step.fee" :min="0" :precision="2" placeholder="费用" style="width: 150px" />
+            <span class="text-gray-500">元</span>
+            <el-button type="danger" icon="Delete" circle @click="removeStep(index)" />
+          </div>
+          <el-button type="primary" icon="Plus" @click="addStep">添加阶梯</el-button>
+        </template>
+
+        <!-- 首重续重 -->
+        <template v-if="form.templateType === 'FIRST_CONTINUE'">
+          <el-divider content-position="left">首重续重配置</el-divider>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="首重(kg)">
+                <el-input-number v-model="form.firstWeight" :min="0.1" :precision="2" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="首重费用(元)">
+                <el-input-number v-model="form.firstFee" :min="0" :precision="2" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="续重(kg)">
+                <el-input-number v-model="form.additionalWeight" :min="0.1" :precision="2" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="续重费用(元/kg)">
+                <el-input-number v-model="form.additionalFee" :min="0" :precision="2" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -178,6 +259,11 @@ const form = reactive({
   id: undefined as number | undefined,
   companyId: undefined as number | undefined,
   name: '',
+  templateType: 'LADDER',
+  firstWeight: 1,
+  firstFee: 0,
+  additionalWeight: 1,
+  additionalFee: 0,
   isDefault: 0,
   status: 1,
   remark: '',
@@ -257,6 +343,11 @@ function openDialog(row?: ExpressFeeTemplate) {
         id: data.id,
         companyId: data.companyId,
         name: data.name,
+        templateType: data.templateType || 'LADDER',
+        firstWeight: data.firstWeight || 1,
+        firstFee: data.firstFee || 0,
+        additionalWeight: data.additionalWeight || 1,
+        additionalFee: data.additionalFee || 0,
         isDefault: data.isDefault,
         status: data.status,
         remark: data.remark,
@@ -268,10 +359,15 @@ function openDialog(row?: ExpressFeeTemplate) {
       id: undefined,
       companyId: undefined,
       name: '',
+      templateType: 'LADDER',
+      firstWeight: 1,
+      firstFee: 0,
+      additionalWeight: 1,
+      additionalFee: 0,
       isDefault: 0,
       status: 1,
       remark: '',
-      steps: [{ minWeight: 0, maxWeight: 1, fee: 3, sortOrder: 0 }],
+      steps: [{ minWeight: 1, maxWeight: 2, fee: 3, sortOrder: 0 }],
     })
   }
   dialogVisible.value = true
@@ -279,9 +375,10 @@ function openDialog(row?: ExpressFeeTemplate) {
 
 function addStep() {
   const lastStep = form.steps[form.steps.length - 1]
+  const newMinWeight = lastStep ? lastStep.maxWeight : 1
   form.steps.push({
-    minWeight: lastStep ? lastStep.maxWeight : 0,
-    maxWeight: lastStep ? lastStep.maxWeight + 0.5 : 1,
+    minWeight: newMinWeight,
+    maxWeight: newMinWeight + 1,
     fee: 0,
     sortOrder: form.steps.length,
   })
@@ -295,7 +392,8 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
-  if (form.steps.length === 0) {
+  // 阶梯计费类型需要检查 steps
+  if (form.templateType === 'LADDER' && form.steps.length === 0) {
     ElMessage.warning('请至少添加一个费用阶梯')
     return
   }

@@ -26,6 +26,11 @@ export interface ExpressFeeTemplate {
   companyId: number
   companyName?: string
   name: string
+  templateType?: string
+  firstWeight?: number
+  firstFee?: number
+  additionalWeight?: number
+  additionalFee?: number
   isDefault: number
   status: number
   remark?: string
@@ -83,12 +88,37 @@ export function getDefaultTemplate() {
 }
 
 /** 新增模板 */
-export function createTemplate(data: { companyId: number; name: string; isDefault?: number; remark?: string; steps: ExpressFeeStep[] }) {
+export function createTemplate(data: {
+  companyId: number
+  name: string
+  templateType?: string
+  firstWeight?: number
+  firstFee?: number
+  additionalWeight?: number
+  additionalFee?: number
+  isDefault?: number
+  status?: number
+  remark?: string
+  steps?: ExpressFeeStep[]
+}) {
   return request.post<any, ApiResponse<number>>('/express/fee-templates', data)
 }
 
 /** 修改模板 */
-export function updateTemplate(data: { id: number; companyId?: number; name?: string; isDefault?: number; remark?: string; steps: ExpressFeeStep[] }) {
+export function updateTemplate(data: {
+  id: number
+  companyId?: number
+  name?: string
+  templateType?: string
+  firstWeight?: number
+  firstFee?: number
+  additionalWeight?: number
+  additionalFee?: number
+  isDefault?: number
+  status?: number
+  remark?: string
+  steps?: ExpressFeeStep[]
+}) {
   return request.put<any, ApiResponse<void>>('/express/fee-templates', data)
 }
 

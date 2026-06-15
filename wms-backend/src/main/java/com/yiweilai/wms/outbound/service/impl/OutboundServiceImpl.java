@@ -29,6 +29,7 @@ import com.yiweilai.wms.product.mapper.ProductBarcodeMapper;
 import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import com.yiweilai.wms.express.entity.ExpressFeeStep;
+import com.yiweilai.wms.express.entity.ExpressFeeTemplate;
 import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
 import com.yiweilai.wms.express.mapper.ExpressFeeTemplateMapper;
 import com.yiweilai.wms.stock.entity.Stock;
@@ -339,12 +340,53 @@ public class OutboundServiceImpl implements OutboundService {
             }
         }
 
+        // 查询模板信息
+        var template = feeTemplateMapper.findById(templateId);
+        if (template == null) {
+            return null;
+        }
+
+        // 首重续重类型
+        if ("FIRST_CONTINUE".equals(template.getTemplateType())) {
+            return calculateFirstContinueFee(template, weight);
+        }
+
+        // 阶梯计费类型（默认）
         ExpressFeeStep step = feeStepMapper.findByTemplateIdAndWeight(templateId, weight);
         if (step != null) {
             return step.getFee();
         }
 
         return null;
+    }
+
+    /**
+     * 首重续重计费
+     */
+    private BigDecimal calculateFirstContinueFee(ExpressFeeTemplate template, BigDecimal weight) {
+        if (template.getFirstWeight() == null || template.getFirstFee() == null) {
+            return null;
+        }
+
+        BigDecimal firstWeight = template.getFirstWeight();
+        BigDecimal firstFee = template.getFirstFee();
+
+        // 重量不超过首重
+        if (weight.compareTo(firstWeight) <= 0) {
+            return firstFee;
+        }
+
+        // 超过首重，计算续重费用
+        if (template.getAdditionalWeight() == null || template.getAdditionalFee() == null) {
+            return firstFee;
+        }
+
+        BigDecimal additionalWeight = weight.subtract(firstWeight);
+        // 向上取整续重重量
+        BigDecimal additionalUnits = additionalWeight.divide(template.getAdditionalWeight(), 0, java.math.RoundingMode.UP);
+        BigDecimal additionalFee = additionalUnits.multiply(template.getAdditionalFee());
+
+        return firstFee.add(additionalFee);
     }
 
     /**

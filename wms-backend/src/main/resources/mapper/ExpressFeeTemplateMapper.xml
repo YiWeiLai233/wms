@@ -6,6 +6,11 @@
         <id column="id" property="id"/>
         <result column="company_id" property="companyId"/>
         <result column="name" property="name"/>
+        <result column="template_type" property="templateType"/>
+        <result column="first_weight" property="firstWeight"/>
+        <result column="first_fee" property="firstFee"/>
+        <result column="additional_weight" property="additionalWeight"/>
+        <result column="additional_fee" property="additionalFee"/>
         <result column="is_default" property="isDefault"/>
         <result column="status" property="status"/>
         <result column="remark" property="remark"/>
@@ -15,21 +20,21 @@
     </resultMap>
 
     <select id="findByCompanyId" resultMap="BaseResultMap">
-        SELECT id, company_id, name, is_default, status, remark, created_at, updated_at
+        SELECT id, company_id, name, template_type, first_weight, first_fee, additional_weight, additional_fee, is_default, status, remark, created_at, updated_at
         FROM express_fee_template
         WHERE company_id = #{companyId} AND deleted = 0 AND status = 1
         ORDER BY is_default DESC, id ASC
     </select>
 
     <select id="findAll" resultMap="BaseResultMap">
-        SELECT id, company_id, name, is_default, status, remark, created_at, updated_at
+        SELECT id, company_id, name, template_type, first_weight, first_fee, additional_weight, additional_fee, is_default, status, remark, created_at, updated_at
         FROM express_fee_template
         WHERE deleted = 0 AND status = 1
         ORDER BY is_default DESC, id ASC
     </select>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT t.id, t.company_id, t.name, t.is_default, t.status, t.remark, t.created_at, t.updated_at,
+        SELECT t.id, t.company_id, t.name, t.template_type, t.first_weight, t.first_fee, t.additional_weight, t.additional_fee, t.is_default, t.status, t.remark, t.created_at, t.updated_at,
                c.name AS company_name
         FROM express_fee_template t
         LEFT JOIN express_company c ON t.company_id = c.id AND c.deleted = 0
@@ -44,21 +49,21 @@
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT id, company_id, name, is_default, status, remark, created_at, updated_at
+        SELECT id, company_id, name, template_type, first_weight, first_fee, additional_weight, additional_fee, is_default, status, remark, created_at, updated_at
         FROM express_fee_template
         WHERE id = #{id} AND deleted = 0
     </select>
 
     <select id="findDefault" resultMap="BaseResultMap">
-        SELECT id, company_id, name, is_default, status, remark, created_at, updated_at
+        SELECT id, company_id, name, template_type, first_weight, first_fee, additional_weight, additional_fee, is_default, status, remark, created_at, updated_at
         FROM express_fee_template
         WHERE is_default = 1 AND deleted = 0 AND status = 1
         LIMIT 1
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO express_fee_template (company_id, name, is_default, status, remark)
-        VALUES (#{companyId}, #{name}, #{isDefault}, #{status}, #{remark})
+        INSERT INTO express_fee_template (company_id, name, template_type, first_weight, first_fee, additional_weight, additional_fee, is_default, status, remark)
+        VALUES (#{companyId}, #{name}, #{templateType}, #{firstWeight}, #{firstFee}, #{additionalWeight}, #{additionalFee}, #{isDefault}, #{status}, #{remark})
     </insert>
 
     <update id="update">
@@ -66,6 +71,11 @@
         <set>
             <if test="companyId != null">company_id = #{companyId},</if>
             <if test="name != null">name = #{name},</if>
+            <if test="templateType != null">template_type = #{templateType},</if>
+            <if test="firstWeight != null">first_weight = #{firstWeight},</if>
+            <if test="firstFee != null">first_fee = #{firstFee},</if>
+            <if test="additionalWeight != null">additional_weight = #{additionalWeight},</if>
+            <if test="additionalFee != null">additional_fee = #{additionalFee},</if>
             <if test="isDefault != null">is_default = #{isDefault},</if>
             <if test="status != null">status = #{status},</if>
             <if test="remark != null">remark = #{remark},</if>

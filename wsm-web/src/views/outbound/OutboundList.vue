@@ -260,8 +260,8 @@
 
       <el-divider content-position="left">快递信息</el-divider>
       <el-form label-width="100px">
-        <el-form-item label="快递单号">
-          <el-input v-model="confirmForm.trackingNo" placeholder="请输入快递单号（选填）" />
+        <el-form-item label="快递单号" required>
+          <el-input v-model="confirmForm.trackingNo" placeholder="请输入快递单号" />
         </el-form-item>
         <el-form-item label="快递公司" required>
           <el-select v-model="confirmForm.expressCompanyId" placeholder="请选择快递公司" style="width: 100%" @change="handleCompanyChange">
@@ -269,15 +269,15 @@
           </el-select>
         </el-form-item>
         <el-form-item label="费用模板" required>
-          <el-select v-model="confirmForm.feeTemplateId" placeholder="请选择费用模板" style="width: 100%">
+          <el-select v-model="confirmForm.feeTemplateId" placeholder="请选择费用模板" style="width: 100%" @change="handleTemplateChange">
             <el-option v-for="t in templateList" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="预估重量(kg)">
-          <el-input-number v-model="confirmForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" />
+        <el-form-item label="预估重量(kg)" required>
+          <el-input-number v-model="confirmForm.estimatedWeight" :min="0.01" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" />
         </el-form-item>
-        <el-form-item label="快递费用">
-          <el-input-number v-model="confirmForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
+        <el-form-item label="快递费用" required>
+          <el-input-number v-model="confirmForm.shippingFee" :min="0.01" :precision="2" style="width: 100%" />
           <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
         </el-form-item>
       </el-form>
@@ -516,11 +516,13 @@ const confirmForm = reactive({
   shippingFee: undefined as number | undefined,
 })
 
-// 重量或模板变化时自动计算快递费
+const confirmTemplateDetail = ref<any>(null) // 缓存模板详情
+
+// 重量变化时自动计算快递费
 watch(
-  () => [confirmForm.estimatedWeight, confirmForm.feeTemplateId],
+  () => confirmForm.estimatedWeight,
   () => {
-    if (confirmForm.estimatedWeight && confirmForm.estimatedWeight > 0 && confirmForm.feeTemplateId) {
+    if (confirmForm.estimatedWeight && confirmForm.estimatedWeight > 0 && confirmTemplateDetail.value) {
       calculateFeeByTemplate()
     }
   }
@@ -556,6 +558,7 @@ async function openConfirmDialog(row: OutboundOrder) {
 
 async function handleCompanyChange(companyId: number) {
   confirmForm.feeTemplateId = undefined
+  confirmTemplateDetail.value = null
   templateList.value = []
   if (companyId) {
     try {
@@ -564,11 +567,7 @@ async function handleCompanyChange(companyId: number) {
       // 自动选择默认模板
       const defaultTemplate = templateList.value.find(t => t.isDefault === 1)
       if (defaultTemplate) {
-        confirmForm.feeTemplateId = defaultTemplate.id
-        // 如果有重量，自动计算费用
-        if (confirmForm.estimatedWeight > 0) {
-          await calculateFeeByTemplate()
-        }
+        await loadTemplateDetail(defaultTemplate.id)
       }
     } catch {
       templateList.value = []
@@ -576,35 +575,68 @@ async function handleCompanyChange(companyId: number) {
   }
 }
 
-async function calculateFeeByTemplate() {
-  if (!confirmForm.feeTemplateId || !confirmForm.estimatedWeight || confirmForm.estimatedWeight <= 0) return
-
+async function loadTemplateDetail(templateId: number) {
+  confirmForm.feeTemplateId = templateId
   try {
-    const res = await getTemplateDetail(confirmForm.feeTemplateId)
-    const template = res.data
-    if (template && template.steps && template.steps.length > 0) {
-      // 按minWeight排序，确保从小到大
-      const sortedSteps = [...template.steps].sort((a, b) => a.minWeight - b.minWeight)
+    const res = await getTemplateDetail(templateId)
+    confirmTemplateDetail.value = res.data
+    // 如果有重量，自动计算费用
+    if (confirmForm.estimatedWeight && confirmForm.estimatedWeight > 0) {
+      calculateFeeByTemplate()
+    }
+  } catch {
+    confirmTemplateDetail.value = null
+  }
+}
 
-      // 精确匹配阶梯：minWeight <= 输入重量 < maxWeight
-      const matchedStep = sortedSteps.find(s =>
-        confirmForm.estimatedWeight >= s.minWeight && confirmForm.estimatedWeight < s.maxWeight
-      )
+async function handleTemplateChange(templateId: number) {
+  if (templateId) {
+    await loadTemplateDetail(templateId)
+  } else {
+    confirmTemplateDetail.value = null
+    confirmForm.shippingFee = undefined
+  }
+}
 
-      if (matchedStep) {
-        confirmForm.shippingFee = matchedStep.fee
+function calculateFeeByTemplate() {
+  if (!confirmTemplateDetail.value || !confirmForm.estimatedWeight || confirmForm.estimatedWeight <= 0) return
+
+  const template = confirmTemplateDetail.value
+
+  // 首重续重类型
+  if (template.templateType === 'FIRST_CONTINUE') {
+    const firstWeight = template.firstWeight || 1
+    const firstFee = template.firstFee || 0
+    const additionalWeight = template.additionalWeight || 1
+    const additionalFee = template.additionalFee || 0
+
+    if (confirmForm.estimatedWeight <= firstWeight) {
+      confirmForm.shippingFee = firstFee
+    } else {
+      const extraWeight = confirmForm.estimatedWeight - firstWeight
+      const extraUnits = Math.ceil(extraWeight / additionalWeight)
+      confirmForm.shippingFee = firstFee + extraUnits * additionalFee
+    }
+  }
+  // 阶梯计费类型
+  else if (template.steps && template.steps.length > 0) {
+    const sortedSteps = [...template.steps].sort((a, b) => a.minWeight - b.minWeight)
+    const matchedStep = sortedSteps.find(s =>
+      confirmForm.estimatedWeight >= s.minWeight && confirmForm.estimatedWeight < s.maxWeight
+    )
+
+    if (matchedStep) {
+      confirmForm.shippingFee = matchedStep.fee
+    } else {
+      const lastStep = sortedSteps[sortedSteps.length - 1]
+      if (confirmForm.estimatedWeight >= lastStep.minWeight) {
+        confirmForm.shippingFee = lastStep.fee
       } else {
-        // 如果没有匹配到，可能是超出最大阶梯，使用最后一个阶梯的费用
-        const lastStep = sortedSteps[sortedSteps.length - 1]
-        if (confirmForm.estimatedWeight >= lastStep.minWeight) {
-          confirmForm.shippingFee = lastStep.fee
-        } else {
-          confirmForm.shippingFee = undefined
-          ElMessage.warning('未找到匹配的费用阶梯')
-        }
+        confirmForm.shippingFee = undefined
+        ElMessage.warning('未找到匹配的费用阶梯')
       }
     }
-  } catch {}
+  }
 }
 
 async function handleCancel(id: number) {
@@ -616,12 +648,24 @@ async function handleCancel(id: number) {
 }
 
 async function handleConfirm() {
+  if (!confirmForm.trackingNo) {
+    ElMessage.warning('请输入快递单号')
+    return
+  }
   if (!confirmForm.expressCompanyId) {
     ElMessage.warning('请选择快递公司')
     return
   }
   if (!confirmForm.feeTemplateId) {
     ElMessage.warning('请选择费用模板')
+    return
+  }
+  if (!confirmForm.estimatedWeight || confirmForm.estimatedWeight <= 0) {
+    ElMessage.warning('请输入预估重量')
+    return
+  }
+  if (!confirmForm.shippingFee || confirmForm.shippingFee <= 0) {
+    ElMessage.warning('请输入快递费用')
     return
   }
   try {
@@ -634,10 +678,10 @@ async function handleConfirm() {
   try {
     await confirmOutbound({
       outboundId: confirmForm.outboundId,
-      trackingNo: confirmForm.trackingNo || undefined,
+      trackingNo: confirmForm.trackingNo,
       expressCompanyId: confirmForm.expressCompanyId,
       feeTemplateId: confirmForm.feeTemplateId,
-      estimatedWeight: confirmForm.estimatedWeight > 0 ? confirmForm.estimatedWeight : undefined,
+      estimatedWeight: confirmForm.estimatedWeight,
       shippingFee: confirmForm.shippingFee,
     })
     ElMessage.success('发货确认成功')
