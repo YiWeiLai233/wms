@@ -25,7 +25,10 @@ public class DashboardVO {
     /** 库存预警数（库存低于阈值） */
     private Long stockAlertCount;
 
-    /** 最近7天订单趋势 */
+    /** 最近7天订单趋势（按平台） */
+    private List<PlatformTrend> platformTrends;
+
+    /** 最近7天订单趋势（总计，兼容旧版） */
     private List<DayCount> orderTrend;
 
     /** 订单状态分布 */
@@ -33,6 +36,17 @@ public class DashboardVO {
 
     /** 本月出货量TOP10 SKU */
     private List<SkuRank> topSkus;
+
+    /**
+     * 平台趋势
+     */
+    @Data
+    public static class PlatformTrend {
+        private Long platformId;
+        private String platformName;
+        private String platformColor;
+        private List<DayCount> data;
+    }
 
     /**
      * 每日数量

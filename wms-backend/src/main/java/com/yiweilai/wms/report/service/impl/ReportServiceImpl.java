@@ -67,11 +67,66 @@ public class ReportServiceImpl implements ReportService {
                 Long.class);
         vo.setStockAlertCount(stockAlertCount != null ? stockAlertCount : 0L);
 
-        // 最近7天订单趋势
-        List<DashboardVO.DayCount> orderTrend = new ArrayList<>();
+        // 最近7天订单趋势（按平台）
+        List<DashboardVO.PlatformTrend> platformTrends = new ArrayList<>();
+        List<Map<String, Object>> platforms = jdbcTemplate.queryForList(
+                "SELECT id, name, color FROM platform WHERE deleted = 0 AND enabled = 1 ORDER BY id");
+
+        // 获取最近7天的日期列表
+        List<String> dates = new ArrayList<>();
         for (int i = 6; i >= 0; i--) {
             LocalDate date = LocalDate.now().minusDays(i);
-            String dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            dates.add(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+        }
+
+        // 为每个平台统计数据
+        for (Map<String, Object> platform : platforms) {
+            Long platformId = ((Number) platform.get("id")).longValue();
+            String platformName = (String) platform.get("name");
+            String platformColor = (String) platform.get("color");
+
+            DashboardVO.PlatformTrend trend = new DashboardVO.PlatformTrend();
+            trend.setPlatformId(platformId);
+            trend.setPlatformName(platformName);
+            trend.setPlatformColor(platformColor != null ? platformColor : "#94a3b8");
+
+            List<DashboardVO.DayCount> data = new ArrayList<>();
+            for (String dateStr : dates) {
+                Long count = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM sales_order WHERE DATE(created_at) = ? AND platform_id = ? AND deleted = 0",
+                        Long.class, dateStr, platformId);
+                DashboardVO.DayCount dayCount = new DashboardVO.DayCount();
+                dayCount.setDate(dateStr);
+                dayCount.setCount(count != null ? count : 0L);
+                data.add(dayCount);
+            }
+            trend.setData(data);
+            platformTrends.add(trend);
+        }
+
+        // 统计未分配平台的订单
+        DashboardVO.PlatformTrend noPlatformTrend = new DashboardVO.PlatformTrend();
+        noPlatformTrend.setPlatformId(0L);
+        noPlatformTrend.setPlatformName("其他");
+        noPlatformTrend.setPlatformColor("#94a3b8");
+        List<DashboardVO.DayCount> noPlatformData = new ArrayList<>();
+        for (String dateStr : dates) {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM sales_order WHERE DATE(created_at) = ? AND platform_id IS NULL AND deleted = 0",
+                    Long.class, dateStr);
+            DashboardVO.DayCount dayCount = new DashboardVO.DayCount();
+            dayCount.setDate(dateStr);
+            dayCount.setCount(count != null ? count : 0L);
+            noPlatformData.add(dayCount);
+        }
+        noPlatformTrend.setData(noPlatformData);
+        platformTrends.add(noPlatformTrend);
+
+        vo.setPlatformTrends(platformTrends);
+
+        // 最近7天订单趋势（总计，兼容旧版）
+        List<DashboardVO.DayCount> orderTrend = new ArrayList<>();
+        for (String dateStr : dates) {
             Long count = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM sales_order WHERE DATE(created_at) = ? AND deleted = 0",
                     Long.class, dateStr);

@@ -111,43 +111,96 @@ const dashboard = ref<DashboardData>({
   topSkus: [],
 })
 
-const trendOption = computed(() => ({
-  tooltip: { trigger: 'axis' },
-  grid: { left: 40, right: 20, top: 20, bottom: 30 },
-  xAxis: {
-    type: 'category',
-    data: dashboard.value.orderTrend.map((i) => i.date.slice(5)),
-    axisLine: { lineStyle: { color: '#e5e7eb' } },
-    axisLabel: { color: '#6b7280' },
-  },
-  yAxis: {
-    type: 'value',
-    axisLine: { show: false },
-    splitLine: { lineStyle: { color: '#f3f4f6' } },
-    axisLabel: { color: '#6b7280' },
-  },
-  series: [
-    {
-      type: 'line',
-      data: dashboard.value.orderTrend.map((i) => i.count),
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 6,
-      lineStyle: { width: 3, color: '#3b82f6' },
-      itemStyle: { color: '#3b82f6' },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(59,130,246,0.2)' },
-            { offset: 1, color: 'rgba(59,130,246,0)' },
-          ],
+const trendOption = computed(() => {
+  const dates = dashboard.value.orderTrend.map((i) => i.date.slice(5))
+  const platformTrends = dashboard.value.platformTrends || []
+
+  // 如果有平台趋势数据，按平台显示曲线
+  if (platformTrends.length > 0) {
+    return {
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: any) => {
+          let result = `<div style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
+          params.forEach((param: any) => {
+            result += `<div style="display:flex;align-items:center;gap:5px">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${param.color}"></span>
+              <span>${param.seriesName}: ${param.value}</span>
+            </div>`
+          })
+          return result
         },
       },
+      legend: {
+        data: platformTrends.map((t) => t.platformName),
+        bottom: 0,
+        textStyle: { color: '#6b7280', fontSize: 12 },
+      },
+      grid: { left: 40, right: 20, top: 20, bottom: 40 },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLine: { lineStyle: { color: '#e5e7eb' } },
+        axisLabel: { color: '#6b7280' },
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { show: false },
+        splitLine: { lineStyle: { color: '#f3f4f6' } },
+        axisLabel: { color: '#6b7280' },
+      },
+      series: platformTrends.map((trend) => ({
+        name: trend.platformName,
+        type: 'line',
+        data: trend.data.map((i) => i.count),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { width: 2, color: trend.platformColor },
+        itemStyle: { color: trend.platformColor },
+      })),
+    }
+  }
+
+  // 兼容旧版：显示总计曲线
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 40, right: 20, top: 20, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisLabel: { color: '#6b7280' },
     },
-  ],
-}))
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: '#f3f4f6' } },
+      axisLabel: { color: '#6b7280' },
+    },
+    series: [
+      {
+        type: 'line',
+        data: dashboard.value.orderTrend.map((i) => i.count),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { width: 3, color: '#3b82f6' },
+        itemStyle: { color: '#3b82f6' },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(59,130,246,0.2)' },
+              { offset: 1, color: 'rgba(59,130,246,0)' },
+            ],
+          },
+        },
+      },
+    ],
+  }
+})
 
 const pieOption = computed(() => ({
   tooltip: { trigger: 'item' },

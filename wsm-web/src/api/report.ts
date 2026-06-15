@@ -7,6 +7,7 @@ export interface DashboardData {
   todayOutboundCount: number
   todayReturnCount: number
   stockAlertCount: number
+  platformTrends?: { platformId: number; platformName: string; platformColor: string; data: { date: string; count: number }[] }[]
   orderTrend: { date: string; count: number }[]
   orderStatusDistribution: { status: string; statusName: string; count: number }[]
   topSkus: { skuId: number; skuCode: string; skuName: string; totalQuantity: number }[]
