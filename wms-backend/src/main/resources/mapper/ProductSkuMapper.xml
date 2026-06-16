@@ -62,6 +62,7 @@
     <select id="findByPage" resultMap="BaseResultMap">
         SELECT s.id, s.product_id, s.sku_code, s.name, s.size_value, s.quantity, s.cost_price, s.sale_price,
                s.weight, s.volume, s.image, s.status, s.created_at, s.updated_at,
+               p.main_image AS main_image,
                COALESCE(inv.available_qty, 0) AS available_qty,
                COALESCE(inv.locked_qty, 0) AS locked_qty,
                COALESCE(inv.total_qty, 0) AS total_qty,
