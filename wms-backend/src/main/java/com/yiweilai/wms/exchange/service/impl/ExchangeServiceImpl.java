@@ -326,10 +326,17 @@ public class ExchangeServiceImpl implements ExchangeService {
         exchangeOrderMapper.updateStatus(exchangeId, "EXCHANGED");
 
         // 把原出库单标记为已换货（不参与销量统计）
+        if (expressCompanyId != null || trackingNo != null || shippingFee != null) {
+            outboundOrderMapper.updateExpressInfo(outboundOrder.getId(), expressCompanyId, trackingNo, shippingFee);
+        }
+
         OutboundOrder originalOutbound = outboundOrderMapper.findByOrderIdAndStatus(order.getOrderId(), "SHIPPED");
         if (originalOutbound != null) {
             outboundOrderMapper.updateStatus(originalOutbound.getId(), "EXCHANGED");
         }
+
+        outboundOrderMapper.updateStatus(outboundOrder.getId(), "SHIPPED");
+        outboundOrderMapper.updateShippedAt(outboundOrder.getId());
 
         // 更新原订单明细
         updateOrderItems(order.getOrderId(), allItems);

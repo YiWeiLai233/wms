@@ -2,7 +2,15 @@ package com.yiweilai.wms.returns.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.express.mapper.ExpressCompanyMapper;
+import com.yiweilai.wms.express.mapper.ExpressFeeStepMapper;
+import com.yiweilai.wms.express.mapper.ExpressFeeTemplateMapper;
+import com.yiweilai.wms.order.mapper.SalesOrderItemMapper;
+import com.yiweilai.wms.order.mapper.SalesOrderMapper;
+import com.yiweilai.wms.platform.mapper.PlatformMapper;
+import com.yiweilai.wms.returns.dto.ReturnBatchCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnCheckDTO;
+import com.yiweilai.wms.returns.dto.ReturnConfirmDTO;
 import com.yiweilai.wms.returns.dto.ReturnCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnQueryDTO;
 import com.yiweilai.wms.returns.service.ReturnService;
@@ -15,6 +23,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -27,7 +36,7 @@ class ReturnControllerTest {
     void confirmAcceptsReturnIdJsonObject() throws Exception {
         CapturingReturnService returnService = new CapturingReturnService();
         MockMvc mockMvc = MockMvcBuilders
-                .standaloneSetup(new ReturnController(returnService))
+                .standaloneSetup(controller(returnService))
                 .build();
 
         mockMvc.perform(post("/api/returns/confirm")
@@ -43,7 +52,7 @@ class ReturnControllerTest {
     void createRejectsEmptyReturnItems() throws Exception {
         CapturingReturnService returnService = new CapturingReturnService();
         MockMvc mockMvc = MockMvcBuilders
-                .standaloneSetup(new ReturnController(returnService))
+                .standaloneSetup(controller(returnService))
                 .build();
 
         mockMvc.perform(post("/api/returns/create")
@@ -53,6 +62,17 @@ class ReturnControllerTest {
                                 "reason", "damaged",
                                 "items", java.util.List.of()))))
                 .andExpect(status().isBadRequest());
+    }
+
+    private ReturnController controller(ReturnService returnService) {
+        return new ReturnController(
+                returnService,
+                mock(PlatformMapper.class),
+                mock(ExpressFeeTemplateMapper.class),
+                mock(ExpressFeeStepMapper.class),
+                mock(SalesOrderMapper.class),
+                mock(SalesOrderItemMapper.class),
+                mock(ExpressCompanyMapper.class));
     }
 
     private static class CapturingReturnService implements ReturnService {
@@ -74,12 +94,17 @@ class ReturnControllerTest {
         }
 
         @Override
+        public java.util.List<Long> createBatch(ReturnBatchCreateDTO dto) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void check(ReturnCheckDTO dto) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void confirm(Long returnId) {
+        public void confirm(Long returnId, java.util.List<ReturnConfirmDTO.ReturnConfirmItemDTO> items) {
             confirmedReturnId = returnId;
         }
 

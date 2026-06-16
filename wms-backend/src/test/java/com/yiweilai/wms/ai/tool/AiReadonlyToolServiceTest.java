@@ -20,6 +20,7 @@ import com.yiweilai.wms.outbound.dto.OutboundQueryDTO;
 import com.yiweilai.wms.outbound.dto.OutboundScanDTO;
 import com.yiweilai.wms.outbound.service.OutboundService;
 import com.yiweilai.wms.outbound.vo.OutboundOrderVO;
+import com.yiweilai.wms.returns.dto.ReturnBatchCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnCheckDTO;
 import com.yiweilai.wms.returns.dto.ReturnCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnQueryDTO;
@@ -146,8 +147,9 @@ class AiReadonlyToolServiceTest {
         verify(returnService).findByPage(any(ReturnQueryDTO.class));
         verify(returnService, never()).getById(any());
         verify(returnService, never()).create(any(ReturnCreateDTO.class));
+        verify(returnService, never()).createBatch(any(ReturnBatchCreateDTO.class));
         verify(returnService, never()).check(any(ReturnCheckDTO.class));
-        verify(returnService, never()).confirm(any());
+        verify(returnService, never()).confirm(any(), any());
         verify(returnService, never()).cancel(any());
         verify(returnService, never()).cancelByOrderId(any());
     }

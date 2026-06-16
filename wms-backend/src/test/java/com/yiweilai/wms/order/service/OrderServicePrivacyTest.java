@@ -11,10 +11,13 @@ import com.yiweilai.wms.privacy.config.PrivacyCryptoProperties;
 import com.yiweilai.wms.privacy.crypto.AesGcmPrivacyCryptoService;
 import com.yiweilai.wms.privacy.crypto.HmacPrivacyHashService;
 import com.yiweilai.wms.product.entity.ProductSku;
+import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.product.util.ProductImageHelper;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
+import com.yiweilai.wms.stock.service.StockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -34,8 +37,11 @@ class OrderServicePrivacyTest {
     private SalesOrderMapper orderMapper;
     private SalesOrderItemMapper orderItemMapper;
     private ProductSkuMapper productSkuMapper;
+    private ProductMapper productMapper;
     private StockMapper stockMapper;
     private StockLogMapper stockLogMapper;
+    private StockService stockService;
+    private ProductImageHelper productImageHelper;
     private AesGcmPrivacyCryptoService cryptoService;
     private HmacPrivacyHashService hashService;
     private OrderServiceImpl service;
@@ -45,16 +51,22 @@ class OrderServicePrivacyTest {
         orderMapper = mock(SalesOrderMapper.class);
         orderItemMapper = mock(SalesOrderItemMapper.class);
         productSkuMapper = mock(ProductSkuMapper.class);
+        productMapper = mock(ProductMapper.class);
         stockMapper = mock(StockMapper.class);
         stockLogMapper = mock(StockLogMapper.class);
+        stockService = mock(StockService.class);
+        productImageHelper = mock(ProductImageHelper.class);
         cryptoService = new AesGcmPrivacyCryptoService(properties());
         hashService = new HmacPrivacyHashService(properties());
         service = new OrderServiceImpl(
                 orderMapper,
                 orderItemMapper,
                 productSkuMapper,
+                productMapper,
                 stockMapper,
                 stockLogMapper,
+                stockService,
+                productImageHelper,
                 cryptoService,
                 hashService);
     }

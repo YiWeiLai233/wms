@@ -13,9 +13,13 @@ import com.yiweilai.wms.order.entity.SalesOrderItem;
 import com.yiweilai.wms.order.mapper.SalesOrderItemMapper;
 import com.yiweilai.wms.order.mapper.SalesOrderMapper;
 import com.yiweilai.wms.product.mapper.ProductBarcodeMapper;
+import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
+import com.yiweilai.wms.product.util.ProductImageHelper;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
+import com.yiweilai.wms.stock.service.StockService;
+import com.yiweilai.wms.warehouse.mapper.WarehouseMapper;
 import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +56,9 @@ class OutboundServiceImplTest {
     private ProductSkuMapper productSkuMapper;
 
     @Mock
+    private ProductMapper productMapper;
+
+    @Mock
     private ProductBarcodeMapper productBarcodeMapper;
 
     @Mock
@@ -59,6 +66,15 @@ class OutboundServiceImplTest {
 
     @Mock
     private StockLogMapper stockLogMapper;
+
+    @Mock
+    private StockService stockService;
+
+    @Mock
+    private ProductImageHelper productImageHelper;
+
+    @Mock
+    private WarehouseMapper warehouseMapper;
 
     @Mock
     private WarehouseShelfMapper shelfMapper;
@@ -79,9 +95,13 @@ class OutboundServiceImplTest {
                 salesOrderMapper,
                 salesOrderItemMapper,
                 productSkuMapper,
+                productMapper,
                 productBarcodeMapper,
                 stockMapper,
                 stockLogMapper,
+                stockService,
+                productImageHelper,
+                warehouseMapper,
                 shelfMapper,
                 feeStepMapper,
                 feeTemplateMapper);

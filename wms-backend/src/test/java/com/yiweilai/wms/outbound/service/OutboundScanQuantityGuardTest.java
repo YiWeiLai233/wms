@@ -19,6 +19,7 @@ class OutboundScanQuantityGuardTest {
         assertThat(serviceSource)
                 .doesNotContain("pickedQty < item.getQuantity()")
                 .doesNotContain("商品未选择出库货架")
-                .contains("findAvailableBySkuAndWarehouse");
+                .contains("updateStatus(dto.getOutboundId(), \"SHIPPED\")")
+                .contains("updateShippedAt(dto.getOutboundId())");
     }
 }
