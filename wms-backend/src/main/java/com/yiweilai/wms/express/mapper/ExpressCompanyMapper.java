@@ -34,6 +34,11 @@ public interface ExpressCompanyMapper {
     ExpressCompany findByCode(@Param("code") String code);
 
     /**
+     * 根据名称查询
+     */
+    ExpressCompany findByName(@Param("name") String name);
+
+    /**
      * 新增
      */
     int insert(ExpressCompany company);

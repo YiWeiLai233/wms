@@ -46,6 +46,12 @@
         WHERE code = #{code} AND deleted = 0
     </select>
 
+    <select id="findByName" resultMap="BaseResultMap">
+        SELECT id, name, code, contact, phone, status, created_at, updated_at
+        FROM express_company
+        WHERE name = #{name} AND deleted = 0
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO express_company (name, code, contact, phone, status)
         VALUES (#{name}, #{code}, #{contact}, #{phone}, #{status})

@@ -88,6 +88,20 @@
         WHERE so.order_no = #{orderNo} AND so.deleted = 0
     </select>
 
+    <select id="findByPlatformOrderNo" resultMap="BaseResultMap">
+        SELECT so.id, so.order_no, so.platform_order_no, so.platform_id,
+               p.name AS platform_name, p.color AS platform_color,
+               so.warehouse_id, w.name AS warehouse_name,
+               so.receiver_name, so.receiver_phone, so.receiver_address,
+               so.receiver_name_hash, so.receiver_phone_hash, so.order_status,
+               so.total_amount, so.remark, so.paid_at, so.shipped_at, so.finished_at,
+               so.deleted, so.created_at, so.updated_at
+        FROM sales_order so
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        LEFT JOIN platform p ON so.platform_id = p.id AND p.deleted = 0
+        WHERE so.platform_order_no = #{platformOrderNo} AND so.deleted = 0
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO sales_order (order_no, platform_order_no, platform_id, warehouse_id, receiver_name,
                                  receiver_phone, receiver_address, receiver_name_hash,

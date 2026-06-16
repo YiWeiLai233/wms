@@ -485,7 +485,7 @@
     </el-dialog>
 
     <!-- 文档导入弹窗 -->
-    <el-dialog v-model="fileImportDialogVisible" title="文档导入订单" width="680px" destroy-on-close>
+    <el-dialog v-model="fileImportDialogVisible" title="文档导入" width="680px" destroy-on-close>
       <el-alert type="info" :closable="false" class="mb-4">
         <template #title>
           <div class="text-sm">
@@ -499,12 +499,19 @@
         </template>
       </el-alert>
 
-      <div class="mb-4">
-        <el-button type="primary" link icon="Download" @click="downloadTemplate">下载导入模板</el-button>
+      <div class="mb-4 flex gap-4">
+        <el-button type="primary" link icon="Download" @click="downloadTemplate">下载订单导入模板</el-button>
+        <el-button type="warning" link icon="Download" @click="downloadReturnTemplate">下载批量退货模板</el-button>
       </div>
 
       <el-form :model="fileImportForm" label-width="80px">
-        <el-form-item label="目标仓库" required>
+        <el-form-item label="导入类型" required>
+          <el-radio-group v-model="fileImportForm.importType">
+            <el-radio value="order">订单导入</el-radio>
+            <el-radio value="return">批量退货</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="fileImportForm.importType === 'order'" label="目标仓库" required>
           <el-select v-model="fileImportForm.warehouseId" placeholder="请选择目标仓库" style="width: 100%">
             <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
           </el-select>
@@ -534,7 +541,7 @@
       </el-upload>
 
       <el-divider content-position="left">模板格式</el-divider>
-      <el-table :data="templateFormatData" border size="small" class="mb-2">
+      <el-table :data="fileImportForm.importType === 'return' ? returnTemplateFormatData : templateFormatData" border size="small" class="mb-2">
         <el-table-column prop="field" label="字段名" width="120" />
         <el-table-column prop="required" label="必填" width="60" align="center">
           <template #default="{ row }">
@@ -547,7 +554,7 @@
 
       <template #footer>
         <el-button @click="fileImportDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="fileImporting" :disabled="!fileImportForm.warehouseId" @click="handleFileImport">开始导入</el-button>
+        <el-button type="primary" :loading="fileImporting" :disabled="fileImportForm.importType === 'order' && !fileImportForm.warehouseId" @click="handleFileImport">开始导入</el-button>
       </template>
     </el-dialog>
   </div>
@@ -1038,11 +1045,16 @@ const fileImporting = ref(false)
 const uploadRef = ref()
 const selectedFile = ref<File | null>(null)
 const fileImportForm = reactive({
+  importType: 'order' as 'order' | 'return',
   warehouseId: undefined as number | undefined,
 })
 
 const BASE_URL = 'http://localhost:8080'
-const uploadUrl = `${BASE_URL}/api/orders/import-file`
+const uploadUrl = computed(() =>
+  fileImportForm.importType === 'return'
+    ? `${BASE_URL}/api/returns/import-file`
+    : `${BASE_URL}/api/orders/import-file`
+)
 const uploadHeaders = {
   Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
 }
@@ -1061,6 +1073,16 @@ const templateFormatData = [
   { field: 'skuCode', required: true, example: 'SPU001-42', desc: 'SKU编码，必须系统中存在' },
   { field: 'quantity', required: false, example: '1', desc: '数量，默认1' },
   { field: 'unitPrice', required: false, example: '59.90', desc: '单价，默认0' },
+]
+
+const returnTemplateFormatData = [
+  { field: 'platformOrderNo', required: true, example: 'TB20240101001', desc: '平台单号，必须是系统中已发货的订单' },
+  { field: 'reason', required: true, example: '商品质量问题', desc: '退货原因' },
+  { field: 'trackingNo', required: false, example: 'SF1234567890', desc: '客户退回的快递单号' },
+  { field: 'feeTemplate', required: false, example: '退货标准', desc: '费用模板名称，用于计算快递费' },
+  { field: 'estimatedWeight', required: false, example: '1.5', desc: '预估重量(kg)，用于计算快递费' },
+  { field: 'shippingFee', required: false, example: '8.00', desc: '退货快递费，不填则自动计算' },
+  { field: 'remark', required: false, example: '商品有破损', desc: '备注' },
 ]
 
 const skuGroups = computed(() => {
@@ -1177,6 +1199,36 @@ function downloadTemplate() {
   })
 }
 
+function downloadReturnTemplate() {
+  // 使用 xlsx 库生成批量退货模板
+  import('xlsx').then((XLSX) => {
+    const headers = ['platformOrderNo', 'reason', 'trackingNo', 'feeTemplate', 'estimatedWeight', 'shippingFee', 'remark']
+    const exampleRow1 = ['TB20240101001', '商品质量问题', 'SF1234567890', '退货标准', 1.5, '', '商品有破损']
+    const exampleRow2 = ['PDD20240101002', '七天无理由退货', '', '退货标准', 0.5, '', '']
+    const exampleRow3 = ['JD20240101003', '发错货', 'YT9876543210', '', '', 10.00, '收到的商品与下单不符']
+
+    const data = [headers, exampleRow1, exampleRow2, exampleRow3]
+    const ws = XLSX.utils.aoa_to_sheet(data)
+
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 20 }, // platformOrderNo
+      { wch: 20 }, // reason
+      { wch: 20 }, // trackingNo
+      { wch: 15 }, // feeTemplate
+      { wch: 15 }, // estimatedWeight
+      { wch: 12 }, // shippingFee
+      { wch: 30 }, // remark
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '批量退货模板')
+    XLSX.writeFile(wb, '批量退货模板.xlsx')
+  }).catch(() => {
+    ElMessage.error('生成模板失败，请确保已安装 xlsx 库')
+  })
+}
+
 function beforeUpload(file: File) {
   const isValidType = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
     file.type === 'application/vnd.ms-excel' ||
@@ -1257,7 +1309,7 @@ async function handleFileImport() {
     ElMessage.warning('请先选择要导入的文件')
     return
   }
-  if (!fileImportForm.warehouseId) {
+  if (fileImportForm.importType === 'order' && !fileImportForm.warehouseId) {
     ElMessage.warning('请选择目标仓库')
     return
   }
@@ -1265,10 +1317,12 @@ async function handleFileImport() {
   fileImporting.value = true
   const formData = new FormData()
   formData.append('file', selectedFile.value)
-  formData.append('warehouseId', String(fileImportForm.warehouseId))
+  if (fileImportForm.warehouseId) {
+    formData.append('warehouseId', String(fileImportForm.warehouseId))
+  }
 
   try {
-    const response = await fetch(uploadUrl, {
+    const response = await fetch(uploadUrl.value, {
       method: 'POST',
       headers: uploadHeaders,
       body: formData,
@@ -1276,12 +1330,13 @@ async function handleFileImport() {
     const result = await response.json()
     if (result.code === 200) {
       const data = result.data
+      const importType = fileImportForm.importType === 'return' ? '退货单' : '订单'
       if (data && data.errors && data.errors.length > 0) {
         // 有部分失败
         showImportResult(data)
       } else {
         // 全部成功
-        ElMessage.success(`导入成功，共导入 ${data || 0} 条订单`)
+        ElMessage.success(`导入成功，共导入 ${data || 0} 条${importType}`)
         fileImportDialogVisible.value = false
         selectedFile.value = null
         fetchData()

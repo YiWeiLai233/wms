@@ -42,6 +42,11 @@ public interface SalesOrderMapper {
     SalesOrder findByOrderNo(@Param("orderNo") String orderNo);
 
     /**
+     * 根据平台单号查询
+     */
+    SalesOrder findByPlatformOrderNo(@Param("platformOrderNo") String platformOrderNo);
+
+    /**
      * 新增订单
      */
     int insert(SalesOrder order);
