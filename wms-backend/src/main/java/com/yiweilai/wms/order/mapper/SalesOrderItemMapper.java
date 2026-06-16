@@ -23,6 +23,11 @@ public interface SalesOrderItemMapper {
     int insert(SalesOrderItem item);
 
     /**
+     * 根据ID删除明细
+     */
+    int deleteById(@Param("id") Long id);
+
+    /**
      * 根据订单ID删除明细
      */
     int deleteByOrderId(@Param("orderId") Long orderId);

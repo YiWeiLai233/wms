@@ -30,6 +30,10 @@
         VALUES (#{orderId}, #{skuId}, #{skuCode}, #{skuName}, #{quantity}, #{unitPrice}, #{totalPrice})
     </insert>
 
+    <delete id="deleteById">
+        DELETE FROM sales_order_item WHERE id = #{id}
+    </delete>
+
     <delete id="deleteByOrderId">
         DELETE FROM sales_order_item WHERE order_id = #{orderId}
     </delete>
