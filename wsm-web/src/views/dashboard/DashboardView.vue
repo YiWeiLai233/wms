@@ -164,7 +164,7 @@ const trendOption = computed(() => {
         name: trend.platformName,
         type: 'line',
         data: trend.data.map((i) => i.count),
-        smooth: true,
+        smooth: 0.5,
         symbol: 'circle',
         symbolSize: 6,
         lineStyle: { width: 2, color: trend.platformColor },
@@ -330,7 +330,14 @@ const barOption = computed(() => {
 const platformSkuComboOption = computed(() => {
   const platformSales = dashboard.value.platformSkuSales || []
   if (platformSales.length === 0) {
-    return { series: [] }
+    return {
+      graphic: {
+        type: 'text',
+        left: 'center',
+        top: 'center',
+        style: { text: '暂无销量数据', fontSize: 14, fill: '#999' }
+      }
+    }
   }
 
   // 收集所有日期
@@ -340,61 +347,85 @@ const platformSkuComboOption = computed(() => {
   })
   const dates = Array.from(allDates).sort()
 
-  // 收集所有SKU名称
-  const allSkuNames = new Set<string>()
-  platformSales.forEach((ps) => {
-    ps.skuSales?.forEach((s) => allSkuNames.add(s.skuName))
-  })
-  const skuNames = Array.from(allSkuNames)
-
-  // 平台颜色
-  const platformColors: Record<string, string> = {}
+  // 平台颜色配置
   const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+  const platformColors: Record<string, string> = {}
   platformSales.forEach((ps, idx) => {
     platformColors[ps.platformName] = ps.platformColor || defaultColors[idx % defaultColors.length]
   })
 
-  // SKU透明度配置（用于区分同一平台不同SKU）
-  const skuOpacity = [1, 0.75, 0.5, 0.35, 0.25]
-
-  // 构建系列：每个平台-SKU组合一个系列
+  // 构建系列：每个平台一个柱子 + 一条曲线
   const series: any[] = []
   const legendData: string[] = []
 
   platformSales.forEach((ps) => {
-    const baseColor = platformColors[ps.platformName]
+    const color = platformColors[ps.platformName]
 
-    skuNames.forEach((skuName, sIdx) => {
-      const seriesName = `${ps.platformName} - ${skuName}`
-      legendData.push(seriesName)
+    // 计算该平台每天的总销量
+    const dailyTotals = dates.map((date) => {
+      const daySales = ps.skuSales?.filter((s) => s.date === date) || []
+      return daySales.reduce((sum, s) => sum + s.quantity, 0)
+    })
 
-      // 计算该平台该SKU每天的销量
-      const data = dates.map((date) => {
-        const skuData = ps.skuSales?.find((s) => s.skuName === skuName && s.date === date)
-        return skuData?.quantity || 0
-      })
-
-      series.push({
-        name: seriesName,
-        type: 'bar',
-        stack: ps.platformName,
-        data,
+    // 柱状图系列
+    legendData.push(ps.platformName)
+    series.push({
+      name: ps.platformName,
+      type: 'bar',
+      data: dailyTotals,
+      barWidth: '45%',
+      barGap: '10%',
+      itemStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: color },
+            { offset: 1, color: color + '40' },
+          ],
+        },
+        borderRadius: [6, 6, 0, 0],
+      },
+      emphasis: {
         itemStyle: {
-          color: baseColor,
-          opacity: skuOpacity[sIdx % skuOpacity.length],
+          shadowBlur: 10,
+          shadowColor: 'rgba(0,0,0,0.2)',
         },
-        emphasis: {
-          itemStyle: {
-            opacity: 1,
-            shadowBlur: 10,
-            shadowColor: 'rgba(0,0,0,0.3)',
-          },
+      },
+    })
+
+    // 曲线系列（趋势线）
+    series.push({
+      name: ps.platformName + '趋势',
+      type: 'line',
+      data: dailyTotals,
+      smooth: 0.4,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: {
+        width: 3,
+        color: color,
+        type: 'solid',
+      },
+      itemStyle: {
+        color: color,
+        borderColor: '#fff',
+        borderWidth: 2,
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: color + '30' },
+            { offset: 1, color: color + '05' },
+          ],
         },
-      })
+      },
     })
   })
 
-  // 添加总计折线图
+  // 添加总计曲线
   const totalData = dates.map((date) => {
     let total = 0
     platformSales.forEach((ps) => {
@@ -404,16 +435,18 @@ const platformSkuComboOption = computed(() => {
     return total
   })
 
+  legendData.push('总计')
   series.push({
     name: '总计',
     type: 'line',
     data: totalData,
-    smooth: true,
-    symbol: 'circle',
+    smooth: 0.5,
+    symbol: 'diamond',
     symbolSize: 10,
     lineStyle: {
       width: 3,
       color: '#f97316',
+      type: 'dashed',
     },
     itemStyle: {
       color: '#f97316',
@@ -423,9 +456,10 @@ const platformSkuComboOption = computed(() => {
     label: {
       show: true,
       position: 'top',
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: 'bold',
       color: '#f97316',
+      formatter: '{c}',
     },
   })
 
@@ -433,48 +467,48 @@ const platformSkuComboOption = computed(() => {
     tooltip: {
       trigger: 'axis',
       axisPointer: {
-        type: 'shadow',
-        shadowStyle: { color: 'rgba(0,0,0,0.05)' },
+        type: 'cross',
+        crossStyle: { color: '#999' },
       },
       formatter: (params: any) => {
-        let result = `<div style="font-weight:bold;margin-bottom:8px">${params[0]?.axisValue || ''}</div>`
-        const platformTotals = new Map<string, { total: number; color: string; items: { name: string; value: number }[] }>()
+        let result = `<div style="font-weight:bold;margin-bottom:8px;font-size:13px">${params[0]?.axisValue || ''}</div>`
+        let grandTotal = 0
 
+        // 按平台分组显示
+        const platformMap = new Map<string, { bar: number; line: number; color: string }>()
         params.forEach((p: any) => {
-          if (p.seriesType === 'bar' && p.value > 0) {
-            const parts = p.seriesName.split(' - ')
-            const platformName = parts[0]
-            const skuName = parts.slice(1).join(' - ')
+          const name = p.seriesName as string
+          const isTrend = name.endsWith('趋势')
+          const platformName = isTrend ? name.replace('趋势', '') : name
 
-            if (!platformTotals.has(platformName)) {
-              platformTotals.set(platformName, { total: 0, color: p.color, items: [] })
-            }
-            const platform = platformTotals.get(platformName)!
-            platform.total += p.value
-            platform.items.push({ name: skuName, value: p.value })
+          if (!platformMap.has(platformName)) {
+            platformMap.set(platformName, { bar: 0, line: 0, color: p.color })
+          }
+          const entry = platformMap.get(platformName)!
+          if (p.seriesType === 'bar') {
+            entry.bar = p.value
+          } else if (isTrend) {
+            entry.line = p.value
           }
         })
 
-        // 按平台显示
-        platformTotals.forEach((platform, platformName) => {
-          result += `<div style="margin-bottom:8px">
-            <div style="display:flex;align-items:center;gap:6px;font-weight:bold">
-              <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${platform.color}"></span>
-              <span>${platformName} (${platform.total})</span>
+        platformMap.forEach((entry, name) => {
+          if (name === '总计') return
+          if (entry.bar > 0 || entry.line > 0) {
+            grandTotal += entry.bar
+            result += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${entry.color}"></span>
+              <span style="font-weight:500">${name}</span>
+              <span style="margin-left:auto;font-weight:bold">${entry.bar}</span>
             </div>`
-          platform.items.forEach((item) => {
-            result += `<div style="padding-left:20px;font-size:12px;color:#6b7280">
-              ${item.name}: ${item.value}
-            </div>`
-          })
-          result += '</div>'
+          }
         })
 
-        // 显示总计
-        const grandTotal = Array.from(platformTotals.values()).reduce((sum, p) => sum + p.total, 0)
-        if (grandTotal > 0) {
-          result += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-weight:bold;color:#f97316">
-            总计: ${grandTotal}
+        // 总计
+        const totalEntry = params.find((p: any) => p.seriesName === '总计')
+        if (totalEntry && totalEntry.value > 0) {
+          result += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-weight:bold;color:#f97316">
+            <span>总计</span><span>${totalEntry.value}</span>
           </div>`
         }
 
@@ -482,13 +516,14 @@ const platformSkuComboOption = computed(() => {
       },
     },
     legend: {
-      data: [...legendData, '总计'],
+      data: legendData,
       bottom: 0,
-      textStyle: { color: '#6b7280', fontSize: 10 },
+      textStyle: { color: '#6b7280', fontSize: 11 },
       type: 'scroll',
       pageTextStyle: { color: '#6b7280' },
       pageIconColor: '#6b7280',
       pageIconInactiveColor: '#d1d5db',
+      itemGap: 20,
     },
     grid: {
       left: 60,
@@ -895,6 +930,9 @@ onMounted(async () => {
   background: transparent;
   border: 1px solid #e5e7eb;
   box-shadow: none;
+}
+.card-header {
+  padding: 16px 20px 8px;
 }
 .chart {
   height: 320px;
