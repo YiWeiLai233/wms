@@ -1,0 +1,38 @@
+-- 换货单表
+CREATE TABLE IF NOT EXISTS exchange_order (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    exchange_no VARCHAR(64) NOT NULL COMMENT '换货单号',
+    order_id BIGINT NOT NULL COMMENT '关联订单ID',
+    order_no VARCHAR(64) NOT NULL COMMENT '关联订单号',
+    warehouse_id BIGINT DEFAULT NULL COMMENT '仓库ID',
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING_RETURN' COMMENT '状态：PENDING_RETURN/RETURNED/CHECKED/SHIPPED/COMPLETED/CANCELLED',
+    reason VARCHAR(512) DEFAULT NULL COMMENT '换货原因',
+    return_tracking_no VARCHAR(128) DEFAULT NULL COMMENT '退回快递单号',
+    express_company_id BIGINT DEFAULT NULL COMMENT '快递公司ID',
+    shipping_fee DECIMAL(10,2) DEFAULT NULL COMMENT '快递费用',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    operator_id BIGINT DEFAULT NULL COMMENT '操作人ID',
+    deleted INT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-未删除 1-已删除',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_exchange_no (exchange_no),
+    KEY idx_order_id (order_id),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='换货单表';
+
+-- 换货明细表
+CREATE TABLE IF NOT EXISTS exchange_order_item (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    exchange_id BIGINT NOT NULL COMMENT '换货单ID',
+    sku_id BIGINT NOT NULL COMMENT 'SKU ID',
+    sku_code VARCHAR(64) NOT NULL COMMENT 'SKU编码',
+    sku_name VARCHAR(256) DEFAULT NULL COMMENT 'SKU名称',
+    size_value VARCHAR(64) DEFAULT NULL COMMENT '码数',
+    quantity INT NOT NULL DEFAULT 1 COMMENT '数量',
+    unit_price DECIMAL(10,2) DEFAULT NULL COMMENT '单价',
+    quality_status VARCHAR(32) DEFAULT NULL COMMENT '质量状态：SELLABLE/DEFECTIVE/SCRAPPED',
+    item_type VARCHAR(32) NOT NULL DEFAULT 'RETURN_ITEM' COMMENT '明细类型：RETURN_ITEM-退回商品 EXCHANGE_ITEM-换出商品',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    KEY idx_exchange_id (exchange_id),
+    KEY idx_sku_id (sku_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='换货明细表';

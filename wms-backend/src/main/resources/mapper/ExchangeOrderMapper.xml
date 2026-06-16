@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.exchange.mapper.ExchangeOrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.exchange.entity.ExchangeOrder">
+        <id column="id" property="id"/>
+        <result column="exchange_no" property="exchangeNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="platform_order_no" property="platformOrderNo"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="warehouse_name" property="warehouseName"/>
+        <result column="status" property="status"/>
+        <result column="reason" property="reason"/>
+        <result column="return_tracking_no" property="returnTrackingNo"/>
+        <result column="express_company_id" property="expressCompanyId"/>
+        <result column="express_company_name" property="expressCompanyName"/>
+        <result column="shipping_fee" property="shippingFee"/>
+        <result column="remark" property="remark"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByPage" resultMap="BaseResultMap">
+        SELECT eo.id, eo.exchange_no, eo.order_id, eo.order_no,
+               so.platform_order_no AS platform_order_no,
+               eo.warehouse_id,
+               w.name AS warehouse_name, eo.status, eo.reason,
+               eo.return_tracking_no, eo.express_company_id,
+               ec.name AS express_company_name,
+               eo.shipping_fee, eo.remark,
+               eo.operator_id, eo.deleted, eo.created_at, eo.updated_at
+        FROM exchange_order eo
+        LEFT JOIN sales_order so ON eo.order_id = so.id AND so.deleted = 0
+        LEFT JOIN warehouse w ON eo.warehouse_id = w.id
+        LEFT JOIN express_company ec ON eo.express_company_id = ec.id AND ec.deleted = 0
+        WHERE eo.deleted = 0
+        <if test="exchangeNo != null and exchangeNo != ''">
+            AND eo.exchange_no LIKE CONCAT('%', #{exchangeNo}, '%')
+        </if>
+        <if test="orderNo != null and orderNo != ''">
+            AND eo.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="platformOrderNo != null and platformOrderNo != ''">
+            AND so.platform_order_no LIKE CONCAT('%', #{platformOrderNo}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            AND eo.status = #{status}
+        </if>
+        <if test="warehouseId != null">
+            AND eo.warehouse_id = #{warehouseId}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT eo.id, eo.exchange_no, eo.order_id, eo.order_no,
+               so.platform_order_no AS platform_order_no,
+               eo.warehouse_id,
+               w.name AS warehouse_name, eo.status, eo.reason,
+               eo.return_tracking_no, eo.express_company_id,
+               ec.name AS express_company_name,
+               eo.shipping_fee, eo.remark,
+               eo.operator_id, eo.deleted, eo.created_at, eo.updated_at
+        FROM exchange_order eo
+        LEFT JOIN sales_order so ON eo.order_id = so.id AND so.deleted = 0
+        LEFT JOIN warehouse w ON eo.warehouse_id = w.id
+        LEFT JOIN express_company ec ON eo.express_company_id = ec.id AND ec.deleted = 0
+        WHERE eo.id = #{id} AND eo.deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO exchange_order (exchange_no, order_id, order_no, warehouse_id, status, reason, return_tracking_no, express_company_id, shipping_fee, remark)
+        VALUES (#{exchangeNo}, #{orderId}, #{orderNo}, #{warehouseId}, #{status}, #{reason}, #{returnTrackingNo}, #{expressCompanyId}, #{shippingFee}, #{remark})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE exchange_order SET status = #{status} WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateExpressInfo">
+        UPDATE exchange_order
+        <set>
+            <if test="expressCompanyId != null">express_company_id = #{expressCompanyId},</if>
+            <if test="trackingNo != null">return_tracking_no = #{trackingNo},</if>
+            <if test="shippingFee != null">shipping_fee = #{shippingFee},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+</mapper>

@@ -1,5 +1,7 @@
 package com.yiweilai.wms.product.service;
 
+import com.yiweilai.wms.alert.mapper.StockAlertConfigMapper;
+import com.yiweilai.wms.alert.mapper.StockAlertTemplateMapper;
 import com.yiweilai.wms.product.dto.ProductSaveDTO;
 import com.yiweilai.wms.product.entity.Product;
 import com.yiweilai.wms.product.entity.ProductSku;
@@ -11,6 +13,7 @@ import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
 import com.yiweilai.wms.warehouse.entity.WarehouseShelf;
+import com.yiweilai.wms.warehouse.mapper.WarehouseMapper;
 import com.yiweilai.wms.warehouse.mapper.WarehouseShelfMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +41,9 @@ class ProductServiceImplTest {
     private ProductSkuMapper skuMapper;
 
     @Mock
+    private WarehouseMapper warehouseMapper;
+
+    @Mock
     private WarehouseShelfMapper shelfMapper;
 
     @Mock
@@ -46,6 +52,12 @@ class ProductServiceImplTest {
     @Mock
     private StockLogMapper stockLogMapper;
 
+    @Mock
+    private StockAlertTemplateMapper alertTemplateMapper;
+
+    @Mock
+    private StockAlertConfigMapper alertConfigMapper;
+
     private ProductServiceImpl service;
 
     @BeforeEach
@@ -53,9 +65,12 @@ class ProductServiceImplTest {
         service = new ProductServiceImpl(
                 productMapper,
                 skuMapper,
+                warehouseMapper,
                 shelfMapper,
                 stockMapper,
-                stockLogMapper);
+                stockLogMapper,
+                alertTemplateMapper,
+                alertConfigMapper);
     }
 
     @Test

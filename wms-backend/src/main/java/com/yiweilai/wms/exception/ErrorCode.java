@@ -55,7 +55,11 @@ public enum ErrorCode {
     STOCK_ALERT_CONFIG_NOT_FOUND(9002, "预警配置不存在"),
 
     // ES 同步模块 8xxx
-    ES_SYNC_FAILED(8001, "ES同步失败");
+    ES_SYNC_FAILED(8001, "ES同步失败"),
+
+    // 换货模块 10xxx
+    EXCHANGE_NOT_FOUND(10001, "换货单不存在"),
+    EXCHANGE_STATUS_ERROR(10002, "换货单状态不正确");
 
     private final Integer code;
     private final String message;

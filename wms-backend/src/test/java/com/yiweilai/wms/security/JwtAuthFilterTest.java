@@ -56,6 +56,20 @@ class JwtAuthFilterTest {
     }
 
     @Test
+    void imageResourceRequestPassesWithoutJwt() throws Exception {
+        JwtUtils jwtUtils = new JwtUtils();
+        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper());
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/images/uploaded.jpg");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertThat(response.getStatus()).isNotEqualTo(401);
+        assertThat(filterChain.getRequest()).isSameAs(request);
+    }
+
+    @Test
     void aiServiceTokenAuthenticatesOnlyPendingActionCreation() throws Exception {
         JwtUtils jwtUtils = new JwtUtils();
         JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper());
