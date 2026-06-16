@@ -226,26 +226,86 @@
         <el-descriptions-item label="备注">{{ detail.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
 
-      <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">订单明细</h4>
-      <el-table :data="detail.items || []" border size="small">
-        <el-table-column label="图片" width="60" align="center">
-          <template #default="{ row }">
-            <ImagePreview :src="row.skuImage" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="skuCode" label="SKU编码" width="130" />
-        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
-        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
-          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="仓库" width="100" align="center">
-          <template #default>{{ detail.warehouseName || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="quantity" label="数量" width="80" align="center" />
-        <el-table-column prop="totalPrice" label="小计" width="90" align="right">
-          <template #default="{ row }">¥{{ row.totalPrice?.toFixed(2) }}</template>
-        </el-table-column>
-      </el-table>
+      <!-- 换货中的订单显示换货明细 -->
+      <template v-if="detail.orderStatus === 'EXCHANGING' && exchangeDetail">
+        <el-divider content-position="left">换货信息</el-divider>
+        <el-descriptions :column="2" border size="small" class="mb-4">
+          <el-descriptions-item label="换货单号">{{ exchangeDetail.exchangeNo }}</el-descriptions-item>
+          <el-descriptions-item label="换货状态">
+            <el-tag :type="(EXCHANGE_STATUS_MAP[exchangeDetail.status]?.color as any) || 'info'" size="small">
+              {{ EXCHANGE_STATUS_MAP[exchangeDetail.status]?.label || exchangeDetail.status }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="换货原因">{{ exchangeDetail.reason || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="责任方">
+            <el-tag :type="exchangeDetail.remark?.includes('客户自付快递费') ? 'warning' : 'success'" size="small">
+              {{ exchangeDetail.remark?.includes('客户自付快递费') ? '客户原因' : '我们原因' }}
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <h4 class="mb-2 text-sm font-semibold text-red-500">退回商品（换货前）</h4>
+        <el-table :data="exchangeReturnItems" border size="small" class="mb-4">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.image" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="skuCode" label="SKU编码" width="130" />
+          <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column label="质检结果" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.qualityStatus" :type="(QUALITY_STATUS_MAP[row.qualityStatus]?.color as any) || 'info'" size="small">
+                {{ QUALITY_STATUS_MAP[row.qualityStatus]?.label }}
+              </el-tag>
+              <span v-else class="text-gray-400">待质检</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <h4 class="mb-2 text-sm font-semibold text-green-500">换出商品（换货后）</h4>
+        <el-table :data="exchangeNewItems" border size="small">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.image" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="skuCode" label="SKU编码" width="130" />
+          <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+        </el-table>
+      </template>
+
+      <!-- 普通订单明细 -->
+      <template v-else>
+        <h4 class="mt-4 mb-2 text-sm font-semibold text-gray-700">订单明细</h4>
+        <el-table :data="detail.items || []" border size="small">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.skuImage" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="skuCode" label="SKU编码" width="130" />
+          <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="仓库" width="100" align="center">
+            <template #default>{{ detail.warehouseName || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column prop="totalPrice" label="小计" width="90" align="right">
+            <template #default="{ row }">¥{{ row.totalPrice?.toFixed(2) }}</template>
+          </el-table-column>
+        </el-table>
+      </template>
     </el-dialog>
 
     <!-- 编辑订单弹窗 -->
@@ -807,7 +867,8 @@ import type { Order } from '@/api/order'
 import { createOutbound, createBatchOutbound } from '@/api/outbound'
 import { createBatchReturn } from '@/api/returns'
 import { createReturn, cancelReturnByOrderId } from '@/api/returns'
-import { createExchange } from '@/api/exchange'
+import { createExchange, getExchangeList, getExchangeDetail } from '@/api/exchange'
+import { EXCHANGE_STATUS_MAP, QUALITY_STATUS_MAP } from '@/utils/constants'
 import { getAllSkuList } from '@/api/product'
 import type { Sku } from '@/api/product'
 import { getWarehouseList } from '@/api/warehouse'
@@ -864,6 +925,15 @@ const companyList = ref<ExpressCompany[]>([])
 const skuList = ref<SkuListItem[]>([])
 const detailVisible = ref(false)
 const detail = ref<Partial<Order>>({})
+const exchangeDetail = ref<any>(null)
+
+// 换货明细计算属性
+const exchangeReturnItems = computed(() => {
+  return (exchangeDetail.value?.items || []).filter((i: any) => i.itemType === 'RETURN_ITEM')
+})
+const exchangeNewItems = computed(() => {
+  return (exchangeDetail.value?.items || []).filter((i: any) => i.itemType === 'EXCHANGE_ITEM')
+})
 
 // 编辑订单相关
 const editDialogVisible = ref(false)
@@ -1721,6 +1791,20 @@ async function viewDetail(row: Order) {
   try {
     const res = await getOrderDetail(row.id)
     detail.value = res.data
+    exchangeDetail.value = null
+
+    // 如果是换货中状态，获取换货详情
+    if (row.orderStatus === 'EXCHANGING') {
+      try {
+        const exchangeRes = await getExchangeList({ page: 1, size: 1, orderNo: row.orderNo })
+        const exchangeList = exchangeRes.data?.list || []
+        if (exchangeList.length > 0) {
+          const detailRes = await getExchangeDetail(exchangeList[0].id)
+          exchangeDetail.value = detailRes.data
+        }
+      } catch {}
+    }
+
     detailVisible.value = true
   } catch {}
 }
