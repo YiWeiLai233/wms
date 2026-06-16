@@ -19,22 +19,26 @@
 
     <select id="findByExchangeId" resultMap="BaseResultMap">
         SELECT eoi.id, eoi.exchange_id, eoi.sku_id, eoi.sku_code, eoi.sku_name,
-               ps.size_value AS size_value, ps.image AS image,
+               ps.size_value AS size_value,
+               COALESCE(ps.image, p.main_image) AS image,
                eoi.quantity, eoi.unit_price, eoi.quality_status, eoi.item_type,
                eoi.created_at
         FROM exchange_order_item eoi
         LEFT JOIN product_sku ps ON eoi.sku_id = ps.id AND ps.deleted = 0
+        LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
         WHERE eoi.exchange_id = #{exchangeId}
         ORDER BY eoi.id ASC
     </select>
 
     <select id="findById" resultMap="BaseResultMap">
         SELECT eoi.id, eoi.exchange_id, eoi.sku_id, eoi.sku_code, eoi.sku_name,
-               ps.size_value AS size_value, ps.image AS image,
+               ps.size_value AS size_value,
+               COALESCE(ps.image, p.main_image) AS image,
                eoi.quantity, eoi.unit_price, eoi.quality_status, eoi.item_type,
                eoi.created_at
         FROM exchange_order_item eoi
         LEFT JOIN product_sku ps ON eoi.sku_id = ps.id AND ps.deleted = 0
+        LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
         WHERE eoi.id = #{id}
     </select>
 

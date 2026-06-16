@@ -227,7 +227,7 @@
       </el-descriptions>
 
       <!-- 换货中的订单显示换货明细 -->
-      <template v-if="detail.orderStatus === 'EXCHANGING' && exchangeDetail">
+      <template v-if="(detail.orderStatus === 'EXCHANGING' || detail.orderStatus === 'EXCHANGED') && exchangeDetail">
         <el-divider content-position="left">换货信息</el-divider>
         <el-descriptions :column="2" border size="small" class="mb-4">
           <el-descriptions-item label="换货单号">{{ exchangeDetail.exchangeNo }}</el-descriptions-item>
@@ -1793,8 +1793,8 @@ async function viewDetail(row: Order) {
     detail.value = res.data
     exchangeDetail.value = null
 
-    // 如果是换货中状态，获取换货详情
-    if (row.orderStatus === 'EXCHANGING') {
+    // 如果是换货中或已换货状态，获取换货详情
+    if (row.orderStatus === 'EXCHANGING' || row.orderStatus === 'EXCHANGED') {
       try {
         const exchangeRes = await getExchangeList({ page: 1, size: 1, orderNo: row.orderNo })
         const exchangeList = exchangeRes.data?.list || []
