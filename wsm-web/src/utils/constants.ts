@@ -8,6 +8,8 @@ export const ORDER_STATUS_MAP: Record<string, { label: string; color: string; ef
   OUTBOUND_FAILED: { label: '出库失败', color: 'danger' },
   RETURNING: { label: '退货中', color: 'danger', effect: 'dark' },
   RETURNED: { label: '已退货', color: 'info', effect: 'dark' },
+  EXCHANGING: { label: '换货中', color: 'purple' },
+  EXCHANGED: { label: '已换货', color: 'purple', effect: 'dark' },
 }
 
 export const OUTBOUND_STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -35,17 +37,34 @@ export const QUALITY_STATUS_MAP: Record<string, { label: string; color: string }
   SCRAPPED: { label: '报废', color: 'danger' },
 }
 
+export const EXCHANGE_STATUS_MAP: Record<string, { label: string; color: string }> = {
+  PENDING_RETURN: { label: '待退回', color: 'info' },
+  RETURNED: { label: '已退回', color: 'info' },
+  CHECKED: { label: '已质检', color: 'info' },
+  EXCHANGED: { label: '已换货', color: 'purple' },
+  COMPLETED: { label: '已完成', color: 'success' },
+  CANCELLED: { label: '已取消', color: 'danger' },
+}
+
+export const EXCHANGE_ITEM_TYPE_MAP: Record<string, { label: string; color: string }> = {
+  RETURN_ITEM: { label: '退回商品', color: 'warning' },
+  EXCHANGE_ITEM: { label: '换出商品', color: 'success' },
+}
+
 export const AREA_TYPE_MAP: Record<number, { label: string; color: string }> = {
   1: { label: '普通区', color: 'success' },
   2: { label: '退货区', color: 'warning' },
   3: { label: '次品区', color: 'danger' },
 }
 
-export const STOCK_BIZ_TYPE_MAP: Record<string, { label: string; color: string }> = {
-  INBOUND: { label: '入库', color: 'success' },
-  OUTBOUND: { label: '出库', color: 'danger' },
+export const STOCK_BIZ_TYPE_MAP: Record<string, { label: string; color: string; className?: string }> = {
+  INBOUND: { label: '入库', color: 'primary' },
+  OUTBOUND: { label: '出库', color: 'success' },
   RETURN: { label: '退货', color: 'warning' },
+  EXCHANGE: { label: '换货', color: 'info', className: 'exchange-stock-tag' },
   ADJUST: { label: '调整', color: 'info' },
+  LOCK: { label: '锁定', color: 'danger' },
+  RELEASE: { label: '释放', color: '' },
 }
 
 export const STATUS_MAP: Record<number, { label: string; color: string }> = {
@@ -103,6 +122,7 @@ export const MENU_LIST: MenuItem[] = [
       { title: '订单管理', path: '/order/list' },
       { title: '发货管理', path: '/outbound/list' },
       { title: '退货管理', path: '/returns/list' },
+      { title: '换货管理', path: '/exchange/list' },
     ],
   },
   {

@@ -88,7 +88,26 @@
         <el-table-column prop="receiverAddress" label="收件地址" min-width="180" show-overflow-tooltip />
         <el-table-column prop="orderStatus" label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="(ORDER_STATUS_MAP[row.orderStatus]?.color as any) || 'info'" :effect="(ORDER_STATUS_MAP[row.orderStatus]?.effect as any) || 'light'" size="small">
+            <el-tag
+              v-if="row.orderStatus === 'EXCHANGING'"
+              size="small"
+              :style="{ backgroundColor: '#f3e8ff', borderColor: '#d8b4fe', color: '#7c3aed' }"
+            >
+              {{ ORDER_STATUS_MAP[row.orderStatus]?.label || row.orderStatus }}
+            </el-tag>
+            <el-tag
+              v-else-if="row.orderStatus === 'EXCHANGED'"
+              size="small"
+              :style="{ backgroundColor: '#6b21a8', borderColor: '#6b21a8', color: '#fff' }"
+            >
+              {{ ORDER_STATUS_MAP[row.orderStatus]?.label || row.orderStatus }}
+            </el-tag>
+            <el-tag
+              v-else
+              :type="(ORDER_STATUS_MAP[row.orderStatus]?.color as any) || 'info'"
+              :effect="(ORDER_STATUS_MAP[row.orderStatus]?.effect as any) || 'light'"
+              size="small"
+            >
               {{ ORDER_STATUS_MAP[row.orderStatus]?.label || row.orderStatus }}
             </el-tag>
           </template>
@@ -108,6 +127,9 @@
             <el-button v-if="row.orderStatus === 'WAIT_OUTBOUND'" type="success" link icon="TopRight" @click="createOutboundOrder(row)">
               出库
             </el-button>
+            <el-button v-if="row.orderStatus === 'WAIT_OUTBOUND'" type="primary" link icon="Van" @click="router.push({ path: '/outbound/list', query: { orderNo: row.orderNo } })">
+              发货管理
+            </el-button>
             <el-popconfirm
               v-if="row.orderStatus === 'WAIT_PAY' || row.orderStatus === 'WAIT_OUTBOUND'"
               title="确定取消订单吗？将恢复已扣减的库存"
@@ -117,11 +139,20 @@
                 <el-button type="danger" link icon="Close">取消订单</el-button>
               </template>
             </el-popconfirm>
+            <el-button v-if="row.orderStatus === 'OUTBOUNDING'" type="success" link icon="Van" @click="openQuickShipDialog(row)">
+              快速发货
+            </el-button>
             <el-button v-if="row.orderStatus === 'OUTBOUNDING'" type="primary" link icon="TopRight" @click="router.push({ path: '/outbound/list', query: { orderNo: row.orderNo } })">
               发货管理
             </el-button>
-            <el-button v-if="row.orderStatus === 'SHIPPED'" type="warning" link icon="BottomLeft" @click="openReturnDialog(row)">
+            <el-button v-if="row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED'" type="warning" link icon="BottomLeft" @click="openReturnDialog(row)">
               退货
+            </el-button>
+            <el-button v-if="row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED'" link icon="Sort" class="exchange-btn" @click="openExchangeDialog(row)">
+              换货
+            </el-button>
+            <el-button v-if="row.orderStatus === 'EXCHANGING'" link icon="Sort" class="exchange-btn" @click="router.push({ path: '/exchange/list', query: { orderNo: row.orderNo } })">
+              换货管理
             </el-button>
             <el-button v-if="row.orderStatus === 'RETURNING'" type="warning" link icon="BottomLeft" @click="router.push({ path: '/returns/list', query: { orderNo: row.orderNo } })">
               退货管理
@@ -165,7 +196,26 @@
         <el-descriptions-item label="平台单号">{{ detail.platformOrderNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="仓库">{{ detail.warehouseName || detail.warehouseId }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="(ORDER_STATUS_MAP[detail.orderStatus || '']?.color as any) || 'info'" :effect="(ORDER_STATUS_MAP[detail.orderStatus || '']?.effect as any) || 'light'" size="small">
+          <el-tag
+            v-if="detail.orderStatus === 'EXCHANGING'"
+            size="small"
+            :style="{ backgroundColor: '#f3e8ff', borderColor: '#d8b4fe', color: '#7c3aed' }"
+          >
+            {{ ORDER_STATUS_MAP[detail.orderStatus || '']?.label || detail.orderStatus }}
+          </el-tag>
+          <el-tag
+            v-else-if="detail.orderStatus === 'EXCHANGED'"
+            size="small"
+            :style="{ backgroundColor: '#6b21a8', borderColor: '#6b21a8', color: '#fff' }"
+          >
+            {{ ORDER_STATUS_MAP[detail.orderStatus || '']?.label || detail.orderStatus }}
+          </el-tag>
+          <el-tag
+            v-else
+            :type="(ORDER_STATUS_MAP[detail.orderStatus || '']?.color as any) || 'info'"
+            :effect="(ORDER_STATUS_MAP[detail.orderStatus || '']?.effect as any) || 'light'"
+            size="small"
+          >
             {{ ORDER_STATUS_MAP[detail.orderStatus || '']?.label || detail.orderStatus }}
           </el-tag>
         </el-descriptions-item>
@@ -296,14 +346,14 @@
           </el-table-column>
           <el-table-column prop="skuCode" label="SKU编码" width="150" show-overflow-tooltip />
           <el-table-column prop="name" label="SKU名称" min-width="150" show-overflow-tooltip />
-          <el-table-column prop="availableQty" label="可用库存" width="100" align="center">
+          <el-table-column label="可用库存" width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="getStockTagType(row.availableQty, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
+              <el-tag :type="getStockTagType(getImportAvailableQty(row), row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ getImportAvailableQty(row) }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="90" align="center">
             <template #default="{ row }">
-              <el-button type="primary" link icon="Plus" @click="addSkuToImport(row)">加入</el-button>
+              <el-button type="primary" link icon="Plus" @click="addSkuToImport(row)" :disabled="getImportAvailableQty(row) <= 0">加入</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -319,14 +369,14 @@
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
             <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
           </el-table-column>
+          <el-table-column label="可用库存" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag :type="getStockTagType((row.availableQty ?? 0) - row.quantity, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ (row.availableQty ?? 0) - row.quantity }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="数量" width="140" align="center">
             <template #default="{ row }">
               <el-input-number v-model="row.quantity" :min="1" :max="999999" size="small" style="width: 110px" />
-            </template>
-          </el-table-column>
-          <el-table-column label="单价" width="140" align="right">
-            <template #default="{ row }">
-              <el-input-number v-model="row.unitPrice" :min="0" :precision="2" size="small" style="width: 110px" />
             </template>
           </el-table-column>
           <el-table-column label="操作" width="80" align="center">
@@ -365,23 +415,36 @@
             <el-option label="其他" value="其他" />
           </el-select>
         </el-form-item>
-        <el-form-item label="客户快递单号">
+        <el-form-item label="责任方">
+          <el-radio-group v-model="returnForm.responsibleParty">
+            <el-radio value="CUSTOMER">客户原因（客户出快递费）</el-radio>
+            <el-radio value="SELLER">我们/快递原因（我们出快递费）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="退回快递号">
           <el-input v-model="returnForm.trackingNo" placeholder="客户退回的快递单号（选填）" />
         </el-form-item>
 
-        <el-divider content-position="left">退货快递费</el-divider>
-        <el-form-item label="费用模板">
-          <el-select v-model="returnForm.feeTemplateId" placeholder="选择模板自动计算" clearable style="width: 100%" @change="handleReturnTemplateChange">
-            <el-option v-for="t in returnTemplateList" :key="t.id" :label="t.name" :value="t.id" />
-          </el-select>
+        <!-- 客户原因：显示客户自付 -->
+        <el-form-item v-if="returnForm.responsibleParty === 'CUSTOMER'" label="快递费">
+          <el-tag type="warning" size="large">客户自付快递费</el-tag>
         </el-form-item>
-        <el-form-item label="预估重量(kg)">
-          <el-input-number v-model="returnForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="快递费用">
-          <el-input-number v-model="returnForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
-          <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
-        </el-form-item>
+        <!-- 我们原因：通过模板计算快递费 -->
+        <template v-if="returnForm.responsibleParty === 'SELLER'">
+          <el-divider content-position="left">退货快递费</el-divider>
+          <el-form-item label="费用模板">
+            <el-select v-model="returnForm.feeTemplateId" placeholder="选择模板自动计算" clearable style="width: 100%" @change="handleReturnTemplateChange">
+              <el-option v-for="t in returnTemplateList" :key="t.id" :label="t.name" :value="t.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="预估重量(kg)">
+            <el-input-number v-model="returnForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="快递费用">
+            <el-input-number v-model="returnForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
+            <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
+          </el-form-item>
+        </template>
         <el-form-item label="备注">
           <el-input v-model="returnForm.remark" type="textarea" :rows="2" />
         </el-form-item>
@@ -409,6 +472,179 @@
       <template #footer>
         <el-button @click="returnDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="returning" @click="handleReturn">创建退货单</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 换货弹窗 -->
+    <el-dialog v-model="exchangeDialogVisible" title="创建换货单" width="900px" destroy-on-close>
+      <el-form ref="exchangeFormRef" :model="exchangeForm" label-width="90px">
+        <el-form-item label="换货原因">
+          <el-select v-model="exchangeForm.reason" filterable allow-create default-first-option placeholder="请选择或输入换货原因" style="width: 100%">
+            <el-option label="尺码不合适" value="尺码不合适" />
+            <el-option label="商品质量问题" value="商品质量问题" />
+            <el-option label="商品与描述不符" value="商品与描述不符" />
+            <el-option label="发错货" value="发错货" />
+            <el-option label="快递丢失/损坏" value="快递丢失/损坏" />
+            <el-option label="客户要求换货" value="客户要求换货" />
+            <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="责任方">
+          <el-radio-group v-model="exchangeForm.responsibleParty">
+            <el-radio value="CUSTOMER">客户原因（客户出快递费）</el-radio>
+            <el-radio value="SELLER">我们/快递原因（我们出快递费）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="exchangeForm.remark" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+
+      <!-- 原订单商品（退回商品） -->
+      <h4 class="mb-2 text-sm font-semibold text-gray-700">退回商品（勾选客户要退回的商品）</h4>
+      <el-table :data="exchangeForm.returnItems" border size="small" class="mb-4" max-height="250">
+        <el-table-column label="退回" width="60" align="center">
+          <template #default="{ row }">
+            <el-checkbox v-model="row.checked" />
+          </template>
+        </el-table-column>
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.image" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="skuCode" label="SKU编码" width="130" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="orderedQty" label="订单数量" width="80" align="center" />
+        <el-table-column label="退回数量" width="120" align="center">
+          <template #default="{ row }">
+            <el-input-number v-model="row.quantity" :min="1" :max="row.orderedQty" size="small" style="width: 90px" :disabled="!row.checked" />
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 换出商品 -->
+      <div class="flex items-center justify-between mb-2">
+        <h4 class="text-sm font-semibold text-gray-700">换出商品</h4>
+        <div class="flex items-center gap-2">
+          <el-select v-model="exchangeForm.shipWarehouseId" placeholder="选择出库仓库" size="small" style="width: 160px" @change="handleExchangeWarehouseChange">
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+          <el-button type="primary" size="small" icon="Plus" :disabled="!exchangeForm.shipWarehouseId" @click="exchangeSkuSelectorVisible = true">添加换出商品</el-button>
+        </div>
+      </div>
+      <el-table :data="exchangeForm.exchangeItems" border size="small" max-height="250">
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.image" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="skuCode" label="SKU编码" width="130" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="可用库存" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getStockTagType((row.availableQty ?? 0) - row.quantity, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ (row.availableQty ?? 0) - row.quantity }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="数量" width="120" align="center">
+          <template #default="{ row }">
+            <el-input-number v-model="row.quantity" :min="1" size="small" style="width: 90px" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="70" align="center">
+          <template #default="{ $index }">
+            <el-button type="danger" link icon="Delete" @click="exchangeForm.exchangeItems.splice($index, 1)" />
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- SKU 选择器 -->
+      <el-dialog v-model="exchangeSkuSelectorVisible" title="选择换出商品" width="800px" append-to-body destroy-on-close>
+        <el-input v-model="exchangeSkuSearch" placeholder="搜索SKU编码或名称" clearable class="mb-3" />
+        <el-table :data="filteredExchangeSkuList" border size="small" max-height="400" @row-click="addExchangeItem">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.image || row.mainImage" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="skuCode" label="SKU编码" width="140" />
+          <el-table-column prop="name" label="SKU名称" min-width="120" />
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="availableQty" label="可用库存" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="getStockTagType(row.availableQty, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-dialog>
+
+      <template #footer>
+        <el-button @click="exchangeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="exchanging" @click="handleExchange">创建换货单</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 快速发货弹窗 -->
+    <el-dialog v-model="quickShipDialogVisible" title="确认发货" width="760px" destroy-on-close>
+      <el-descriptions :column="2" border class="mb-4" size="small">
+        <el-descriptions-item label="发货单号">{{ quickShipDetail.outboundNo }}</el-descriptions-item>
+        <el-descriptions-item label="订单号">{{ quickShipDetail.orderNo }}</el-descriptions-item>
+        <el-descriptions-item label="平台单号">{{ quickShipDetail.platformOrderNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="订单备注">{{ quickShipDetail.orderRemark || '-' }}</el-descriptions-item>
+      </el-descriptions>
+
+      <h4 class="mb-2 text-sm font-semibold text-gray-700">订单明细</h4>
+      <el-table :data="quickShipDetail.items || []" border size="small" class="mb-4" max-height="250">
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.skuImage" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="skuCode" label="SKU编码" width="130" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="仓库" width="100" align="center">
+          <template #default="{ row }">{{ row.warehouseName || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="quantity" label="数量" width="80" align="center" />
+      </el-table>
+
+      <el-divider content-position="left">快递信息</el-divider>
+      <el-form label-width="100px">
+        <el-form-item label="快递单号" required>
+          <el-input v-model="quickShipForm.trackingNo" placeholder="请输入快递单号" />
+        </el-form-item>
+        <el-form-item label="快递公司" required>
+          <el-select v-model="quickShipForm.expressCompanyId" placeholder="请选择快递公司" style="width: 100%" @change="handleQuickShipCompanyChange">
+            <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="费用模板" required>
+          <el-select v-model="quickShipForm.feeTemplateId" placeholder="请选择费用模板" style="width: 100%" @change="handleQuickShipTemplateChange">
+            <el-option v-for="t in quickShipTemplateList" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="预估重量(kg)" required>
+          <el-input-number v-model="quickShipForm.estimatedWeight" :min="0.01" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" />
+        </el-form-item>
+        <el-form-item label="快递费用" required>
+          <el-input-number v-model="quickShipForm.shippingFee" :min="0.01" :precision="2" style="width: 100%" />
+          <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="quickShipDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="quickShipping" @click="handleQuickShipConfirm">确认发货</el-button>
       </template>
     </el-dialog>
 
@@ -571,6 +807,7 @@ import type { Order } from '@/api/order'
 import { createOutbound, createBatchOutbound } from '@/api/outbound'
 import { createBatchReturn } from '@/api/returns'
 import { createReturn, cancelReturnByOrderId } from '@/api/returns'
+import { createExchange } from '@/api/exchange'
 import { getAllSkuList } from '@/api/product'
 import type { Sku } from '@/api/product'
 import { getWarehouseList } from '@/api/warehouse'
@@ -614,6 +851,9 @@ interface ImportItemForm {
   quantity: number
   unitPrice: number
   image?: string
+  availableQty?: number
+  lowStockThreshold?: number
+  outOfStockThreshold?: number
 }
 
 const { tableData, loading, pagination, searchParams, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useTable<Order>(getOrderList)
@@ -656,7 +896,7 @@ function handleSelectionChange(selection: Order[]) {
 function isSelectable(row: Order) {
   if (!selectMode.value) return false
   if (selectMode.value === 'outbound') return row.orderStatus === 'WAIT_OUTBOUND'
-  if (selectMode.value === 'return') return row.orderStatus === 'SHIPPED'
+  if (selectMode.value === 'return') return row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED'
   if (selectMode.value === 'cancel') return row.orderStatus === 'WAIT_PAY' || row.orderStatus === 'WAIT_OUTBOUND'
   return false
 }
@@ -664,7 +904,7 @@ function isSelectable(row: Order) {
 function getRowClassName({ row }: { row: Order }) {
   if (!selectMode.value) return ''
   if (selectMode.value === 'outbound' && row.orderStatus === 'WAIT_OUTBOUND') return 'selectable-row'
-  if (selectMode.value === 'return' && row.orderStatus === 'SHIPPED') return 'selectable-row'
+  if (selectMode.value === 'return' && (row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED')) return 'selectable-row'
   if (selectMode.value === 'cancel' && (row.orderStatus === 'WAIT_PAY' || row.orderStatus === 'WAIT_OUTBOUND')) return 'selectable-row'
   return 'disabled-row'
 }
@@ -956,6 +1196,7 @@ const returnForm = reactive({
   orderId: 0,
   reason: '',
   trackingNo: '',
+  responsibleParty: 'SELLER' as 'CUSTOMER' | 'SELLER',
   shippingFee: undefined as number | undefined,
   feeTemplateId: undefined as number | undefined,
   estimatedWeight: undefined as number | undefined,
@@ -969,6 +1210,38 @@ const returnRules: FormRules = {
 
 const returnTemplateList = ref<any[]>([])
 const returnTemplateDetail = ref<any>(null) // 缓存模板详情
+
+// 换货相关
+const exchangeDialogVisible = ref(false)
+const exchanging = ref(false)
+const exchangeFormRef = ref<FormInstance>()
+const exchangeSkuSelectorVisible = ref(false)
+const exchangeSkuSearch = ref('')
+const exchangeForm = reactive({
+  orderId: 0,
+  orderNo: '',
+  shipWarehouseId: undefined as number | undefined,
+  reason: '',
+  responsibleParty: 'SELLER' as 'CUSTOMER' | 'SELLER',
+  remark: '',
+  returnItems: [] as { skuId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; orderedQty: number; image?: string; checked: boolean }[],
+  exchangeItems: [] as { skuId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; image?: string; availableQty?: number; lowStockThreshold?: number; outOfStockThreshold?: number }[],
+})
+
+// 快速发货相关
+const quickShipDialogVisible = ref(false)
+const quickShipping = ref(false)
+const quickShipDetail = ref<any>({})
+const quickShipTemplateList = ref<any[]>([])
+const quickShipTemplateDetail = ref<any>(null)
+const quickShipForm = reactive({
+  outboundId: 0,
+  trackingNo: '',
+  expressCompanyId: undefined as number | undefined,
+  feeTemplateId: undefined as number | undefined,
+  estimatedWeight: 0,
+  shippingFee: undefined as number | undefined,
+})
 
 // 监听重量变化，自动计算快递费
 watch(
@@ -1110,6 +1383,22 @@ const skuGroups = computed(() => {
 
 const selectedSkuGroup = computed(() => skuGroups.value.find((group) => group.key === selectedSkuGroupKey.value))
 
+// 计算导入时的动态可用库存（原始库存 - 已添加数量）
+function getImportAvailableQty(sku: any): number {
+  const originalQty = sku.availableQty ?? 0
+  const importedItem = importForm.items.find((item: any) => item.skuId === sku.id)
+  const importedQty = importedItem ? importedItem.quantity : 0
+  return Math.max(0, originalQty - importedQty)
+}
+
+const filteredExchangeSkuList = computed(() => {
+  if (!exchangeSkuSearch.value) return skuList.value
+  const kw = exchangeSkuSearch.value.toLowerCase()
+  return skuList.value.filter((s: any) =>
+    s.skuCode?.toLowerCase().includes(kw) || s.name?.toLowerCase().includes(kw)
+  )
+})
+
 function normalizeSizeValue(sizeValue?: string | number) {
   return String(sizeValue ?? '').trim()
 }
@@ -1151,8 +1440,18 @@ function getStockTagType(quantity?: number, lowThreshold?: number, outThreshold?
 }
 
 function addSkuToImport(sku: SkuListItem) {
+  const availableQty = getImportAvailableQty(sku)
+  if (availableQty <= 0) {
+    ElMessage.warning('该SKU库存不足')
+    return
+  }
+
   const existing = importForm.items.find((item) => item.skuId === sku.id)
   if (existing) {
+    if (existing.quantity >= (sku.availableQty ?? 0)) {
+      ElMessage.warning('已达到最大可入库数量')
+      return
+    }
     existing.quantity += 1
     return
   }
@@ -1164,6 +1463,9 @@ function addSkuToImport(sku: SkuListItem) {
     quantity: 1,
     unitPrice: sku.salePrice || 0,
     image: sku.image || sku.mainImage || '',
+    availableQty: sku.availableQty,
+    lowStockThreshold: sku.lowStockThreshold,
+    outOfStockThreshold: sku.outOfStockThreshold,
   })
 }
 
@@ -1491,6 +1793,7 @@ async function openReturnDialog(row: Order) {
     orderId: row.id,
     reason: '',
     trackingNo: '',
+    responsibleParty: 'SELLER',
     shippingFee: undefined,
     feeTemplateId: undefined,
     estimatedWeight: undefined,
@@ -1547,10 +1850,12 @@ async function handleReturn() {
       orderId: returnForm.orderId,
       reason: returnForm.reason,
       trackingNo: returnForm.trackingNo || undefined,
-      shippingFee: returnForm.shippingFee,
-      feeTemplateId: returnForm.feeTemplateId,
-      estimatedWeight: returnForm.estimatedWeight,
-      remark: returnForm.remark,
+      shippingFee: returnForm.responsibleParty === 'CUSTOMER' ? 0 : returnForm.shippingFee,
+      feeTemplateId: returnForm.responsibleParty === 'SELLER' ? returnForm.feeTemplateId : undefined,
+      estimatedWeight: returnForm.responsibleParty === 'SELLER' ? returnForm.estimatedWeight : undefined,
+      remark: returnForm.responsibleParty === 'CUSTOMER'
+        ? `客户自付快递费${returnForm.remark ? '，' + returnForm.remark : ''}`
+        : returnForm.remark || undefined,
       items,
     })
     ElMessage.success('退货单创建成功')
@@ -1558,6 +1863,281 @@ async function handleReturn() {
     fetchData()
   } catch {} finally {
     returning.value = false
+  }
+}
+
+// 换货相关函数
+async function openExchangeDialog(row: Order) {
+  const res = await getOrderDetail(row.id)
+  const order = res.data
+  Object.assign(exchangeForm, {
+    orderId: row.id,
+    orderNo: row.orderNo,
+    shipWarehouseId: undefined,
+    reason: '',
+    responsibleParty: 'SELLER',
+    remark: '',
+    returnItems: (order.items || []).map((item: any) => ({
+      skuId: item.skuId,
+      skuCode: item.skuCode,
+      skuName: item.skuName,
+      sizeValue: item.sizeValue,
+      quantity: item.quantity,
+      orderedQty: item.quantity,
+      image: item.skuImage || item.image || '',
+      checked: true,
+    })),
+    exchangeItems: [],
+  })
+  skuList.value = []
+  exchangeDialogVisible.value = true
+}
+
+async function handleExchangeWarehouseChange(warehouseId: number) {
+  exchangeForm.exchangeItems = []
+  if (warehouseId) {
+    try {
+      const skuRes = await getAllSkuList({ page: 1, size: 1000, warehouseId })
+      skuList.value = skuRes.data.list || []
+    } catch {}
+  } else {
+    skuList.value = []
+  }
+}
+
+function addExchangeItem(sku: any) {
+  const existing = exchangeForm.exchangeItems.find(i => i.skuId === sku.id)
+  if (existing) {
+    existing.quantity += 1
+    return
+  }
+  exchangeForm.exchangeItems.push({
+    skuId: sku.id,
+    skuCode: sku.skuCode,
+    skuName: sku.name,
+    sizeValue: sku.sizeValue || '',
+    quantity: 1,
+    image: sku.image || sku.mainImage || '',
+    availableQty: sku.availableQty,
+    lowStockThreshold: sku.lowStockThreshold,
+    outOfStockThreshold: sku.outOfStockThreshold,
+  })
+  exchangeSkuSelectorVisible.value = false
+}
+
+async function handleExchange() {
+  if (!exchangeForm.shipWarehouseId) {
+    ElMessage.warning('请选择出库仓库')
+    return
+  }
+  const checkedReturnItems = exchangeForm.returnItems.filter(i => i.checked)
+  if (checkedReturnItems.length === 0) {
+    ElMessage.warning('请至少勾选一个退回商品')
+    return
+  }
+  if (exchangeForm.exchangeItems.length === 0) {
+    ElMessage.warning('请添加换出商品')
+    return
+  }
+
+  exchanging.value = true
+  try {
+    await createExchange({
+      orderId: exchangeForm.orderId,
+      warehouseId: exchangeForm.shipWarehouseId,
+      reason: exchangeForm.reason || undefined,
+      shippingFee: exchangeForm.responsibleParty === 'CUSTOMER' ? 0 : undefined,
+      remark: exchangeForm.responsibleParty === 'CUSTOMER'
+        ? `客户自付快递费${exchangeForm.remark ? '，' + exchangeForm.remark : ''}`
+        : exchangeForm.remark || undefined,
+      items: [
+        // 勾选的退回商品
+        ...exchangeForm.returnItems.filter(i => i.checked).map(i => ({
+          skuId: i.skuId,
+          skuCode: i.skuCode,
+          skuName: i.skuName,
+          sizeValue: i.sizeValue,
+          quantity: i.quantity,
+          itemType: 'RETURN_ITEM',
+        })),
+        // 换出商品
+        ...exchangeForm.exchangeItems.map(i => ({
+          skuId: i.skuId,
+          skuCode: i.skuCode,
+          skuName: i.skuName,
+          sizeValue: i.sizeValue,
+          quantity: i.quantity,
+          itemType: 'EXCHANGE_ITEM',
+        })),
+      ],
+    })
+    ElMessage.success('换货单创建成功')
+    exchangeDialogVisible.value = false
+    fetchData()
+  } catch {} finally {
+    exchanging.value = false
+  }
+}
+
+// 快速发货
+async function openQuickShipDialog(row: any) {
+  try {
+    // 获取出库单
+    const { getOutboundList } = await import('@/api/outbound')
+    const outboundRes = await getOutboundList({ page: 1, size: 1, orderNo: row.orderNo })
+    const outboundList = outboundRes.data?.list || []
+    if (outboundList.length === 0) {
+      ElMessage.warning('未找到该订单的出库单')
+      return
+    }
+    const outbound = outboundList[0]
+
+    // 获取出库单详情
+    const { getOutboundDetail } = await import('@/api/outbound')
+    const detailRes = await getOutboundDetail(outbound.id)
+    quickShipDetail.value = detailRes.data
+
+    // 重置表单
+    quickShipForm.outboundId = outbound.id
+    quickShipForm.trackingNo = ''
+    quickShipForm.expressCompanyId = undefined
+    quickShipForm.feeTemplateId = undefined
+    quickShipForm.estimatedWeight = 0
+    quickShipForm.shippingFee = undefined
+    quickShipTemplateList.value = []
+    quickShipTemplateDetail.value = null
+
+    // 加载快递公司和模板
+    if (companyList.value.length > 0) {
+      const firstCompany = companyList.value[0]
+      quickShipForm.expressCompanyId = firstCompany.id
+      await handleQuickShipCompanyChange(firstCompany.id)
+    }
+  } catch {
+    ElMessage.error('获取出库单信息失败')
+    return
+  }
+  quickShipDialogVisible.value = true
+}
+
+async function handleQuickShipCompanyChange(companyId: number) {
+  quickShipForm.feeTemplateId = undefined
+  quickShipTemplateDetail.value = null
+  quickShipTemplateList.value = []
+  if (companyId) {
+    try {
+      const { getTemplateListByCompany } = await import('@/api/express')
+      const res = await getTemplateListByCompany(companyId)
+      quickShipTemplateList.value = res.data || []
+      const defaultTemplate = quickShipTemplateList.value.find((t: any) => t.isDefault === 1)
+      if (defaultTemplate) {
+        await loadQuickShipTemplateDetail(defaultTemplate.id)
+      }
+    } catch {
+      quickShipTemplateList.value = []
+    }
+  }
+}
+
+async function loadQuickShipTemplateDetail(templateId: number) {
+  quickShipForm.feeTemplateId = templateId
+  try {
+    const { getTemplateDetail } = await import('@/api/express')
+    const res = await getTemplateDetail(templateId)
+    quickShipTemplateDetail.value = res.data
+    if (quickShipForm.estimatedWeight > 0) {
+      calculateQuickShipFee()
+    }
+  } catch {
+    quickShipTemplateDetail.value = null
+  }
+}
+
+async function handleQuickShipTemplateChange(templateId: number) {
+  if (templateId) {
+    await loadQuickShipTemplateDetail(templateId)
+  } else {
+    quickShipTemplateDetail.value = null
+    quickShipForm.shippingFee = undefined
+  }
+}
+
+function calculateQuickShipFee() {
+  if (!quickShipTemplateDetail.value || !quickShipForm.estimatedWeight || quickShipForm.estimatedWeight <= 0) return
+
+  const template = quickShipTemplateDetail.value
+  if (template.templateType === 'FIRST_CONTINUE') {
+    const firstWeight = template.firstWeight || 1
+    const firstFee = template.firstFee || 0
+    const additionalWeight = template.additionalWeight || 1
+    const additionalFee = template.additionalFee || 0
+
+    if (quickShipForm.estimatedWeight <= firstWeight) {
+      quickShipForm.shippingFee = firstFee
+    } else {
+      const extraWeight = quickShipForm.estimatedWeight - firstWeight
+      const extraUnits = Math.ceil(extraWeight / additionalWeight)
+      quickShipForm.shippingFee = firstFee + extraUnits * additionalFee
+    }
+  } else if (template.steps && template.steps.length > 0) {
+    const sortedSteps = [...template.steps].sort((a: any, b: any) => a.minWeight - b.minWeight)
+    const matchedStep = sortedSteps.find((s: any) =>
+      quickShipForm.estimatedWeight >= s.minWeight && quickShipForm.estimatedWeight < s.maxWeight
+    )
+    if (matchedStep) {
+      quickShipForm.shippingFee = matchedStep.fee
+    } else {
+      const lastStep = sortedSteps[sortedSteps.length - 1]
+      if (quickShipForm.estimatedWeight >= lastStep.minWeight) {
+        quickShipForm.shippingFee = lastStep.fee
+      } else {
+        quickShipForm.shippingFee = undefined
+      }
+    }
+  }
+}
+
+async function handleQuickShipConfirm() {
+  if (!quickShipForm.trackingNo) {
+    ElMessage.warning('请输入快递单号')
+    return
+  }
+  if (!quickShipForm.expressCompanyId) {
+    ElMessage.warning('请选择快递公司')
+    return
+  }
+  if (!quickShipForm.feeTemplateId) {
+    ElMessage.warning('请选择费用模板')
+    return
+  }
+  if (!quickShipForm.estimatedWeight || quickShipForm.estimatedWeight <= 0) {
+    ElMessage.warning('请输入预估重量')
+    return
+  }
+  if (!quickShipForm.shippingFee || quickShipForm.shippingFee <= 0) {
+    ElMessage.warning('请输入快递费用')
+    return
+  }
+  try {
+    await ElMessageBox.confirm('确认发货后将扣减库存，确定继续吗？', '确认发货', { type: 'warning' })
+  } catch { return }
+
+  quickShipping.value = true
+  try {
+    const { confirmOutbound } = await import('@/api/outbound')
+    await confirmOutbound({
+      outboundId: quickShipForm.outboundId,
+      trackingNo: quickShipForm.trackingNo,
+      expressCompanyId: quickShipForm.expressCompanyId,
+      feeTemplateId: quickShipForm.feeTemplateId,
+      estimatedWeight: quickShipForm.estimatedWeight,
+      shippingFee: quickShipForm.shippingFee,
+    })
+    ElMessage.success('发货成功')
+    quickShipDialogVisible.value = false
+    fetchData()
+  } catch {} finally {
+    quickShipping.value = false
   }
 }
 
@@ -1596,6 +2176,21 @@ async function handleImport() {
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+/* 换货按钮 - 紫色 */
+.exchange-btn {
+  color: #7c3aed !important;
+}
+.exchange-btn:hover {
+  color: #6d28d9 !important;
+}
+
+/* 换货中状态标签 - 紫色 */
+:deep(.el-tag--info.is-dark) {
+  --el-tag-bg-color: #7c3aed;
+  --el-tag-border-color: #7c3aed;
+  --el-tag-text-color: #fff;
 }
 </style>
 
@@ -1679,5 +2274,25 @@ async function handleImport() {
 }
 .sku-tag {
   margin: 0;
+}
+
+/* 紫色标签（换货中） */
+.el-tag--purple {
+  --el-tag-bg-color: #f3e8ff;
+  --el-tag-border-color: #d8b4fe;
+  --el-tag-text-color: #7c3aed;
+  --el-tag-hover-color: #ede9fe;
+}
+.el-tag--purple.is-dark {
+  --el-tag-bg-color: #7c3aed;
+  --el-tag-border-color: #7c3aed;
+  --el-tag-text-color: #fff;
+}
+/* 深紫色标签（已换货） */
+.el-tag--purple-dark {
+  --el-tag-bg-color: #6b21a8;
+  --el-tag-border-color: #6b21a8;
+  --el-tag-text-color: #fff;
+  --el-tag-hover-color: #7c3aed;
 }
 </style>
