@@ -28,30 +28,37 @@
 
     <!-- 汇总卡片 -->
     <el-row :gutter="20" class="mb-4">
-      <el-col :span="6">
+      <el-col :span="4">
         <div class="card text-center">
           <div class="text-sm text-gray-500 mb-1">快递总单数</div>
           <div class="text-3xl font-bold text-blue-600">{{ reportData.totalCount || 0 }}</div>
         </div>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="4">
         <div class="card text-center">
           <div class="text-sm text-gray-500 mb-1">快递总费用</div>
           <div class="text-3xl font-bold text-red-500">¥{{ (reportData.totalFee || 0).toFixed(2) }}</div>
         </div>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="5">
         <div class="card text-center">
           <div class="text-sm text-gray-500 mb-1">出库快递费</div>
           <div class="text-2xl font-bold text-green-600">¥{{ (reportData.outboundFee || 0).toFixed(2) }}</div>
           <div class="text-xs text-gray-400">{{ reportData.outboundCount || 0 }} 单</div>
         </div>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="5">
         <div class="card text-center">
           <div class="text-sm text-gray-500 mb-1">退货快递费</div>
           <div class="text-2xl font-bold text-orange-500">¥{{ (reportData.returnFee || 0).toFixed(2) }}</div>
           <div class="text-xs text-gray-400">{{ reportData.returnCount || 0 }} 单</div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="card text-center">
+          <div class="text-sm text-gray-500 mb-1">换货快递费</div>
+          <div class="text-2xl font-bold text-purple-500">¥{{ (reportData.exchangeFee || 0).toFixed(2) }}</div>
+          <div class="text-xs text-gray-400">{{ reportData.exchangeCount || 0 }} 单</div>
         </div>
       </el-col>
     </el-row>
@@ -61,7 +68,7 @@
       <el-table :data="reportData.items || []" v-loading="loading" stripe border>
         <el-table-column prop="bizType" label="类型" width="80" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.bizType === 'OUTBOUND' ? 'success' : 'warning'" size="small">
+            <el-tag :type="row.bizType === 'OUTBOUND' ? 'success' : row.bizType === 'EXCHANGE' ? 'info' : 'warning'" size="small" :class="{ 'exchange-tag': row.bizType === 'EXCHANGE' }">
               {{ row.bizTypeName }}
             </el-tag>
           </template>
@@ -150,3 +157,12 @@ onMounted(async () => {
   handleQuery()
 })
 </script>
+
+<style scoped>
+/* 换货标签 - 紫色 */
+.exchange-tag {
+  --el-tag-bg-color: #f3e8ff !important;
+  --el-tag-border-color: #d8b4fe !important;
+  --el-tag-text-color: #7c3aed !important;
+}
+</style>

@@ -29,6 +29,12 @@ public class ExpressFeeReportVO {
     /** 退货快递单数 */
     private Long returnCount;
 
+    /** 换货快递费用 */
+    private BigDecimal exchangeFee;
+
+    /** 换货快递单数 */
+    private Long exchangeCount;
+
     /** 明细列表 */
     private List<ExpressFeeItem> items;
 

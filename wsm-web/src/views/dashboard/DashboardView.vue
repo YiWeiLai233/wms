@@ -78,8 +78,8 @@
 
     <!-- 近7天各平台SKU销量热力图 -->
     <el-row :gutter="20" class="mt-4">
-      <el-col :span="24">
-        <div class="card">
+      <el-col :span="12">
+        <div class="card card-border">
           <div class="card-header">
             <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量热力图</h3>
           </div>
@@ -516,7 +516,14 @@ const platformSkuComboOption = computed(() => {
 const platformSkuHeatmapOption = computed(() => {
   const platformSales = dashboard.value.platformSkuSales || []
   if (platformSales.length === 0) {
-    return { series: [] }
+    return {
+      graphic: {
+        type: 'text',
+        left: 'center',
+        top: 'center',
+        style: { text: '暂无销量数据', fontSize: 14, fill: '#999' }
+      }
+    }
   }
 
   // 收集所有SKU名称
@@ -553,40 +560,58 @@ const platformSkuHeatmapOption = computed(() => {
   return {
     tooltip: {
       position: 'top',
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: [12, 16],
+      textStyle: { color: '#374151', fontSize: 13 },
       formatter: (params: any) => {
         const platform = platformNames[params.data[0]] || ''
         const sku = skuNames[params.data[1]] || ''
         const value = params.data[2]
-        return `<div style="font-weight:bold">${platform}</div>
-                <div>${sku}: <strong>${value}</strong> 件</div>`
+        return `<div style="font-weight:600;margin-bottom:6px;color:#1f2937">${platform}</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
+                  <span>${sku}</span>
+                  <span style="font-weight:700;color:#3b82f6;margin-left:auto">${value} 件</span>
+                </div>`
       },
     },
     grid: {
-      left: 120,
-      right: 40,
-      top: 20,
+      left: 15,
+      right: 15,
+      top: 15,
       bottom: 60,
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
       data: platformNames,
-      splitArea: { show: true },
+      position: 'top',
+      axisLine: { show: false },
+      axisTick: { show: false },
       axisLabel: {
-        color: '#374151',
+        color: '#6b7280',
         fontSize: 12,
-        fontWeight: 'bold',
+        fontWeight: 600,
+        padding: [0, 0, 8, 0],
       },
+      splitLine: { show: false },
     },
     yAxis: {
       type: 'category',
       data: skuNames,
-      splitArea: { show: true },
+      axisLine: { show: false },
+      axisTick: { show: false },
       axisLabel: {
-        color: '#374151',
+        color: '#6b7280',
         fontSize: 11,
         width: 100,
         overflow: 'truncate',
+        padding: [0, 8, 0, 0],
       },
+      splitLine: { show: false },
     },
     visualMap: {
       min: 0,
@@ -595,26 +620,42 @@ const platformSkuHeatmapOption = computed(() => {
       orient: 'horizontal',
       left: 'center',
       bottom: 0,
+      itemWidth: 14,
+      itemHeight: 200,
       inRange: {
-        color: ['#fef2f2', '#fecaca', '#f87171', '#ef4444', '#b91c1c'],
+        color: ['#eff6ff', '#bfdbfe', '#60a5fa', '#2563eb', '#1e40af'],
       },
-      textStyle: { color: '#6b7280' },
+      textStyle: {
+        color: '#6b7280',
+        fontSize: 11,
+      },
     },
     series: [
       {
         name: '销量',
         type: 'heatmap',
         data: heatmapData,
+        itemStyle: {
+          borderColor: '#fff',
+          borderWidth: 2,
+          borderRadius: 4,
+        },
         label: {
           show: true,
           fontSize: 12,
-          fontWeight: 'bold',
+          fontWeight: 600,
           color: '#374151',
         },
         emphasis: {
           itemStyle: {
-            shadowBlur: 10,
-            shadowColor: 'rgba(0, 0, 0, 0.5)',
+            shadowBlur: 12,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+            borderColor: '#1e40af',
+            borderWidth: 2,
+          },
+          label: {
+            fontSize: 14,
+            fontWeight: 700,
           },
         },
       },

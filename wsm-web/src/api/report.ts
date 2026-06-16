@@ -55,6 +55,8 @@ export interface ExpressFeeReport {
   outboundCount: number
   returnFee: number
   returnCount: number
+  exchangeFee: number
+  exchangeCount: number
   items: ExpressFeeItem[]
 }
 
