@@ -108,9 +108,9 @@ public class ExchangeServiceImpl implements ExchangeService {
             throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
         }
 
-        // 校验原订单状态必须是已发货
-        if (!"SHIPPED".equals(order.getOrderStatus())) {
-            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "只有已发货的订单才能发起换货");
+        // 校验原订单状态必须是已发货或已换货
+        if (!"SHIPPED".equals(order.getOrderStatus()) && !"EXCHANGED".equals(order.getOrderStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "只有已发货或已换货的订单才能发起换货");
         }
 
         // 生成换货单号

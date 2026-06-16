@@ -113,8 +113,8 @@ public class ReturnServiceImpl implements ReturnService {
             throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
         }
 
-        // 检查订单状态（已发货才能退货）
-        if (!"SHIPPED".equals(order.getOrderStatus()) && !"RETURNING".equals(order.getOrderStatus())) {
+        // 检查订单状态（已发货或已换货才能退货）
+        if (!"SHIPPED".equals(order.getOrderStatus()) && !"RETURNING".equals(order.getOrderStatus()) && !"EXCHANGED".equals(order.getOrderStatus())) {
             throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "订单状态不允许退货");
         }
 
