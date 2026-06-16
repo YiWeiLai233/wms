@@ -141,6 +141,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/returns/ReturnList.vue'),
         meta: { title: '退货管理', icon: 'BottomLeft' },
       },
+      // 换货管理
+      {
+        path: 'exchange/list',
+        name: 'ExchangeList',
+        component: () => import('@/views/exchange/ExchangeList.vue'),
+        meta: { title: '换货管理', icon: 'Sort' },
+      },
       // 快递管理
       {
         path: 'express/query',

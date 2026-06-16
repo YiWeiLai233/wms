@@ -13,7 +13,10 @@
             <el-option label="入库" value="INBOUND" />
             <el-option label="出库" value="OUTBOUND" />
             <el-option label="退货" value="RETURN" />
+            <el-option label="换货" value="EXCHANGE" />
             <el-option label="调整" value="ADJUST" />
+            <el-option label="锁定" value="LOCK" />
+            <el-option label="释放" value="RELEASE" />
           </el-select>
         </el-form-item>
         <el-form-item label="业务单号">
@@ -42,7 +45,7 @@
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column prop="bizType" label="业务类型" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="STOCK_BIZ_TYPE_MAP[row.bizType]?.color as any" size="small">
+            <el-tag :type="STOCK_BIZ_TYPE_MAP[row.bizType]?.color as any" size="small" :class="STOCK_BIZ_TYPE_MAP[row.bizType]?.className">
               {{ STOCK_BIZ_TYPE_MAP[row.bizType]?.label || row.bizType }}
             </el-tag>
           </template>
@@ -121,3 +124,12 @@ function resetSearch() {
   handleReset()
 }
 </script>
+
+<style scoped>
+/* 换货标签 - 紫色 */
+.exchange-stock-tag {
+  --el-tag-bg-color: #f3e8ff !important;
+  --el-tag-border-color: #d8b4fe !important;
+  --el-tag-text-color: #7c3aed !important;
+}
+</style>
