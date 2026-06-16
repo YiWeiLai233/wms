@@ -61,11 +61,20 @@ public class ReportServiceImpl implements ReportService {
                 Long.class, today);
         vo.setTodayReturnCount(todayReturnCount != null ? todayReturnCount : 0L);
 
-        // 库存预警数（可用数量 < 10）
-        Long stockAlertCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM stock WHERE quantity < 10 AND deleted = 0",
+        // 库存预警数（使用配置的阈值）
+        Long lowStockCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM stock s " +
+                "LEFT JOIN stock_alert_config sac ON s.sku_id = sac.sku_id AND (sac.warehouse_id = s.warehouse_id OR sac.warehouse_id IS NULL) AND sac.deleted = 0 AND sac.enabled = 1 " +
+                "WHERE s.deleted = 0 AND s.quantity <= COALESCE(sac.low_stock_threshold, 10) AND s.quantity > COALESCE(sac.out_of_stock_threshold, 0)",
                 Long.class);
-        vo.setStockAlertCount(stockAlertCount != null ? stockAlertCount : 0L);
+        Long outOfStockCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM stock s " +
+                "LEFT JOIN stock_alert_config sac ON s.sku_id = sac.sku_id AND (sac.warehouse_id = s.warehouse_id OR sac.warehouse_id IS NULL) AND sac.deleted = 0 AND sac.enabled = 1 " +
+                "WHERE s.deleted = 0 AND s.quantity <= COALESCE(sac.out_of_stock_threshold, 0)",
+                Long.class);
+        vo.setLowStockCount(lowStockCount != null ? lowStockCount : 0L);
+        vo.setOutOfStockCount(outOfStockCount != null ? outOfStockCount : 0L);
+        vo.setStockAlertCount((lowStockCount != null ? lowStockCount : 0L) + (outOfStockCount != null ? outOfStockCount : 0L));
 
         // 最近7天订单趋势（按平台）
         List<DashboardVO.PlatformTrend> platformTrends = new ArrayList<>();
@@ -360,7 +369,9 @@ public class ReportServiceImpl implements ReportService {
         ExpressFeeReportVO vo = new ExpressFeeReportVO();
 
         List<Object> outboundParams = new ArrayList<>();
-        StringBuilder outboundWhere = new StringBuilder("WHERE oo.deleted = 0 AND oo.status = 'SHIPPED' AND oo.shipping_fee IS NOT NULL");
+        StringBuilder outboundWhere = new StringBuilder(
+                "WHERE oo.deleted = 0 AND oo.status IN ('SHIPPED','EXCHANGED') AND oo.shipping_fee IS NOT NULL " +
+                "AND (oo.remark IS NULL OR oo.remark NOT LIKE '换货单[%自动创建%')");
 
         List<Object> returnParams = new ArrayList<>();
         StringBuilder returnWhere = new StringBuilder("WHERE ro.deleted = 0 AND ro.status IN ('PENDING_CHECK','SELLABLE','DEFECTIVE','SCRAPPED','COMPLETED') AND ro.shipping_fee IS NOT NULL");

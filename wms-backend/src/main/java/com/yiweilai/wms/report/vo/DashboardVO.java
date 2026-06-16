@@ -25,6 +25,12 @@ public class DashboardVO {
     /** 库存预警数（库存低于阈值） */
     private Long stockAlertCount;
 
+    /** 低库存数 */
+    private Long lowStockCount;
+
+    /** 缺货数 */
+    private Long outOfStockCount;
+
     /** 最近7天订单趋势（按平台） */
     private List<PlatformTrend> platformTrends;
 
