@@ -831,6 +831,7 @@
     </el-dialog>
 
     <!-- 文档导入弹窗 -->
+    <el-dialog v-model="fileImportDialogVisible" title="文档导入" width="680px" destroy-on-close>
       <el-alert type="info" :closable="false" class="mb-4">
         <template #title>
           <div class="text-sm">

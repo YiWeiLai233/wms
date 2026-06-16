@@ -248,7 +248,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="预估重量(kg)">
-          <el-input-number v-model="shipForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" @change="calculateShipFee" />
+          <el-input-number v-model="shipForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" />
         </el-form-item>
         <el-form-item label="换货快递费">
           <el-input-number v-model="shipForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
@@ -322,7 +322,7 @@
             </el-select>
           </el-form-item>
           <el-form-item label="预估重量(kg)">
-            <el-input-number v-model="createForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" @change="calculateCreateFee" />
+            <el-input-number v-model="createForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" />
           </el-form-item>
           <el-form-item label="快递费用">
             <el-input-number v-model="createForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
@@ -409,7 +409,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -459,6 +459,16 @@ const shipForm = reactive({
 const shipTemplateList = ref<any[]>([])
 const shipTemplateDetail = ref<any>(null)
 
+// 监听重量变化，自动计算快递费
+watch(
+  () => shipForm.estimatedWeight,
+  () => {
+    if (shipForm.estimatedWeight && shipForm.estimatedWeight > 0 && shipTemplateDetail.value) {
+      calculateShipFee()
+    }
+  }
+)
+
 // 创建相关
 const createDialogVisible = ref(false)
 const creating = ref(false)
@@ -484,6 +494,16 @@ const createForm = ref({
 })
 const createTemplateList = ref<any[]>([])
 const createTemplateDetail = ref<any>(null)
+
+// 监听创建表单重量变化，自动计算快递费
+watch(
+  () => createForm.value.estimatedWeight,
+  () => {
+    if (createForm.value.estimatedWeight && createForm.value.estimatedWeight > 0 && createTemplateDetail.value) {
+      calculateCreateFee()
+    }
+  }
+)
 
 const createRules: FormRules = {
   orderNo: [{ required: true, message: '请输入订单号', trigger: 'blur' }],

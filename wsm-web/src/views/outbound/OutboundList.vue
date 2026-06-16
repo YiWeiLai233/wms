@@ -325,7 +325,7 @@
         </el-table-column>
         <el-table-column label="重量(kg)" min-width="110">
           <template #default="{ row }">
-            <el-input-number v-model="row.estimatedWeight" :min="0" :precision="2" size="small" style="width: 100%" @change="calculateItemFee(row)" />
+            <el-input-number v-model="row.estimatedWeight" :min="0" :precision="2" size="small" style="width: 100%" @input="calculateItemFee(row)" />
           </template>
         </el-table-column>
         <el-table-column label="快递费用" min-width="120">
