@@ -154,6 +154,9 @@
             <el-button v-if="row.orderStatus === 'EXCHANGING'" link icon="Sort" class="exchange-btn" @click="router.push({ path: '/exchange/list', query: { orderNo: row.orderNo } })">
               换货管理
             </el-button>
+            <el-button v-if="row.orderStatus === 'RETURNING'" type="success" link icon="Check" @click="openQuickReturnDialog(row)">
+              快速退货
+            </el-button>
             <el-button v-if="row.orderStatus === 'RETURNING'" type="warning" link icon="BottomLeft" @click="router.push({ path: '/returns/list', query: { orderNo: row.orderNo } })">
               退货管理
             </el-button>
@@ -695,7 +698,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="预估重量(kg)" required>
-          <el-input-number v-model="quickShipForm.estimatedWeight" :min="0.01" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" />
+          <el-input-number v-model="quickShipForm.estimatedWeight" :min="0.01" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" @change="calculateQuickShipFee" />
         </el-form-item>
         <el-form-item label="快递费用" required>
           <el-input-number v-model="quickShipForm.shippingFee" :min="0.01" :precision="2" style="width: 100%" />
@@ -780,8 +783,54 @@
       </template>
     </el-dialog>
 
+    <!-- 快速退货弹窗 -->
+    <el-dialog v-model="quickReturnDialogVisible" title="快速退货" width="700px" destroy-on-close>
+      <el-alert v-if="quickReturnOrder" type="warning" :closable="false" class="mb-4">
+        <template #title>
+          <div class="text-sm">
+            <span class="font-semibold">订单：</span>{{ quickReturnOrder.orderNo }}
+            <span class="ml-4 font-semibold">平台单号：</span>{{ quickReturnOrder.platformOrderNo || '-' }}
+          </div>
+        </template>
+      </el-alert>
+
+      <h4 class="mb-2 text-sm font-semibold text-gray-700">退货商品质检</h4>
+      <el-table :data="quickReturnItems" border size="small" class="mb-4" max-height="250">
+        <el-table-column label="图片" width="60" align="center">
+          <template #default="{ row }">
+            <ImagePreview :src="row.skuImage" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="skuCode" label="SKU编码" width="130" />
+        <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+        <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+          <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="quantity" label="数量" width="80" align="center" />
+        <el-table-column label="质检结果" width="130">
+          <template #default="{ row }">
+            <el-select v-model="row.qualityStatus" size="small" style="width: 110px">
+              <el-option label="可售" value="SELLABLE" />
+              <el-option label="次品" value="DEFECTIVE" />
+              <el-option label="报废" value="SCRAPPED" />
+            </el-select>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-form label-width="90px">
+        <el-form-item label="退货原因">
+          <el-input :model-value="quickReturnOrder?.remark || '-'" disabled />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="quickReturnDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="quickReturning" @click="handleQuickReturnSubmit">确认退货入库</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 文档导入弹窗 -->
-    <el-dialog v-model="fileImportDialogVisible" title="文档导入" width="680px" destroy-on-close>
       <el-alert type="info" :closable="false" class="mb-4">
         <template #title>
           <div class="text-sm">
@@ -864,7 +913,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { getOrderDetail, getOrderList, importOrder, updateOrder, updateOrderStatus } from '@/api/order'
 import type { Order } from '@/api/order'
-import { createOutbound, createBatchOutbound } from '@/api/outbound'
+import { createOutbound, createBatchOutbound, getOutboundList, getOutboundDetail, confirmOutbound } from '@/api/outbound'
 import { createBatchReturn } from '@/api/returns'
 import { createReturn, cancelReturnByOrderId } from '@/api/returns'
 import { createExchange, getExchangeList, getExchangeDetail } from '@/api/exchange'
@@ -1235,6 +1284,81 @@ async function handleBatchReturnSubmit() {
   tableRef.value?.clearSelection()
   fetchData()
   batchReturning.value = false
+}
+
+// 快速退货弹窗
+const quickReturnDialogVisible = ref(false)
+const quickReturning = ref(false)
+const quickReturnOrder = ref<Order | null>(null)
+const quickReturnItems = ref<any[]>([])
+const quickReturnId = ref(0)
+
+async function openQuickReturnDialog(row: Order) {
+  quickReturnOrder.value = row
+  quickReturnItems.value = []
+  quickReturnId.value = 0
+
+  // 查找该订单的退货单
+  try {
+    const { getReturnList } = await import('@/api/returns')
+    const res = await getReturnList({ orderNo: row.orderNo, page: 1, size: 1 })
+    const returns = res.data.list || []
+    if (returns.length === 0) {
+      ElMessage.warning('该订单没有退货单')
+      return
+    }
+    const returnOrder = returns[0]
+    quickReturnId.value = returnOrder.id
+
+    // 获取退货单详情
+    const { getReturnDetail } = await import('@/api/returns')
+    const detailRes = await getReturnDetail(returnOrder.id)
+    const returnData = detailRes.data
+
+    // 加载退货商品明细
+    quickReturnItems.value = (returnData.items || []).map((item: any) => ({
+      itemId: item.id,
+      skuId: item.skuId,
+      skuCode: item.skuCode,
+      skuName: item.skuName || item.skuCode,
+      sizeValue: item.sizeValue,
+      skuImage: item.skuImage,
+      quantity: item.quantity,
+      qualityStatus: item.qualityStatus || 'SELLABLE',
+    }))
+  } catch {
+    ElMessage.error('获取退货单信息失败')
+    return
+  }
+
+  quickReturnDialogVisible.value = true
+}
+
+async function handleQuickReturnSubmit() {
+  quickReturning.value = true
+  try {
+    const { checkReturn, confirmReturn } = await import('@/api/returns')
+
+    // 1. 提交质检
+    await checkReturn({
+      returnId: quickReturnId.value,
+      items: quickReturnItems.value.map((item: any) => ({
+        itemId: item.itemId,
+        qualityStatus: item.qualityStatus,
+      })),
+    })
+
+    // 2. 确认入库
+    await confirmReturn(quickReturnId.value)
+
+    ElMessage.success('退货入库成功')
+    quickReturnDialogVisible.value = false
+    fetchData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '操作失败')
+  } finally {
+    quickReturning.value = false
+  }
 }
 
 const importDialogVisible = ref(false)
@@ -2067,7 +2191,6 @@ async function handleExchange() {
 async function openQuickShipDialog(row: any) {
   try {
     // 获取出库单
-    const { getOutboundList } = await import('@/api/outbound')
     const outboundRes = await getOutboundList({ page: 1, size: 1, orderNo: row.orderNo })
     const outboundList = outboundRes.data?.list || []
     if (outboundList.length === 0) {
@@ -2077,7 +2200,6 @@ async function openQuickShipDialog(row: any) {
     const outbound = outboundList[0]
 
     // 获取出库单详情
-    const { getOutboundDetail } = await import('@/api/outbound')
     const detailRes = await getOutboundDetail(outbound.id)
     quickShipDetail.value = detailRes.data
 
@@ -2208,7 +2330,6 @@ async function handleQuickShipConfirm() {
 
   quickShipping.value = true
   try {
-    const { confirmOutbound } = await import('@/api/outbound')
     await confirmOutbound({
       outboundId: quickShipForm.outboundId,
       trackingNo: quickShipForm.trackingNo,
