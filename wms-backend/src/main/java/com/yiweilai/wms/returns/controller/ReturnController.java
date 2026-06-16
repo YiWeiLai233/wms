@@ -193,7 +193,7 @@ public class ReturnController {
                     returnService.create(dto);
                     successCount++;
                 } catch (Exception e) {
-                    errors.add("订单号 " + item.orderNo + ": " + e.getMessage());
+                    errors.add("平台单号 " + item.platformOrderNo + ": " + e.getMessage());
                 }
             }
 

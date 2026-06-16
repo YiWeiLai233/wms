@@ -21,86 +21,41 @@
     <!-- 图表区 -->
     <el-row :gutter="20">
       <el-col :span="12">
-        <div class="card">
+        <div class="card card-border">
+          <div class="card-header">
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-semibold text-gray-800">缺货预警</h3>
+              <el-badge :value="outOfStockList.length" :max="99" type="danger" />
+            </div>
+          </div>
+          <v-chart class="alert-chart" :option="outOfStockChartOption" autoresize />
+        </div>
+      </el-col>
+      <el-col :span="12">
+        <div class="card card-border">
+          <div class="card-header">
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-semibold text-gray-800">低库存预警</h3>
+              <el-badge :value="lowStockList.length" :max="99" type="warning" />
+            </div>
+          </div>
+          <v-chart class="alert-chart" :option="lowStockChartOption" autoresize />
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 第二行：订单趋势 + 本月出货TOP10 -->
+    <el-row :gutter="20" class="mt-4">
+      <el-col :span="12">
+        <div class="card card-border">
           <div class="card-header">
             <h3 class="text-base font-semibold text-gray-800">近 7 天订单趋势</h3>
           </div>
           <v-chart class="chart" :option="trendOption" autoresize />
         </div>
       </el-col>
-      <el-col :span="6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="text-base font-semibold text-gray-800">订单状态分布</h3>
-          </div>
-          <v-chart class="chart" :option="pieOption" autoresize />
-        </div>
-      </el-col>
-      <el-col :span="6">
-        <div class="card alert-card">
-          <div class="card-header">
-            <div class="flex items-center gap-2">
-              <h3 class="text-base font-semibold text-gray-800">库存预警</h3>
-              <el-badge :value="currentAlertList.length" :max="99" type="danger" class="alert-badge" />
-            </div>
-            <el-tabs v-model="alertTab" class="alert-tabs">
-              <el-tab-pane name="outOfStock">
-                <template #label>
-                  <div class="flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                    <span>缺货</span>
-                  </div>
-                </template>
-              </el-tab-pane>
-              <el-tab-pane name="lowStock">
-                <template #label>
-                  <div class="flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
-                    <span>低库存</span>
-                  </div>
-                </template>
-              </el-tab-pane>
-            </el-tabs>
-          </div>
-          <div class="alert-list">
-            <div
-              v-for="(item, index) in currentAlertList"
-              :key="index"
-              class="alert-item"
-              :class="item.alertStatus === 'OUT_OF_STOCK' ? 'alert-danger' : 'alert-warning'"
-            >
-              <div class="flex items-center gap-2 flex-1 min-w-0">
-                <div class="alert-icon">
-                  <el-icon v-if="item.alertStatus === 'OUT_OF_STOCK'" color="#ef4444"><WarningFilled /></el-icon>
-                  <el-icon v-else color="#f59e0b"><Warning /></el-icon>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="text-sm font-medium text-gray-800 truncate">{{ item.skuName }}</div>
-                  <div class="text-xs text-gray-500">{{ item.warehouseName || '所有仓库' }}</div>
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="text-lg font-bold" :class="item.alertStatus === 'OUT_OF_STOCK' ? 'text-red-500' : 'text-yellow-500'">
-                  {{ item.quantity }}
-                </div>
-                <div class="text-xs text-gray-400">
-                  /{{ item.alertStatus === 'OUT_OF_STOCK' ? item.outOfStockThreshold : item.lowStockThreshold }}
-                </div>
-              </div>
-            </div>
-            <div v-if="currentAlertList.length === 0" class="empty-state">
-              <el-icon :size="40" color="#d1d5db"><CircleCheck /></el-icon>
-              <p class="text-gray-400 mt-2">暂无预警</p>
-            </div>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
-
-    <!-- 本月出货TOP10 -->
-    <el-row :gutter="20" class="mt-4">
-      <el-col :span="24">
-        <div class="card">
+      <el-col :span="12">
+        <div class="card card-border">
           <div class="card-header">
             <h3 class="text-base font-semibold text-gray-800">本月出货量 TOP 10 SKU</h3>
           </div>
@@ -187,8 +142,12 @@ const trendOption = computed(() => {
         data: platformTrends.map((t) => t.platformName),
         bottom: 0,
         textStyle: { color: '#6b7280', fontSize: 12 },
+        type: 'scroll',
+        pageTextStyle: { color: '#6b7280' },
+        pageIconColor: '#6b7280',
+        pageIconInactiveColor: '#d1d5db',
       },
-      grid: { left: 40, right: 20, top: 20, bottom: 40 },
+      grid: { left: 40, right: 20, top: 20, bottom: 60 },
       xAxis: {
         type: 'category',
         data: dates,
@@ -253,26 +212,6 @@ const trendOption = computed(() => {
     ],
   }
 })
-
-const pieOption = computed(() => ({
-  tooltip: { trigger: 'item' },
-  legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 12 } },
-  series: [
-    {
-      type: 'pie',
-      radius: ['45%', '70%'],
-      center: ['50%', '45%'],
-      avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-      label: { show: false },
-      data: dashboard.value.orderStatusDistribution.map((i) => ({
-        name: i.statusName,
-        value: i.count,
-      })),
-      color: ['#94a3b8', '#f59e0b', '#3b82f6', '#10b981', '#06b6d4', '#ef4444'],
-    },
-  ],
-}))
 
 const barOption = computed(() => {
   const skus = [...(dashboard.value.topSkus || [])].reverse()
@@ -353,8 +292,12 @@ const barOption = computed(() => {
       data: platforms.map(([, p]) => p.name),
       bottom: 0,
       textStyle: { color: '#6b7280', fontSize: 12 },
+      type: 'scroll',
+      pageTextStyle: { color: '#6b7280' },
+      pageIconColor: '#6b7280',
+      pageIconInactiveColor: '#d1d5db',
     },
-    grid: { left: 140, right: 50, top: 10, bottom: 40 },
+    grid: { left: 140, right: 50, top: 10, bottom: 60 },
     xAxis: {
       type: 'value',
       axisLine: { show: false },
@@ -679,12 +622,216 @@ const platformSkuHeatmapOption = computed(() => {
   }
 })
 
-const alertTab = ref<'outOfStock' | 'lowStock'>('outOfStock')
 const outOfStockList = ref<StockAlertStatus[]>([])
 const lowStockList = ref<StockAlertStatus[]>([])
-const currentAlertList = computed(() =>
-  alertTab.value === 'outOfStock' ? outOfStockList.value : lowStockList.value,
-)
+
+// 缺货横向柱状图（进度条样式）
+const outOfStockChartOption = computed(() => {
+  const list = outOfStockList.value
+  if (list.length === 0) {
+    return {
+      graphic: {
+        type: 'text',
+        left: 'center',
+        top: 'center',
+        style: { text: '暂无缺货预警', fontSize: 14, fill: '#999' }
+      }
+    }
+  }
+  const sortedList = [...list].sort((a, b) => {
+    const ratioA = (a.quantity || 0) / (a.outOfStockThreshold || 1)
+    const ratioB = (b.quantity || 0) / (b.outOfStockThreshold || 1)
+    return ratioA - ratioB
+  })
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      borderColor: '#e5e7eb',
+      textStyle: { color: '#333', fontSize: 13 },
+      formatter: (params: any) => {
+        const item = sortedList[params[0]?.dataIndex]
+        if (!item) return ''
+        const ratio = Math.round(((item.quantity || 0) / (item.outOfStockThreshold || 1)) * 100)
+        return `<div style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
+                <div>当前库存: <span style="color:#ef4444;font-weight:600">${item.quantity}</span></div>
+                <div>缺货阈值: ${item.outOfStockThreshold || 0}</div>
+                <div>库存占比: <span style="color:${ratio < 50 ? '#ef4444' : '#f59e0b'};font-weight:600">${ratio}%</span></div>
+                <div>仓库: ${item.warehouseName || '所有仓库'}</div>`
+      }
+    },
+    grid: { left: 10, right: 60, top: 15, bottom: 20, containLabel: true },
+    xAxis: {
+      type: 'value',
+      max: (value: any) => value.max * 1.1,
+      axisLabel: { show: false },
+      axisLine: { show: false },
+      splitLine: { show: false }
+    },
+    yAxis: {
+      type: 'category',
+      data: sortedList.map(i => i.skuName || ''),
+      axisLabel: {
+        color: '#374151',
+        fontSize: 11,
+        width: 100,
+        overflow: 'truncate'
+      },
+      axisLine: { show: false },
+      axisTick: { show: false }
+    },
+    series: [
+      // 背景（阈值）
+      {
+        name: '阈值',
+        type: 'bar',
+        data: sortedList.map(i => i.outOfStockThreshold || 0),
+        itemStyle: {
+          borderRadius: [0, 6, 6, 0],
+          color: '#fee2e2'
+        },
+        barWidth: '60%',
+        barGap: '-100%',
+        z: 1
+      },
+      // 前景（实际库存）
+      {
+        name: '库存',
+        type: 'bar',
+        data: sortedList.map(i => i.quantity || 0),
+        itemStyle: {
+          borderRadius: [0, 6, 6, 0],
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 1, y2: 0,
+            colorStops: [
+              { offset: 0, color: '#fca5a5' },
+              { offset: 1, color: '#ef4444' }
+            ]
+          }
+        },
+        barWidth: '60%',
+        z: 2,
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (params: any) => {
+            const item = sortedList[params.dataIndex]
+            return `${params.value}/${item.outOfStockThreshold || 0}`
+          },
+          fontSize: 11,
+          fontWeight: 500,
+          color: '#6b7280'
+        }
+      }
+    ]
+  }
+})
+
+// 低库存横向柱状图（进度条样式）
+const lowStockChartOption = computed(() => {
+  const list = lowStockList.value
+  if (list.length === 0) {
+    return {
+      graphic: {
+        type: 'text',
+        left: 'center',
+        top: 'center',
+        style: { text: '暂无低库存预警', fontSize: 14, fill: '#999' }
+      }
+    }
+  }
+  const sortedList = [...list].sort((a, b) => {
+    const ratioA = (a.quantity || 0) / (a.lowStockThreshold || 1)
+    const ratioB = (b.quantity || 0) / (b.lowStockThreshold || 1)
+    return ratioA - ratioB
+  })
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      borderColor: '#e5e7eb',
+      textStyle: { color: '#333', fontSize: 13 },
+      formatter: (params: any) => {
+        const item = sortedList[params[0]?.dataIndex]
+        if (!item) return ''
+        const ratio = Math.round(((item.quantity || 0) / (item.lowStockThreshold || 1)) * 100)
+        return `<div style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
+                <div>当前库存: <span style="color:#f59e0b;font-weight:600">${item.quantity}</span></div>
+                <div>低库存阈值: ${item.lowStockThreshold || 0}</div>
+                <div>库存占比: <span style="color:${ratio < 50 ? '#ef4444' : '#22c55e'};font-weight:600">${ratio}%</span></div>
+                <div>仓库: ${item.warehouseName || '所有仓库'}</div>`
+      }
+    },
+    grid: { left: 10, right: 60, top: 15, bottom: 20, containLabel: true },
+    xAxis: {
+      type: 'value',
+      max: (value: any) => value.max * 1.1,
+      axisLabel: { show: false },
+      axisLine: { show: false },
+      splitLine: { show: false }
+    },
+    yAxis: {
+      type: 'category',
+      data: sortedList.map(i => i.skuName || ''),
+      axisLabel: {
+        color: '#374151',
+        fontSize: 11,
+        width: 100,
+        overflow: 'truncate'
+      },
+      axisLine: { show: false },
+      axisTick: { show: false }
+    },
+    series: [
+      // 背景（阈值）
+      {
+        name: '阈值',
+        type: 'bar',
+        data: sortedList.map(i => i.lowStockThreshold || 0),
+        itemStyle: {
+          borderRadius: [0, 6, 6, 0],
+          color: '#fef3c7'
+        },
+        barWidth: '60%',
+        barGap: '-100%',
+        z: 1
+      },
+      // 前景（实际库存）
+      {
+        name: '库存',
+        type: 'bar',
+        data: sortedList.map(i => i.quantity || 0),
+        itemStyle: {
+          borderRadius: [0, 6, 6, 0],
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 1, y2: 0,
+            colorStops: [
+              { offset: 0, color: '#fde68a' },
+              { offset: 1, color: '#f59e0b' }
+            ]
+          }
+        },
+        barWidth: '60%',
+        z: 2,
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (params: any) => {
+            const item = sortedList[params.dataIndex]
+            return `${params.value}/${item.lowStockThreshold || 0}`
+          },
+          fontSize: 11,
+          fontWeight: 500,
+          color: '#6b7280'
+        }
+      }
+    ]
+  }
+})
 
 onMounted(async () => {
   try {
@@ -703,6 +850,11 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+.card-border {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+}
 .chart {
   height: 320px;
   width: 100%;
@@ -734,6 +886,10 @@ onMounted(async () => {
     height: 16px;
     line-height: 16px;
   }
+}
+.alert-chart {
+  height: 400px;
+  width: 100%;
 }
 .alert-tabs {
   :deep(.el-tabs__header) {
