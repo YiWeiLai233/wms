@@ -274,13 +274,19 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private boolean isValidTransition(String current, String target) {
+        // 取消订单允许从任何状态
+        if ("CANCELLED".equals(target)) {
+            return true;
+        }
         // 定义允许的状态流转
         return switch (current) {
-            case "WAIT_PAY" -> "WAIT_OUTBOUND".equals(target) || "CANCELLED".equals(target);
-            case "WAIT_OUTBOUND" -> "OUTBOUNDING".equals(target) || "CANCELLED".equals(target);
+            case "WAIT_PAY" -> "WAIT_OUTBOUND".equals(target);
+            case "WAIT_OUTBOUND" -> "OUTBOUNDING".equals(target);
             case "OUTBOUNDING" -> "SHIPPED".equals(target);
-            case "SHIPPED" -> "FINISHED".equals(target) || "RETURNING".equals(target);
+            case "SHIPPED" -> "FINISHED".equals(target) || "RETURNING".equals(target) || "EXCHANGING".equals(target);
             case "RETURNING" -> "RETURNED".equals(target);
+            case "EXCHANGING" -> "EXCHANGED".equals(target) || "SHIPPED".equals(target);
+            case "EXCHANGED" -> "FINISHED".equals(target);
             default -> false;
         };
     }

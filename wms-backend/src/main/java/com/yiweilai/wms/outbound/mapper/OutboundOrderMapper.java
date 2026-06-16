@@ -34,6 +34,11 @@ public interface OutboundOrderMapper {
     OutboundOrder findByOrderId(@Param("orderId") Long orderId);
 
     /**
+     * 根据订单ID和状态查询
+     */
+    OutboundOrder findByOrderIdAndStatus(@Param("orderId") Long orderId, @Param("status") String status);
+
+    /**
      * 新增出库单
      */
     int insert(OutboundOrder order);
