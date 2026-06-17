@@ -1,5 +1,6 @@
 package com.yiweilai.wms.express.service.impl;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.express.dto.ExpressQueryDTO;
 import com.yiweilai.wms.express.entity.ExpressFeeStep;
 import com.yiweilai.wms.express.entity.ExpressFeeTemplate;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 快递 Service 实现
@@ -34,13 +36,27 @@ public class ExpressServiceImpl implements ExpressService {
 
     private final ExpressFeeTemplateMapper templateMapper;
     private final ExpressFeeStepMapper stepMapper;
+    private final CacheService cacheService;
 
     @Override
     public ExpressInfoVO query(String trackingNo, String carrier) {
+        String cacheKey = "cache:express:query:" + trackingNo + ":" + carrier;
+
+        // 尝试从缓存获取
+        ExpressInfoVO cached = cacheService.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
         // 如果启用了快递100，尝试调用API
         if (kuaidi100Enabled && !kuaidi100Key.isEmpty()) {
             try {
-                return queryFromKuaidi100(trackingNo, carrier);
+                ExpressInfoVO result = queryFromKuaidi100(trackingNo, carrier);
+                if (result != null) {
+                    // 缓存30分钟
+                    cacheService.set(cacheKey, result, 30, TimeUnit.MINUTES);
+                }
+                return result;
             } catch (Exception e) {
                 log.warn("快递100查询失败: {}", e.getMessage());
             }

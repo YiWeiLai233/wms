@@ -3,6 +3,7 @@ package com.yiweilai.wms.platform.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.platform.dto.PlatformCreateDTO;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 平台 Service 实现
@@ -26,6 +28,9 @@ import java.util.List;
 public class PlatformServiceImpl implements PlatformService {
 
     private final PlatformMapper platformMapper;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_PLATFORMS_ENABLED = "cache:platforms:enabled";
 
     @Override
     public PageResult<PlatformVO> findByPage(String keyword, Integer enabled, Integer page, Integer size) {
@@ -52,8 +57,10 @@ public class PlatformServiceImpl implements PlatformService {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<PlatformVO> findEnabledList() {
-        return platformMapper.findEnabledList();
+        return cacheService.getOrLoad(CACHE_KEY_PLATFORMS_ENABLED, 30, TimeUnit.MINUTES,
+                () -> platformMapper.findEnabledList());
     }
 
     @Override
@@ -65,6 +72,7 @@ public class PlatformServiceImpl implements PlatformService {
             platform.setEnabled(1);
         }
         platformMapper.insert(platform);
+        cacheService.delete(CACHE_KEY_PLATFORMS_ENABLED);
         return platform.getId();
     }
 
@@ -78,6 +86,7 @@ public class PlatformServiceImpl implements PlatformService {
 
         BeanUtils.copyProperties(dto, platform);
         platformMapper.update(platform);
+        cacheService.delete(CACHE_KEY_PLATFORMS_ENABLED);
     }
 
     @Override
@@ -89,5 +98,6 @@ public class PlatformServiceImpl implements PlatformService {
         }
 
         platformMapper.deleteById(id);
+        cacheService.delete(CACHE_KEY_PLATFORMS_ENABLED);
     }
 }

@@ -3,6 +3,7 @@ package com.yiweilai.wms.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yiweilai.wms.common.Constants;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.config.CacheService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final ObjectMapper objectMapper;
+    private final CacheService cacheService;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Value("${ai.service.token:}")
@@ -81,6 +83,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 验证 Token
         if (!jwtUtils.validateToken(token)) {
             writeUnauthorized(response, "登录已过期");
+            return;
+        }
+
+        // 检查 Token 是否在黑名单中
+        String blacklistKey = JwtUtils.getTokenBlacklistKey(token);
+        if (cacheService.hasKey(blacklistKey)) {
+            writeUnauthorized(response, "登录已失效，请重新登录");
             return;
         }
 

@@ -1,7 +1,9 @@
 package com.yiweilai.wms.user.controller;
 
+import com.yiweilai.wms.common.Constants;
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.security.JwtUtils;
 import com.yiweilai.wms.user.dto.LoginRequest;
 import com.yiweilai.wms.user.dto.LoginResponse;
@@ -11,11 +13,14 @@ import com.yiweilai.wms.user.vo.RoleVO;
 import com.yiweilai.wms.user.vo.UserVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户控制器
@@ -28,12 +33,29 @@ public class UserController {
 
     private final UserService userService;
     private final JwtUtils jwtUtils;
+    private final CacheService cacheService;
 
     @Operation(summary = "用户登录")
     @PostMapping("/auth/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = userService.login(request);
         return Result.success(response);
+    }
+
+    @Operation(summary = "用户登出")
+    @PostMapping("/auth/logout")
+    public Result<Void> logout(HttpServletRequest request) {
+        String authHeader = request.getHeader(Constants.TOKEN_HEADER);
+        if (StringUtils.hasText(authHeader) && authHeader.startsWith(Constants.TOKEN_PREFIX)) {
+            String token = authHeader.substring(Constants.TOKEN_PREFIX.length());
+            // 将 Token 加入黑名单，TTL 等于 Token 剩余有效期
+            long remaining = jwtUtils.getTokenRemainingTime(token);
+            if (remaining > 0) {
+                String blacklistKey = JwtUtils.getTokenBlacklistKey(token);
+                cacheService.set(blacklistKey, "logout", remaining, TimeUnit.MILLISECONDS);
+            }
+        }
+        return Result.success();
     }
 
     @Operation(summary = "获取当前用户信息")

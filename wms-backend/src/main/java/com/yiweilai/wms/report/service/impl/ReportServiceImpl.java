@@ -1,5 +1,6 @@
 package com.yiweilai.wms.report.service.impl;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.report.service.ReportService;
 import com.yiweilai.wms.report.vo.DashboardVO;
 import com.yiweilai.wms.report.vo.ExpressFeeReportVO;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 报表统计 Service 实现
@@ -29,9 +31,27 @@ public class ReportServiceImpl implements ReportService {
 
     private final JdbcTemplate jdbcTemplate;
     private final StockMapper stockMapper;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_DASHBOARD = "cache:dashboard";
 
     @Override
     public DashboardVO getDashboard() {
+        // 尝试从缓存获取
+        DashboardVO cached = cacheService.get(CACHE_KEY_DASHBOARD);
+        if (cached != null) {
+            return cached;
+        }
+
+        // 缓存未命中，执行查询
+        DashboardVO vo = buildDashboard();
+
+        // 写入缓存，5分钟过期
+        cacheService.set(CACHE_KEY_DASHBOARD, vo, 5, TimeUnit.MINUTES);
+        return vo;
+    }
+
+    private DashboardVO buildDashboard() {
         DashboardVO vo = new DashboardVO();
 
         // 今日日期

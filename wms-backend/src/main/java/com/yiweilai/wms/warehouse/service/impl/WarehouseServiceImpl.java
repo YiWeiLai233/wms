@@ -3,6 +3,7 @@ package com.yiweilai.wms.warehouse.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.warehouse.dto.WarehouseQueryDTO;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 public class WarehouseServiceImpl implements WarehouseService {
 
     private final WarehouseMapper warehouseMapper;
+    private final CacheService cacheService;
 
     @Override
     public PageResult<WarehouseVO> findByPage(WarehouseQueryDTO query) {
@@ -49,11 +52,18 @@ public class WarehouseServiceImpl implements WarehouseService {
 
     @Override
     public WarehouseVO getById(Long id) {
+        String cacheKey = "cache:warehouse:" + id;
+        WarehouseVO cached = cacheService.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
         Warehouse warehouse = warehouseMapper.findById(id);
         if (warehouse == null) {
             throw new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND);
         }
-        return convertToVO(warehouse);
+        WarehouseVO vo = convertToVO(warehouse);
+        cacheService.set(cacheKey, vo, 30, TimeUnit.MINUTES);
+        return vo;
     }
 
     @Override
@@ -89,6 +99,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
         BeanUtils.copyProperties(dto, warehouse);
         warehouseMapper.update(warehouse);
+        cacheService.delete("cache:warehouse:" + dto.getId());
     }
 
     @Override
@@ -99,6 +110,7 @@ public class WarehouseServiceImpl implements WarehouseService {
             throw new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND);
         }
         warehouseMapper.deleteById(id);
+        cacheService.delete("cache:warehouse:" + id);
     }
 
     private WarehouseVO convertToVO(Warehouse warehouse) {

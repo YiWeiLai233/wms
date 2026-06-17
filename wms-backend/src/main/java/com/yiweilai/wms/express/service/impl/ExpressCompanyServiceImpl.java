@@ -3,6 +3,7 @@ package com.yiweilai.wms.express.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.express.dto.ExpressCompanySaveDTO;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -28,12 +30,22 @@ import java.util.stream.Collectors;
 public class ExpressCompanyServiceImpl implements ExpressCompanyService {
 
     private final ExpressCompanyMapper companyMapper;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_EXPRESS_COMPANIES = "cache:express:companies";
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<ExpressCompanyVO> findAll() {
-        return companyMapper.findAll().stream()
+        List<ExpressCompanyVO> cached = cacheService.get(CACHE_KEY_EXPRESS_COMPANIES);
+        if (cached != null) {
+            return cached;
+        }
+        List<ExpressCompanyVO> list = companyMapper.findAll().stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
+        cacheService.set(CACHE_KEY_EXPRESS_COMPANIES, list, 30, TimeUnit.MINUTES);
+        return list;
     }
 
     @Override
@@ -73,6 +85,7 @@ public class ExpressCompanyServiceImpl implements ExpressCompanyService {
         ExpressCompany company = new ExpressCompany();
         BeanUtils.copyProperties(dto, company);
         companyMapper.insert(company);
+        cacheService.delete(CACHE_KEY_EXPRESS_COMPANIES);
         return company.getId();
     }
 
@@ -94,6 +107,7 @@ public class ExpressCompanyServiceImpl implements ExpressCompanyService {
 
         BeanUtils.copyProperties(dto, company);
         companyMapper.update(company);
+        cacheService.delete(CACHE_KEY_EXPRESS_COMPANIES);
     }
 
     @Override
@@ -104,6 +118,7 @@ public class ExpressCompanyServiceImpl implements ExpressCompanyService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "快递公司不存在");
         }
         companyMapper.deleteById(id);
+        cacheService.delete(CACHE_KEY_EXPRESS_COMPANIES);
     }
 
     private ExpressCompanyVO convertToVO(ExpressCompany company) {

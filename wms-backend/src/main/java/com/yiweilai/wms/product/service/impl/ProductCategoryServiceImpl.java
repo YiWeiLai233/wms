@@ -1,5 +1,6 @@
 package com.yiweilai.wms.product.service.impl;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.product.dto.ProductCategorySaveDTO;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -27,11 +29,21 @@ import java.util.stream.Collectors;
 public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     private final ProductCategoryMapper categoryMapper;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_CATEGORY_TREE = "cache:category:tree";
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<ProductCategoryVO> getCategoryTree() {
+        List<ProductCategoryVO> cached = cacheService.get(CACHE_KEY_CATEGORY_TREE);
+        if (cached != null) {
+            return cached;
+        }
         List<ProductCategory> allCategories = categoryMapper.findAll();
-        return buildTree(allCategories, 0L);
+        List<ProductCategoryVO> tree = buildTree(allCategories, 0L);
+        cacheService.set(CACHE_KEY_CATEGORY_TREE, tree, 30, TimeUnit.MINUTES);
+        return tree;
     }
 
     @Override
@@ -49,6 +61,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         ProductCategory category = new ProductCategory();
         BeanUtils.copyProperties(dto, category);
         categoryMapper.insert(category);
+        cacheService.delete(CACHE_KEY_CATEGORY_TREE);
         return category.getId();
     }
 
@@ -61,6 +74,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         }
         BeanUtils.copyProperties(dto, category);
         categoryMapper.update(category);
+        cacheService.delete(CACHE_KEY_CATEGORY_TREE);
     }
 
     @Override
@@ -72,6 +86,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "存在子分类，不能删除");
         }
         categoryMapper.deleteById(id);
+        cacheService.delete(CACHE_KEY_CATEGORY_TREE);
     }
 
     /**

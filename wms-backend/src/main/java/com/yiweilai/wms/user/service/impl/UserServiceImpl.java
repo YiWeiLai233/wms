@@ -3,6 +3,7 @@ package com.yiweilai.wms.user.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.security.JwtUtils;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +39,9 @@ public class UserServiceImpl implements UserService {
     private final RoleMapper roleMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_ROLES = "cache:roles:all";
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -75,6 +80,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserVO getCurrentUser(Long userId) {
+        String cacheKey = "cache:user:" + userId;
+        UserVO cached = cacheService.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
@@ -91,6 +102,8 @@ public class UserServiceImpl implements UserService {
         vo.setStatus(user.getStatus());
         vo.setRoles(roles);
         vo.setCreatedAt(user.getCreatedAt());
+
+        cacheService.set(cacheKey, vo, 10, TimeUnit.MINUTES);
         return vo;
     }
 
@@ -191,6 +204,8 @@ public class UserServiceImpl implements UserService {
                 userMapper.insertUserRole(dto.getId(), roleId);
             }
         }
+
+        cacheService.delete("cache:user:" + dto.getId());
     }
 
     @Override
@@ -201,6 +216,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         userMapper.deleteById(id);
+        cacheService.delete("cache:user:" + id);
     }
 
     @Override
@@ -211,12 +227,18 @@ public class UserServiceImpl implements UserService {
         }
         String encodedPassword = passwordEncoder.encode(newPassword);
         userMapper.updatePassword(userId, encodedPassword);
+        cacheService.delete("cache:user:" + userId);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<RoleVO> listRoles() {
+        List<RoleVO> cached = cacheService.get(CACHE_KEY_ROLES);
+        if (cached != null) {
+            return cached;
+        }
         List<SysRole> roles = roleMapper.selectAll();
-        return roles.stream().map(role -> {
+        List<RoleVO> voList = roles.stream().map(role -> {
             RoleVO vo = new RoleVO();
             vo.setId(role.getId());
             vo.setRoleCode(role.getRoleCode());
@@ -224,5 +246,7 @@ public class UserServiceImpl implements UserService {
             vo.setDescription(role.getDescription());
             return vo;
         }).collect(Collectors.toList());
+        cacheService.set(CACHE_KEY_ROLES, voList, 30, TimeUnit.MINUTES);
+        return voList;
     }
 }

@@ -3,6 +3,7 @@ package com.yiweilai.wms.product.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.product.dto.ProductBarcodeSaveDTO;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -46,6 +48,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     private final WarehouseShelfMapper shelfMapper;
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final CacheService cacheService;
 
     @Override
     public List<ProductSkuVO> findByProductId(Long productId) {
@@ -124,11 +127,18 @@ public class ProductSkuServiceImpl implements ProductSkuService {
 
     @Override
     public ProductSkuVO getBySkuCode(String skuCode) {
+        String cacheKey = "cache:sku:code:" + skuCode;
+        ProductSkuVO cached = cacheService.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
         ProductSku sku = skuMapper.findBySkuCode(skuCode);
         if (sku == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "SKU不存在");
         }
-        return convertToVO(sku);
+        ProductSkuVO vo = convertToVO(sku);
+        cacheService.set(cacheKey, vo, 10, TimeUnit.MINUTES);
+        return vo;
     }
 
     @Override

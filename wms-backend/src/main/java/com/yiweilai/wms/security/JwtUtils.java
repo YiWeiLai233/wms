@@ -81,6 +81,25 @@ public class JwtUtils {
         }
     }
 
+    /**
+     * 获取 Token 的剩余有效时间（毫秒）
+     */
+    public long getTokenRemainingTime(String token) {
+        try {
+            Claims claims = parseToken(token);
+            return claims.getExpiration().getTime() - System.currentTimeMillis();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /**
+     * 获取 Token 黑名单的 Redis Key
+     */
+    public static String getTokenBlacklistKey(String token) {
+        return "jwt:blacklist:" + token.hashCode();
+    }
+
     private Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
