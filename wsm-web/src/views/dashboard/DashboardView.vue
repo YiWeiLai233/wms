@@ -67,11 +67,14 @@
     <!-- 近7天各平台SKU销量趋势 -->
     <el-row :gutter="20" class="mt-4">
       <el-col :span="24">
-        <div class="card">
+        <div class="card combo-card">
           <div class="card-header">
-            <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量趋势</h3>
+            <div class="flex items-center gap-2">
+              <el-icon class="text-blue-500" :size="18"><TrendCharts /></el-icon>
+              <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量趋势</h3>
+            </div>
           </div>
-          <v-chart class="combo-chart" :option="platformSkuComboOption" autoresize />
+          <v-chart ref="comboChartRef" class="combo-chart" :option="platformSkuComboOption" autoresize @wheel.prevent="handleComboChartWheel" />
         </div>
       </el-col>
     </el-row>
@@ -81,7 +84,10 @@
       <el-col :span="12">
         <div class="card card-border">
           <div class="card-header">
-            <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量热力图</h3>
+            <div class="flex items-center gap-2">
+              <el-icon class="text-purple-500" :size="18"><Grid /></el-icon>
+              <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量热力图</h3>
+            </div>
           </div>
           <v-chart class="heatmap-chart" :option="platformSkuHeatmapOption" autoresize />
         </div>
@@ -96,8 +102,8 @@ import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart, PieChart, BarChart, HeatmapChart, RadarChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, RadarComponent } from 'echarts/components'
-import { WarningFilled, Warning, CircleCheck } from '@element-plus/icons-vue'
+import { GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, RadarComponent, GraphicComponent } from 'echarts/components'
+import { WarningFilled, Warning, CircleCheck, TrendCharts, Grid } from '@element-plus/icons-vue'
 import { getDashboard } from '@/api/report'
 import type { DashboardData } from '@/api/report'
 import { getLowStockList, getOutOfStockList } from '@/api/stockAlert'
@@ -105,7 +111,9 @@ import type { StockAlertStatus } from '@/api/stockAlert'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 
-use([CanvasRenderer, LineChart, PieChart, BarChart, HeatmapChart, RadarChart, GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, RadarComponent])
+use([CanvasRenderer, LineChart, PieChart, BarChart, HeatmapChart, RadarChart, GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, RadarComponent, GraphicComponent])
+
+const comboChartRef = ref<any>(null)
 
 const dashboard = ref<DashboardData>({
   todayOrderCount: 0,
@@ -118,6 +126,45 @@ const dashboard = ref<DashboardData>({
   topSkus: [],
 })
 
+// 处理图表区域滚轮事件，让 tooltip 滚动而不是页面滚动
+const handleComboChartWheel = (e: WheelEvent) => {
+  const tooltipDom = document.querySelector('.echarts-tooltip')
+  if (tooltipDom) {
+    const scrollContainer = tooltipDom.querySelector('[style*="overflow-y"]') as HTMLElement
+    if (scrollContainer) {
+      e.preventDefault()
+      scrollContainer.scrollTop += e.deltaY
+    }
+  }
+}
+
+// 辅助函数：给颜色添加透明度（支持 hex 和 rgb 格式）
+const colorWithAlpha = (color: string, alpha: number): string => {
+  if (!color) return `rgba(148, 163, 184, ${alpha})`
+
+  // 处理 hex 格式 (#3b82f6)
+  if (color.startsWith('#')) {
+    const hex = color.replace('#', '')
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+
+  // 处理 rgb 格式 (rgb(248, 1, 1))
+  if (color.startsWith('rgb(')) {
+    return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`)
+  }
+
+  // 处理 rgba 格式，直接替换 alpha
+  if (color.startsWith('rgba(')) {
+    return color.replace(/,\s*[\d.]+\)$/, `, ${alpha})`)
+  }
+
+  // 其他格式返回默认
+  return `rgba(148, 163, 184, ${alpha})`
+}
+
 const trendOption = computed(() => {
   const dates = dashboard.value.orderTrend.map((i) => i.date.slice(5))
   const platformTrends = dashboard.value.platformTrends || []
@@ -127,8 +174,11 @@ const trendOption = computed(() => {
     return {
       tooltip: {
         trigger: 'axis',
+        confine: true,
+        appendToBody: true,
+        extraCssText: 'pointer-events:auto;',
         formatter: (params: any) => {
-          let result = `<div style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
+          let result = `<div onwheel="event.stopPropagation()" style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
           params.forEach((param: any) => {
             result += `<div style="display:flex;align-items:center;gap:5px">
               <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${param.color}"></span>
@@ -271,9 +321,12 @@ const barOption = computed(() => {
   return {
     tooltip: {
       trigger: 'axis',
+      confine: true,
+      appendToBody: true,
+      extraCssText: 'pointer-events:auto;',
       axisPointer: { type: 'shadow' },
       formatter: (params: any) => {
-        let result = `<div style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
+        let result = `<div onwheel="event.stopPropagation()" style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
         let total = 0
         params.forEach((param: any) => {
           if (param.value > 0) {
@@ -342,49 +395,45 @@ const platformSkuComboOption = computed(() => {
 
   // 收集所有日期
   const allDates = new Set<string>()
-  platformSales.forEach((ps) => {
-    ps.skuSales?.forEach((s) => allDates.add(s.date))
-  })
+  platformSales.forEach((ps) => ps.skuSales?.forEach((s) => allDates.add(s.date)))
   const dates = Array.from(allDates).sort()
 
-  // 平台颜色配置
-  const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+  // 平台颜色
+  const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
   const platformColors: Record<string, string> = {}
   platformSales.forEach((ps, idx) => {
     platformColors[ps.platformName] = ps.platformColor || defaultColors[idx % defaultColors.length]
   })
 
-  // 构建系列：每个平台一个柱子 + 一条曲线
+  // 每个平台一个柱子
   const series: any[] = []
   const legendData: string[] = []
 
   platformSales.forEach((ps) => {
     const color = platformColors[ps.platformName]
-
-    // 计算该平台每天的总销量
-    const dailyTotals = dates.map((date) => {
-      const daySales = ps.skuSales?.filter((s) => s.date === date) || []
-      return daySales.reduce((sum, s) => sum + s.quantity, 0)
-    })
-
-    // 柱状图系列
     legendData.push(ps.platformName)
+
+    const dailyTotals = dates.map((date) =>
+      ps.skuSales?.filter((s) => s.date === date).reduce((sum, s) => sum + s.quantity, 0) || 0
+    )
+
     series.push({
       name: ps.platformName,
       type: 'bar',
       data: dailyTotals,
-      barWidth: '45%',
-      barGap: '10%',
+      barWidth: 'auto',
+      barGap: '20%',
+      barCategoryGap: '40%',
       itemStyle: {
         color: {
           type: 'linear',
           x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
             { offset: 0, color: color },
-            { offset: 1, color: color + '40' },
+            { offset: 1, color: colorWithAlpha(color, 0.6) },
           ],
         },
-        borderRadius: [6, 6, 0, 0],
+        borderRadius: [4, 4, 0, 0],
       },
       emphasis: {
         itemStyle: {
@@ -393,149 +442,97 @@ const platformSkuComboOption = computed(() => {
         },
       },
     })
-
-    // 曲线系列（趋势线）
-    series.push({
-      name: ps.platformName + '趋势',
-      type: 'line',
-      data: dailyTotals,
-      smooth: 0.4,
-      symbol: 'circle',
-      symbolSize: 8,
-      lineStyle: {
-        width: 3,
-        color: color,
-        type: 'solid',
-      },
-      itemStyle: {
-        color: color,
-        borderColor: '#fff',
-        borderWidth: 2,
-      },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: color + '30' },
-            { offset: 1, color: color + '05' },
-          ],
-        },
-      },
-    })
-  })
-
-  // 添加总计曲线
-  const totalData = dates.map((date) => {
-    let total = 0
-    platformSales.forEach((ps) => {
-      const daySales = ps.skuSales?.filter((s) => s.date === date) || []
-      daySales.forEach((s) => total += s.quantity)
-    })
-    return total
-  })
-
-  legendData.push('总计')
-  series.push({
-    name: '总计',
-    type: 'line',
-    data: totalData,
-    smooth: 0.5,
-    symbol: 'diamond',
-    symbolSize: 10,
-    lineStyle: {
-      width: 3,
-      color: '#f97316',
-      type: 'dashed',
-    },
-    itemStyle: {
-      color: '#f97316',
-      borderColor: '#fff',
-      borderWidth: 3,
-    },
-    label: {
-      show: true,
-      position: 'top',
-      fontSize: 13,
-      fontWeight: 'bold',
-      color: '#f97316',
-      formatter: '{c}',
-    },
   })
 
   return {
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        crossStyle: { color: '#999' },
+      confine: true,
+      enterable: true,
+      appendToBody: true,
+      position: function (point: any) {
+        // tooltip 出现在鼠标右侧偏移位置
+        return { left: point[0] + 20, top: point[1] - 50 }
       },
+      axisPointer: {
+        type: 'shadow',
+        shadowStyle: { color: 'rgba(0,0,0,0.05)' },
+      },
+      backgroundColor: 'rgba(255,255,255,0.98)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: [14, 20],
+      textStyle: { color: '#374151', fontSize: 12 },
+      extraCssText: 'overscroll-behavior: contain; pointer-events: auto; max-width: 450px;',
       formatter: (params: any) => {
-        let result = `<div style="font-weight:bold;margin-bottom:8px;font-size:13px">${params[0]?.axisValue || ''}</div>`
-        let grandTotal = 0
+        if (!params || params.length === 0) return ''
+        const dateLabel = params[0]?.axisValue || ''
+        const originalDate = dates.find(d => d.slice(5) === dateLabel) || ''
 
-        // 按平台分组显示
-        const platformMap = new Map<string, { bar: number; line: number; color: string }>()
+        let html = `<div style="min-width:350px;max-width:450px;max-height:500px;overflow-y:auto;padding:8px 16px;overscroll-behavior:contain;cursor:default" onmouseenter="event.stopPropagation()" onwheel="event.stopPropagation();event.preventDefault();this.scrollTop+=event.deltaY;return false">`
+        html += `<div style="font-weight:600;color:#1f2937;font-size:14px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;position:sticky;top:0;background:rgba(255,255,255,0.98);z-index:1">📅 ${dateLabel}</div>`
+
         params.forEach((p: any) => {
-          const name = p.seriesName as string
-          const isTrend = name.endsWith('趋势')
-          const platformName = isTrend ? name.replace('趋势', '') : name
+          if (p.value === 0) return
+          const platformName = p.seriesName
+          const platformColor = platformColors[platformName] || '#3b82f6'
 
-          if (!platformMap.has(platformName)) {
-            platformMap.set(platformName, { bar: 0, line: 0, color: p.color })
-          }
-          const entry = platformMap.get(platformName)!
-          if (p.seriesType === 'bar') {
-            entry.bar = p.value
-          } else if (isTrend) {
-            entry.line = p.value
-          }
-        })
+          const platformData = platformSales.find(ps => ps.platformName === platformName)
+          const skuSales = platformData?.skuSales?.filter(s => s.date === originalDate) || []
+          const sortedSales = [...skuSales].sort((a, b) => b.quantity - a.quantity)
 
-        platformMap.forEach((entry, name) => {
-          if (name === '总计') return
-          if (entry.bar > 0 || entry.line > 0) {
-            grandTotal += entry.bar
-            result += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${entry.color}"></span>
-              <span style="font-weight:500">${name}</span>
-              <span style="margin-left:auto;font-weight:bold">${entry.bar}</span>
-            </div>`
-          }
-        })
-
-        // 总计
-        const totalEntry = params.find((p: any) => p.seriesName === '总计')
-        if (totalEntry && totalEntry.value > 0) {
-          result += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-weight:bold;color:#f97316">
-            <span>总计</span><span>${totalEntry.value}</span>
+          html += `<div style="margin-bottom:10px">`
+          html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${platformColor}"></span>
+            <span style="font-weight:600;color:#374151">${platformName}</span>
+            <span style="margin-left:auto;font-weight:600;color:#1f2937">${p.value} 件</span>
           </div>`
-        }
 
-        return result
+          if (sortedSales.length > 0) {
+            html += `<div style="padding-left:18px;font-size:11px;color:#6b7280">`
+            sortedSales.forEach((s) => {
+              html += `<div style="display:flex;justify-content:space-between;padding:2px 0">
+                <span>${s.skuName}</span>
+                <span style="font-weight:500;color:#374151">${s.quantity}</span>
+              </div>`
+            })
+            html += `</div>`
+          }
+
+          html += `</div>`
+        })
+
+        html += `</div>`
+        return html
       },
     },
     legend: {
       data: legendData,
       bottom: 0,
+      left: 'center',
       textStyle: { color: '#6b7280', fontSize: 11 },
       type: 'scroll',
       pageTextStyle: { color: '#6b7280' },
       pageIconColor: '#6b7280',
       pageIconInactiveColor: '#d1d5db',
       itemGap: 20,
+      itemWidth: 14,
+      itemHeight: 10,
     },
     grid: {
       left: 60,
       right: 40,
-      top: 40,
-      bottom: 70,
+      top: 50,
+      bottom: 60,
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
       data: dates.map((d) => d.slice(5)),
       axisLine: { lineStyle: { color: '#e5e7eb' } },
       axisLabel: { color: '#6b7280', fontSize: 12 },
+      boundaryGap: true,
     },
     yAxis: {
       type: 'value',
@@ -595,6 +592,9 @@ const platformSkuHeatmapOption = computed(() => {
   return {
     tooltip: {
       position: 'top',
+      confine: true,
+      appendToBody: true,
+      extraCssText: 'pointer-events:auto;',
       backgroundColor: 'rgba(255,255,255,0.95)',
       borderColor: '#e5e7eb',
       borderWidth: 1,
@@ -605,7 +605,7 @@ const platformSkuHeatmapOption = computed(() => {
         const platform = platformNames[params.data[0]] || ''
         const sku = skuNames[params.data[1]] || ''
         const value = params.data[2]
-        return `<div style="font-weight:600;margin-bottom:6px;color:#1f2937">${platform}</div>
+        return `<div onwheel="event.stopPropagation()" style="font-weight:600;margin-bottom:6px;color:#1f2937">${platform}</div>
                 <div style="display:flex;align-items:center;gap:8px">
                   <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
                   <span>${sku}</span>
@@ -614,7 +614,7 @@ const platformSkuHeatmapOption = computed(() => {
       },
     },
     grid: {
-      left: 15,
+      left: 20,
       right: 15,
       top: 15,
       bottom: 60,
@@ -642,7 +642,7 @@ const platformSkuHeatmapOption = computed(() => {
       axisLabel: {
         color: '#6b7280',
         fontSize: 11,
-        width: 100,
+        width: 150,
         overflow: 'truncate',
         padding: [0, 8, 0, 0],
       },
@@ -679,7 +679,30 @@ const platformSkuHeatmapOption = computed(() => {
           show: true,
           fontSize: 12,
           fontWeight: 600,
-          color: '#374151',
+          formatter: (params: any) => {
+            const ratio = maxVal > 0 ? Math.min(params.data[2] / maxVal, 1) : 0
+            const stops = [
+              [0xef, 0xf6, 0xff],
+              [0xbf, 0xdb, 0xfe],
+              [0x60, 0xa5, 0xfa],
+              [0x25, 0x63, 0xeb],
+              [0x1e, 0x40, 0xaf],
+            ]
+            const idx = ratio * (stops.length - 1)
+            const lo = Math.floor(idx)
+            const hi = Math.min(lo + 1, stops.length - 1)
+            const t = idx - lo
+            const r = Math.round(stops[lo][0] + (stops[hi][0] - stops[lo][0]) * t)
+            const g = Math.round(stops[lo][1] + (stops[hi][1] - stops[lo][1]) * t)
+            const b = Math.round(stops[lo][2] + (stops[hi][2] - stops[lo][2]) * t)
+            const luminance = 0.299 * r + 0.587 * g + 0.114 * b
+            const textColor = luminance > 150 ? '#000000' : '#ffffff'
+            return `{${textColor === '#000000' ? 'bk' : 'wh'}|${params.data[2]}}`
+          },
+          rich: {
+            bk: { color: '#000000', fontSize: 12, fontWeight: 600 },
+            wh: { color: '#ffffff', fontSize: 12, fontWeight: 600 },
+          },
         },
         emphasis: {
           itemStyle: {
@@ -722,6 +745,9 @@ const outOfStockChartOption = computed(() => {
   return {
     tooltip: {
       trigger: 'axis',
+      confine: true,
+      appendToBody: true,
+      extraCssText: 'pointer-events:auto;',
       axisPointer: { type: 'shadow' },
       backgroundColor: 'rgba(255,255,255,0.95)',
       borderColor: '#e5e7eb',
@@ -730,14 +756,20 @@ const outOfStockChartOption = computed(() => {
         const item = sortedList[params[0]?.dataIndex]
         if (!item) return ''
         const ratio = Math.round(((item.quantity || 0) / (item.outOfStockThreshold || 1)) * 100)
-        return `<div style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
+        return `<div onwheel="event.stopPropagation()" style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
                 <div>当前库存: <span style="color:#ef4444;font-weight:600">${item.quantity}</span></div>
                 <div>缺货阈值: ${item.outOfStockThreshold || 0}</div>
                 <div>库存占比: <span style="color:${ratio < 50 ? '#ef4444' : '#f59e0b'};font-weight:600">${ratio}%</span></div>
                 <div>仓库: ${item.warehouseName || '所有仓库'}</div>`
       }
     },
-    grid: { left: 10, right: 60, top: 15, bottom: 20, containLabel: true },
+    legend: {
+      data: ['库存', '阈值'],
+      bottom: 0,
+      textStyle: { color: '#6b7280', fontSize: 11 },
+      itemGap: 20,
+    },
+    grid: { left: 10, right: 60, top: 15, bottom: 40, containLabel: true },
     xAxis: {
       type: 'value',
       max: (value: any) => value.max * 1.1,
@@ -751,7 +783,7 @@ const outOfStockChartOption = computed(() => {
       axisLabel: {
         color: '#374151',
         fontSize: 11,
-        width: 100,
+        width: 150,
         overflow: 'truncate'
       },
       axisLine: { show: false },
@@ -826,6 +858,9 @@ const lowStockChartOption = computed(() => {
   return {
     tooltip: {
       trigger: 'axis',
+      confine: true,
+      appendToBody: true,
+      extraCssText: 'pointer-events:auto;',
       axisPointer: { type: 'shadow' },
       backgroundColor: 'rgba(255,255,255,0.95)',
       borderColor: '#e5e7eb',
@@ -834,14 +869,20 @@ const lowStockChartOption = computed(() => {
         const item = sortedList[params[0]?.dataIndex]
         if (!item) return ''
         const ratio = Math.round(((item.quantity || 0) / (item.lowStockThreshold || 1)) * 100)
-        return `<div style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
+        return `<div onwheel="event.stopPropagation()" style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
                 <div>当前库存: <span style="color:#f59e0b;font-weight:600">${item.quantity}</span></div>
                 <div>低库存阈值: ${item.lowStockThreshold || 0}</div>
                 <div>库存占比: <span style="color:${ratio < 50 ? '#ef4444' : '#22c55e'};font-weight:600">${ratio}%</span></div>
                 <div>仓库: ${item.warehouseName || '所有仓库'}</div>`
       }
     },
-    grid: { left: 10, right: 60, top: 15, bottom: 20, containLabel: true },
+    legend: {
+      data: ['库存', '阈值'],
+      bottom: 0,
+      textStyle: { color: '#6b7280', fontSize: 11 },
+      itemGap: 20,
+    },
+    grid: { left: 10, right: 60, top: 15, bottom: 40, containLabel: true },
     xAxis: {
       type: 'value',
       max: (value: any) => value.max * 1.1,
@@ -855,7 +896,7 @@ const lowStockChartOption = computed(() => {
       axisLabel: {
         color: '#374151',
         fontSize: 11,
-        width: 100,
+        width: 150,
         overflow: 'truncate'
       },
       axisLine: { show: false },
@@ -946,9 +987,24 @@ onMounted(async () => {
   height: 400px;
   width: 100%;
 }
+.combo-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.combo-card .card-header {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 24px;
+}
+
 .combo-chart {
-  height: 450px;
+  height: 500px;
   width: 100%;
+  padding: 16px;
 }
 .alert-card {
   height: 410px;
