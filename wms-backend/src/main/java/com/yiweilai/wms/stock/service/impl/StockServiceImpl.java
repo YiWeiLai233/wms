@@ -7,6 +7,7 @@ import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.alert.entity.StockAlertConfig;
 import com.yiweilai.wms.alert.service.StockAlertConfigService;
+import com.yiweilai.wms.stock.dto.BatchStockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockQueryDTO;
 import com.yiweilai.wms.stock.entity.Stock;
@@ -103,6 +104,19 @@ public class StockServiceImpl implements StockService {
             writeLog("ADJUST", "ADJUST_" + stock.getId(), dto.getSkuId(),
                     dto.getWarehouseId(),
                     beforeQty, dto.getQuantity(), afterQty, dto.getRemark());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchAdjust(BatchStockAdjustDTO dto) {
+        for (BatchStockAdjustDTO.StockAdjustItem item : dto.getItems()) {
+            StockAdjustDTO adjustDTO = new StockAdjustDTO();
+            adjustDTO.setSkuId(item.getSkuId());
+            adjustDTO.setWarehouseId(dto.getWarehouseId());
+            adjustDTO.setQuantity(item.getQuantity());
+            adjustDTO.setRemark(dto.getRemark());
+            adjust(adjustDTO);
         }
     }
 

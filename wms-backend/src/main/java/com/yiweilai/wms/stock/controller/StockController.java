@@ -2,6 +2,7 @@ package com.yiweilai.wms.stock.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.stock.dto.BatchStockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockQueryDTO;
 import com.yiweilai.wms.stock.service.StockService;
@@ -36,6 +37,15 @@ public class StockController {
     @PostMapping("/adjust")
     public Result<Void> adjust(@Valid @RequestBody StockAdjustDTO dto) {
         stockService.adjust(dto);
+        return Result.success();
+    }
+
+    /**
+     * 批量入库
+     */
+    @PostMapping("/batch-adjust")
+    public Result<Void> batchAdjust(@Valid @RequestBody BatchStockAdjustDTO dto) {
+        stockService.batchAdjust(dto);
         return Result.success();
     }
 

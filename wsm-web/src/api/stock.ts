@@ -78,6 +78,11 @@ export function adjustStock(data: { skuId: number; warehouseId: number; quantity
   return request.post<any, ApiResponse<void>>('/stocks/adjust', data)
 }
 
+// 批量入库
+export function batchAdjustStock(data: { warehouseId: number; remark?: string; items: { skuId: number; quantity: number }[] }) {
+  return request.post<any, ApiResponse<void>>('/stocks/batch-adjust', data)
+}
+
 // 库存流水
 export function getStockLogs(params: PageParams & {
   bizType?: string

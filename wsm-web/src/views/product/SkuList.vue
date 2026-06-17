@@ -2,6 +2,7 @@
   <div class="page-container">
     <PageHeader title="SKU 管理">
       <template #actions>
+        <el-button type="success" icon="Box" @click="openBatchInboundDialog()">批量入库</el-button>
         <el-button type="primary" icon="Plus" @click="openDialog()">新增 SKU</el-button>
       </template>
     </PageHeader>
@@ -201,6 +202,95 @@
         <el-button type="primary" :loading="inbounding" @click="handleInbound">确认入库</el-button>
       </template>
     </el-dialog>
+
+    <!-- 批量入库对话框 -->
+    <el-dialog v-model="batchInboundDialogVisible" title="批量入库" width="900px" destroy-on-close>
+      <el-form ref="batchInboundFormRef" :model="batchInboundForm" :rules="batchInboundRules" label-width="80px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="仓库" prop="warehouseId">
+              <el-select v-model="batchInboundForm.warehouseId" placeholder="选择仓库" style="width: 100%" @change="handleBatchWarehouseChange">
+                <el-option v-for="w in warehouseOptions" :key="w.id" :label="w.name" :value="w.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="备注">
+              <el-input v-model="batchInboundForm.remark" placeholder="入库说明" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-divider content-position="left">入库明细</el-divider>
+        <div class="mb-3">
+          <el-select v-model="batchInboundSkuGroupKey" :placeholder="batchInboundForm.warehouseId ? '请选择商品/SKU' : '请先选择仓库'" filterable clearable style="width: 100%" :disabled="!batchInboundForm.warehouseId">
+            <el-option
+              v-for="group in batchSkuGroups"
+              :key="group.key"
+              :label="`${group.skuCode} - ${group.skuName}`"
+              :value="group.key"
+            />
+          </el-select>
+        </div>
+        <el-table v-if="batchSelectedSkuGroup" :data="batchSelectedSkuGroup.skus" border size="small" class="mb-3" max-height="350">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.image || row.mainImage" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="skuCode" label="SKU编码" width="150" show-overflow-tooltip />
+          <el-table-column prop="name" label="SKU名称" min-width="150" show-overflow-tooltip />
+          <el-table-column label="当前库存" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="getStockTagType(row.availableQty ?? 0, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="90" align="center">
+            <template #default="{ row }">
+              <el-button type="primary" link icon="Plus" @click="addSkuToBatch(row)">加入</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-table :data="batchInboundForm.items" border size="small">
+          <el-table-column label="图片" width="60" align="center">
+            <template #default="{ row }">
+              <ImagePreview :src="row.image" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="skuCode" label="SKU编码" width="150" show-overflow-tooltip />
+          <el-table-column prop="skuName" label="SKU名称" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+            <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="当前库存" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag :type="getStockTagType(row.availableQty ?? 0, row.lowStockThreshold, row.outOfStockThreshold)" size="small">{{ row.availableQty ?? 0 }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="入库数量" width="140" align="center">
+            <template #default="{ row }">
+              <el-input-number v-model="row.quantity" :min="1" :max="999999" size="small" style="width: 110px" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" align="center">
+            <template #default="{ $index }">
+              <el-button type="danger" link icon="Delete" @click="batchInboundForm.items.splice($index, 1)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div v-if="batchInboundForm.items.length === 0" class="text-sm text-gray-400 mt-2">
+          请先选择商品，再点击具体码数加入入库清单。
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchInboundDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchInbounding" @click="handleBatchInbound">确认入库</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -210,10 +300,11 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getAllSkuList, createSku, updateSku, deleteSku, getProductList } from '@/api/product'
 import type { Sku, Product } from '@/api/product'
-import { adjustStock } from '@/api/stock'
+import { adjustStock, batchAdjustStock } from '@/api/stock'
 import { getShelfList, getWarehouseList } from '@/api/warehouse'
 import type { Warehouse, WarehouseShelf } from '@/api/warehouse'
 import PageHeader from '@/components/PageHeader.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
 
 type SkuListItem = Sku & { productName?: string; shelfCode?: string; categoryName?: string }
 
@@ -635,5 +726,126 @@ async function handleDelete(id: number) {
     matrixDetailVisible.value = false
     fetchData()
   } catch {}
+}
+
+// ========== 批量入库 ==========
+interface BatchInboundItem {
+  skuId: number
+  skuCode: string
+  skuName: string
+  sizeValue: string
+  quantity: number
+  image: string
+  availableQty: number
+  lowStockThreshold?: number
+  outOfStockThreshold?: number
+}
+
+interface BatchSkuGroup {
+  key: string
+  skuCode: string
+  skuName: string
+  skus: SkuListItem[]
+}
+
+const batchInboundDialogVisible = ref(false)
+const batchInbounding = ref(false)
+const batchInboundFormRef = ref<FormInstance>()
+const batchInboundSkuGroupKey = ref('')
+const batchSkuList = ref<SkuListItem[]>([])
+
+const batchInboundForm = reactive({
+  warehouseId: undefined as number | undefined,
+  remark: '',
+  items: [] as BatchInboundItem[],
+})
+
+const batchInboundRules: FormRules = {
+  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
+}
+
+const batchSkuGroups = computed(() => {
+  const groupMap = new Map<string, BatchSkuGroup>()
+  batchSkuList.value.forEach((sku) => {
+    const key = String(sku.productId || sku.skuCode.replace(/-[^-]*$/, ''))
+    let group = groupMap.get(key)
+    if (!group) {
+      group = { key, skuCode: sku.skuCode.replace(/-[^-]*$/, ''), skuName: sku.name.replace(/-[^-]*$/, ''), skus: [] }
+      groupMap.set(key, group)
+    }
+    group.skus.push(sku)
+  })
+  return Array.from(groupMap.values()).map((group) => ({
+    ...group,
+    skus: group.skus.slice().sort((a, b) => compareSizeValue(normalizeSizeValue(a.sizeValue), normalizeSizeValue(b.sizeValue))),
+  }))
+})
+
+const batchSelectedSkuGroup = computed(() => batchSkuGroups.value.find((group) => group.key === batchInboundSkuGroupKey.value))
+
+function openBatchInboundDialog() {
+  Object.assign(batchInboundForm, { warehouseId: undefined, remark: '', items: [] })
+  batchInboundSkuGroupKey.value = ''
+  batchSkuList.value = []
+  batchInboundDialogVisible.value = true
+}
+
+async function handleBatchWarehouseChange(warehouseId: number) {
+  batchInboundSkuGroupKey.value = ''
+  batchInboundForm.items = []
+  if (warehouseId) {
+    try {
+      const res = await getAllSkuList({ page: 1, size: 9999, warehouseId })
+      batchSkuList.value = res.data.list || []
+    } catch {
+      batchSkuList.value = []
+    }
+  }
+}
+
+function addSkuToBatch(sku: SkuListItem) {
+  const existing = batchInboundForm.items.find((item) => item.skuId === sku.id)
+  if (existing) {
+    existing.quantity += 1
+    return
+  }
+  batchInboundForm.items.push({
+    skuId: sku.id,
+    skuCode: sku.skuCode,
+    skuName: sku.name,
+    sizeValue: sku.sizeValue || '',
+    quantity: 1,
+    image: sku.image || '',
+    availableQty: sku.availableQty ?? 0,
+    lowStockThreshold: sku.lowStockThreshold,
+    outOfStockThreshold: sku.outOfStockThreshold,
+  })
+}
+
+async function handleBatchInbound() {
+  const valid = await batchInboundFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  if (batchInboundForm.items.length === 0) {
+    ElMessage.warning('请至少添加一个SKU')
+    return
+  }
+
+  batchInbounding.value = true
+  try {
+    await batchAdjustStock({
+      warehouseId: batchInboundForm.warehouseId!,
+      remark: batchInboundForm.remark || '批量入库',
+      items: batchInboundForm.items.map((item) => ({
+        skuId: item.skuId,
+        quantity: item.quantity,
+      })),
+    })
+    ElMessage.success(`批量入库成功，共 ${batchInboundForm.items.length} 个SKU`)
+    batchInboundDialogVisible.value = false
+    await fetchData()
+  } catch {} finally {
+    batchInbounding.value = false
+  }
 }
 </script>

@@ -1,6 +1,7 @@
 package com.yiweilai.wms.stock.service;
 
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.stock.dto.BatchStockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockQueryDTO;
 import com.yiweilai.wms.stock.vo.StockVO;
@@ -21,6 +22,11 @@ public interface StockService {
      * 库存调整
      */
     void adjust(StockAdjustDTO dto);
+
+    /**
+     * 批量入库
+     */
+    void batchAdjust(BatchStockAdjustDTO dto);
 
     /**
      * 按仓库类型查询库存（次品仓/报废仓）
