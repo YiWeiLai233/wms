@@ -3,6 +3,7 @@ package com.yiweilai.wms.order.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
@@ -58,6 +59,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductImageHelper productImageHelper;
     private final PrivacyCryptoService privacyCryptoService;
     private final PrivacyHashService privacyHashService;
+    private final CacheService cacheService;
 
     @Override
     public PageResult<OrderVO> findByPage(OrderQueryDTO query) {
@@ -151,6 +153,9 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
+        // 清除仪表盘缓存
+        cacheService.delete("cache:dashboard");
+
         return order.getId();
     }
 
@@ -206,6 +211,9 @@ public class OrderServiceImpl implements OrderService {
         if ("CANCELLED".equals(targetStatus)) {
             restoreStockForOrder(order);
         }
+
+        // 清除仪表盘缓存
+        cacheService.delete("cache:dashboard");
     }
 
     @Override

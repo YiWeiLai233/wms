@@ -3,6 +3,7 @@ package com.yiweilai.wms.returns.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.order.entity.SalesOrder;
@@ -66,6 +67,7 @@ public class ReturnServiceImpl implements ReturnService {
     private final WarehouseMapper warehouseMapper;
     private final ExpressFeeStepMapper feeStepMapper;
     private final ExpressFeeTemplateMapper feeTemplateMapper;
+    private final CacheService cacheService;
 
     @Override
     public PageResult<ReturnOrderVO> findByPage(ReturnQueryDTO query) {
@@ -316,6 +318,9 @@ public class ReturnServiceImpl implements ReturnService {
 
         // 更新订单状态
         salesOrderMapper.updateStatus(order.getOrderId(), "RETURNED");
+
+        // 清除仪表盘缓存
+        cacheService.delete("cache:dashboard");
     }
 
     /**

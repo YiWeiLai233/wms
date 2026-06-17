@@ -3,6 +3,7 @@ package com.yiweilai.wms.outbound.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.outbound.dto.OutboundBatchCreateDTO;
@@ -81,6 +82,7 @@ public class OutboundServiceImpl implements OutboundService {
     private final WarehouseMapper warehouseMapper;
     private final WarehouseShelfMapper shelfMapper;
     private final ExpressFeeStepMapper feeStepMapper;
+    private final CacheService cacheService;
     private final ExpressFeeTemplateMapper feeTemplateMapper;
 
     @Override
@@ -304,6 +306,9 @@ public class OutboundServiceImpl implements OutboundService {
         // 更新订单状态为已发货
         salesOrderMapper.updateStatus(order.getOrderId(), "SHIPPED");
         salesOrderMapper.updateShippedAt(order.getOrderId());
+
+        // 清除仪表盘缓存
+        cacheService.delete("cache:dashboard");
     }
 
     @Override
