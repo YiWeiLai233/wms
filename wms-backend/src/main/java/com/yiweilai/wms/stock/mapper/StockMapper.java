@@ -81,4 +81,9 @@ public interface StockMapper {
     List<Stock> findByWarehouseType(@Param("warehouseType") String warehouseType,
                                     @Param("skuCode") String skuCode,
                                     @Param("skuName") String skuName);
+
+    /**
+     * 根据SKU删除库存（硬删除）
+     */
+    int deleteBySkuId(@Param("skuId") Long skuId);
 }

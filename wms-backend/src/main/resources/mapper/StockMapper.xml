@@ -26,7 +26,7 @@
                s.quantity, s.locked_qty,
                s.deleted, s.created_at, s.updated_at
         FROM stock s
-        LEFT JOIN product_sku ps ON s.sku_id = ps.id AND ps.deleted = 0
+        INNER JOIN product_sku ps ON s.sku_id = ps.id AND ps.deleted = 0
         LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
         LEFT JOIN warehouse w ON s.warehouse_id = w.id AND w.deleted = 0
         LEFT JOIN (
@@ -141,7 +141,7 @@
                s.deleted, s.created_at, s.updated_at
         FROM stock s
         INNER JOIN warehouse w ON s.warehouse_id = w.id AND w.deleted = 0 AND w.warehouse_type = #{warehouseType}
-        LEFT JOIN product_sku ps ON s.sku_id = ps.id AND ps.deleted = 0
+        INNER JOIN product_sku ps ON s.sku_id = ps.id AND ps.deleted = 0
         LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
         WHERE s.deleted = 0 AND s.quantity > 0
         <if test="skuCode != null and skuCode != ''">
@@ -152,5 +152,9 @@
         </if>
         ORDER BY s.updated_at DESC
     </select>
+
+    <delete id="deleteBySkuId">
+        DELETE FROM stock WHERE sku_id = #{skuId}
+    </delete>
 
 </mapper>

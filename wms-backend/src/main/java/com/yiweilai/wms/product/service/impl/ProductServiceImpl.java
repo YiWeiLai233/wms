@@ -162,6 +162,14 @@ public class ProductServiceImpl implements ProductService {
         if (product == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "商品不存在");
         }
+        // 删除该商品下所有SKU的库存
+        List<ProductSku> skuList = skuMapper.findByProductId(id);
+        for (ProductSku sku : skuList) {
+            stockMapper.deleteBySkuId(sku.getId());
+        }
+        // 删除该商品下所有SKU
+        skuMapper.deleteByProductId(id);
+        // 删除商品
         productMapper.deleteById(id);
     }
 

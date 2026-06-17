@@ -241,6 +241,8 @@ public class ProductSkuServiceImpl implements ProductSkuService {
         if (sku == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "SKU不存在");
         }
+        // 删除关联的库存记录
+        stockMapper.deleteBySkuId(id);
         skuMapper.deleteById(id);
     }
 
