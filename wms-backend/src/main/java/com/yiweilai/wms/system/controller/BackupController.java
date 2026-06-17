@@ -36,9 +36,16 @@ public class BackupController {
      * 增量备份
      */
     @PostMapping("/incremental")
-    public Result<BackupRecord> incrementalBackup(@RequestBody(required = false) Map<String, String> body) {
-        String backupPath = body != null ? body.get("backupPath") : null;
-        return Result.success(backupService.incrementalBackup(backupPath));
+    public Result<BackupRecord> incrementalBackup(@RequestBody(required = false) Map<String, Object> body) {
+        Long baseBackupId = null;
+        String backupPath = null;
+        if (body != null) {
+            if (body.get("baseBackupId") != null) {
+                baseBackupId = Long.valueOf(body.get("baseBackupId").toString());
+            }
+            backupPath = (String) body.get("backupPath");
+        }
+        return Result.success(backupService.incrementalBackup(baseBackupId, backupPath));
     }
 
     /**

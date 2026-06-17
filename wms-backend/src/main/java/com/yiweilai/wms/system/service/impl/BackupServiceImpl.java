@@ -144,7 +144,7 @@ public class BackupServiceImpl implements BackupService {
     }
 
     @Override
-    public BackupRecord incrementalBackup(String backupPath) {
+    public BackupRecord incrementalBackup(Long baseBackupId, String backupPath) {
         String dir = (backupPath != null && !backupPath.isBlank()) ? backupPath : DEFAULT_BACKUP_DIR;
         String timestamp = LocalDateTime.now().format(FILE_DATE_FMT);
         String fileName = "wms_incr_" + timestamp + ".sql";
@@ -156,8 +156,19 @@ public class BackupServiceImpl implements BackupService {
             dirFile.mkdirs();
         }
 
-        // 查询上次备份时间
-        LocalDateTime lastBackupTime = backupRecordMapper.findLastBackupTime(null);
+        // 获取基准备份时间
+        LocalDateTime lastBackupTime = null;
+        String baseRemark = "";
+        if (baseBackupId != null) {
+            BackupRecord baseRecord = backupRecordMapper.findById(baseBackupId);
+            if (baseRecord == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "基准备份记录不存在");
+            }
+            lastBackupTime = baseRecord.getCreatedAt();
+            baseRemark = "基于备份 #" + baseBackupId + " (" + baseRecord.getFileName() + ")";
+        } else {
+            lastBackupTime = backupRecordMapper.findLastBackupTime(null);
+        }
 
         BackupRecord record = new BackupRecord();
         record.setBackupType("INCREMENTAL");
@@ -255,7 +266,9 @@ public class BackupServiceImpl implements BackupService {
 
             record.setFileSize(outputFile.length());
             record.setStatus("SUCCESS");
-            record.setRemark("增量备份完成，共 " + totalRows + " 行变更数据");
+            String remark = baseRemark.isEmpty() ? "" : baseRemark + "，";
+            remark += "共 " + totalRows + " 行变更数据";
+            record.setRemark(remark);
             backupRecordMapper.insert(record);
 
             log.info("增量备份成功: {}, 行数: {}, 大小: {} 字节", filePath, totalRows, outputFile.length());

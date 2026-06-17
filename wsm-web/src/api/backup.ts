@@ -19,8 +19,11 @@ export function fullBackup(backupPath?: string) {
 }
 
 // 增量备份
-export function incrementalBackup(backupPath?: string) {
-  return request.post<any, ApiResponse<BackupRecord>>('/backup/incremental', backupPath ? { backupPath } : {})
+export function incrementalBackup(baseBackupId?: number, backupPath?: string) {
+  const body: any = {}
+  if (baseBackupId) body.baseBackupId = baseBackupId
+  if (backupPath) body.backupPath = backupPath
+  return request.post<any, ApiResponse<BackupRecord>>('/backup/incremental', body)
 }
 
 // 备份记录列表

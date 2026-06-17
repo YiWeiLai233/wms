@@ -58,6 +58,17 @@
     <!-- 备份对话框 -->
     <el-dialog v-model="backupDialogVisible" :title="backupType === 'FULL' ? '全量备份' : '增量备份'" width="520px" destroy-on-close>
       <el-form ref="backupFormRef" :model="backupForm" label-width="100px">
+        <el-form-item v-if="backupType === 'INCREMENTAL'" label="基准备份">
+          <el-select v-model="backupForm.baseBackupId" placeholder="选择基准全量备份（不选则自动取最近备份）" clearable style="width: 100%">
+            <el-option
+              v-for="item in fullBackupList"
+              :key="item.id"
+              :label="`#${item.id} ${item.fileName} (${formatDateTime(item.createdAt)})`"
+              :value="item.id"
+            />
+          </el-select>
+          <div class="text-xs text-gray-400 mt-1">增量备份将导出自该备份之后变更的数据</div>
+        </el-form-item>
         <el-form-item label="保存方式">
           <el-radio-group v-model="backupForm.saveMode">
             <el-radio value="download">下载到本地</el-radio>
@@ -79,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { fullBackup, incrementalBackup, getBackupList, downloadBackup, deleteBackup } from '@/api/backup'
@@ -94,9 +105,15 @@ const backupType = ref<'FULL' | 'INCREMENTAL'>('FULL')
 const backing = ref(false)
 const backupFormRef = ref<FormInstance>()
 
+// 筛选出成功的全量备份
+const fullBackupList = computed(() =>
+  backupList.value.filter(b => b.backupType === 'FULL' && b.status === 'SUCCESS')
+)
+
 const backupForm = reactive({
   saveMode: 'download' as 'download' | 'server',
   backupPath: '',
+  baseBackupId: undefined as number | undefined,
 })
 
 async function fetchBackupList() {
@@ -115,6 +132,7 @@ function openBackupDialog(type: 'FULL' | 'INCREMENTAL') {
   backupType.value = type
   backupForm.saveMode = 'download'
   backupForm.backupPath = ''
+  backupForm.baseBackupId = undefined
   backupDialogVisible.value = true
 }
 
@@ -127,7 +145,7 @@ async function handleBackup() {
     if (backupType.value === 'FULL') {
       result = await fullBackup(backupPath)
     } else {
-      result = await incrementalBackup(backupPath)
+      result = await incrementalBackup(backupForm.baseBackupId, backupPath)
     }
 
     const record = result.data

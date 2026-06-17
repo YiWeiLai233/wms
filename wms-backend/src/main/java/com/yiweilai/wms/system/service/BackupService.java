@@ -18,11 +18,12 @@ public interface BackupService {
     BackupRecord fullBackup(String backupPath);
 
     /**
-     * 增量备份（导出自上次备份以来变更的数据）
+     * 增量备份（基于指定全量备份以来的变更）
+     * @param baseBackupId 基准全量备份ID，null则自动取最近一次备份时间
      * @param backupPath 服务器保存路径（可选）
      * @return 备份记录
      */
-    BackupRecord incrementalBackup(String backupPath);
+    BackupRecord incrementalBackup(Long baseBackupId, String backupPath);
 
     /**
      * 查询备份记录列表
