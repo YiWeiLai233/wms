@@ -237,6 +237,7 @@ public class ReportServiceImpl implements ReportService {
         vo.setTopSkus(topSkus);
 
         // 近7天各平台SKU销量
+        String sevenDaysAgo = LocalDate.now().minusDays(6).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         List<DashboardVO.PlatformSkuSales> platformSkuSalesList = new ArrayList<>();
         List<Map<String, Object>> platformsForSku = jdbcTemplate.queryForList(
                 "SELECT id, name, color FROM platform WHERE deleted = 0 AND enabled = 1 ORDER BY id");
@@ -251,30 +252,57 @@ public class ReportServiceImpl implements ReportService {
             platformSales.setPlatformName(pName);
             platformSales.setPlatformColor(pColor != null ? pColor : "#94a3b8");
 
-            List<DashboardVO.SkuDaySales> skuSalesList = jdbcTemplate.query(
-                    "SELECT DATE(o.shipped_at) as sale_date, oi.sku_name, SUM(oi.quantity) as total_qty " +
-                    "FROM outbound_order o " +
-                    "JOIN outbound_order_item oi ON o.id = oi.outbound_id " +
-                    "JOIN sales_order so ON o.order_id = so.id AND so.deleted = 0 " +
-                    "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? AND so.platform_id = ? " +
-                    "AND so.order_status NOT IN ('RETURNING', 'RETURNED', 'CANCELLED', 'EXCHANGING') " +
-                    "GROUP BY DATE(o.shipped_at), oi.sku_name " +
-                    "ORDER BY sale_date, oi.sku_name",
-                    (rs, rowNum) -> {
-                        DashboardVO.SkuDaySales sds = new DashboardVO.SkuDaySales();
-                        sds.setDate(rs.getString("sale_date"));
-                        sds.setSkuName(rs.getString("sku_name"));
-                        sds.setQuantity(rs.getLong("total_qty"));
-                        return sds;
-                    }, monthStart, pId);
+            List<DashboardVO.SkuDaySales> skuSalesList = queryPlatformSkuSales(sevenDaysAgo, pId);
+            if (skuSalesList.isEmpty()) {
+                continue;
+            }
 
             platformSales.setSkuSales(skuSalesList);
             platformSkuSalesList.add(platformSales);
         }
 
+        List<DashboardVO.SkuDaySales> otherSkuSalesList = queryPlatformSkuSales(sevenDaysAgo, null);
+        if (!otherSkuSalesList.isEmpty()) {
+            DashboardVO.PlatformSkuSales otherPlatformSales = new DashboardVO.PlatformSkuSales();
+            otherPlatformSales.setPlatformId(0L);
+            otherPlatformSales.setPlatformName("\u5176\u4ed6");
+            otherPlatformSales.setPlatformColor("#94a3b8");
+            otherPlatformSales.setSkuSales(otherSkuSalesList);
+            platformSkuSalesList.add(otherPlatformSales);
+        }
+
         vo.setPlatformSkuSales(platformSkuSalesList);
 
         return vo;
+    }
+
+    private List<DashboardVO.SkuDaySales> queryPlatformSkuSales(String sevenDaysAgo, Long platformId) {
+        String platformCondition = platformId == null
+                ? "AND (so.platform_id IS NULL OR NOT EXISTS (SELECT 1 FROM platform p WHERE p.id = so.platform_id AND p.deleted = 0 AND p.enabled = 1)) "
+                : "AND so.platform_id = ? ";
+        Object[] params = platformId == null
+                ? new Object[]{sevenDaysAgo}
+                : new Object[]{sevenDaysAgo, platformId};
+
+        return jdbcTemplate.query(
+                "SELECT DATE(COALESCE(o.shipped_at, o.updated_at)) as sale_date, oi.sku_name, SUM(oi.quantity) as total_qty " +
+                "FROM outbound_order o " +
+                "JOIN outbound_order_item oi ON o.id = oi.outbound_id " +
+                "LEFT JOIN sales_order so ON (o.order_id = so.id OR (o.order_id IS NULL AND o.order_no = so.order_no)) AND so.deleted = 0 " +
+                "WHERE o.deleted = 0 AND o.status = 'SHIPPED' " +
+                "AND so.id IS NOT NULL " +
+                "AND COALESCE(o.shipped_at, o.updated_at) >= ? " +
+                "AND so.order_status NOT IN ('RETURNING', 'RETURNED', 'CANCELLED', 'EXCHANGING') " +
+                platformCondition +
+                "GROUP BY DATE(COALESCE(o.shipped_at, o.updated_at)), oi.sku_name " +
+                "ORDER BY sale_date, oi.sku_name",
+                (rs, rowNum) -> {
+                    DashboardVO.SkuDaySales sds = new DashboardVO.SkuDaySales();
+                    sds.setDate(rs.getString("sale_date"));
+                    sds.setSkuName(rs.getString("sku_name"));
+                    sds.setQuantity(rs.getLong("total_qty"));
+                    return sds;
+                }, params);
     }
 
     @Override
