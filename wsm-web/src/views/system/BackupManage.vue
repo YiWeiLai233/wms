@@ -42,8 +42,9 @@
         <el-table-column prop="createdAt" label="备份时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
+            <el-button v-if="row.status === 'SUCCESS' && row.backupType === 'FULL'" type="success" link icon="RefreshRight" @click="openIncrDialog(row)">增量备份</el-button>
             <el-button v-if="row.status === 'SUCCESS'" type="primary" link icon="Download" @click="handleDownload(row)">下载</el-button>
             <el-popconfirm title="确定删除该备份记录吗？" @confirm="handleDelete(row.id)">
               <template #reference>
@@ -133,6 +134,14 @@ function openBackupDialog(type: 'FULL' | 'INCREMENTAL') {
   backupForm.saveMode = 'download'
   backupForm.backupPath = ''
   backupForm.baseBackupId = undefined
+  backupDialogVisible.value = true
+}
+
+function openIncrDialog(row: BackupRecord) {
+  backupType.value = 'INCREMENTAL'
+  backupForm.saveMode = 'download'
+  backupForm.backupPath = ''
+  backupForm.baseBackupId = row.id
   backupDialogVisible.value = true
 }
 
