@@ -1,3 +1,4 @@
+import axios from 'axios'
 import request from './request'
 import type { ApiResponse } from './request'
 
@@ -27,9 +28,16 @@ export function getBackupList() {
   return request.get<any, ApiResponse<BackupRecord[]>>('/backup/list')
 }
 
-// 下载备份文件
-export function downloadBackupUrl(fileName: string) {
-  return `/api/backup/download/${encodeURIComponent(fileName)}`
+// 下载备份文件（直接用 axios 带 token，绕过响应拦截器）
+export async function downloadBackup(fileName: string) {
+  const token = localStorage.getItem('token')
+  const response = await axios.get(`/api/backup/download/${encodeURIComponent(fileName)}`, {
+    responseType: 'blob',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : ''
+    }
+  })
+  return response.data
 }
 
 // 删除备份记录

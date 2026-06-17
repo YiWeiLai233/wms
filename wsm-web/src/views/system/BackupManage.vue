@@ -82,7 +82,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { fullBackup, incrementalBackup, getBackupList, downloadBackupUrl, deleteBackup } from '@/api/backup'
+import { fullBackup, incrementalBackup, getBackupList, downloadBackup, deleteBackup } from '@/api/backup'
 import type { BackupRecord } from '@/api/backup'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -135,13 +135,7 @@ async function handleBackup() {
 
     // 如果是下载模式，触发浏览器下载
     if (backupForm.saveMode === 'download' && record?.fileName) {
-      const url = downloadBackupUrl(record.fileName)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = record.fileName
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
+      await triggerDownload(record.fileName)
     }
 
     backupDialogVisible.value = false
@@ -151,14 +145,24 @@ async function handleBackup() {
   }
 }
 
-function handleDownload(row: BackupRecord) {
-  const url = downloadBackupUrl(row.fileName)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = row.fileName
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+async function handleDownload(row: BackupRecord) {
+  await triggerDownload(row.fileName)
+}
+
+async function triggerDownload(fileName: string) {
+  try {
+    const blob = await downloadBackup(fileName)
+    const url = window.URL.createObjectURL(blob as unknown as Blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch {
+    ElMessage.error('下载失败')
+  }
 }
 
 async function handleDelete(id: number) {
