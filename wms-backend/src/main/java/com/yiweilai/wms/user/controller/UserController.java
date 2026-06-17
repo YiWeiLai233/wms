@@ -110,11 +110,4 @@ public class UserController {
         userService.resetPassword(id, newPassword);
         return Result.success();
     }
-
-    @Operation(summary = "角色列表")
-    @GetMapping("/roles")
-    public Result<List<RoleVO>> listRoles() {
-        List<RoleVO> roles = userService.listRoles();
-        return Result.success(roles);
-    }
 }
