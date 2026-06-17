@@ -22,4 +22,19 @@ class StockMapperXmlTest {
                 .contains("w.name AS warehouse_name");
     }
 
+    @Test
+    void stockTypeFiltersUseWarehouseSpecificAlertConfigBeforeSkuDefault() throws Exception {
+        String mapperXml = Files.readString(
+                Path.of("src/main/resources/mapper/StockMapper.xml"),
+                StandardCharsets.UTF_8);
+
+        assertThat(mapperXml)
+                .contains("ac2.sku_id = s.sku_id")
+                .contains("ac2.warehouse_id = s.warehouse_id")
+                .contains("ac2.warehouse_id IS NULL")
+                .contains("ORDER BY CASE WHEN ac2.warehouse_id = s.warehouse_id THEN 0 ELSE 1 END")
+                .contains("s.quantity &gt; COALESCE(ac.out_of_stock_threshold, 0)")
+                .contains("s.quantity &lt;= COALESCE(ac.low_stock_threshold, 10)");
+    }
+
 }

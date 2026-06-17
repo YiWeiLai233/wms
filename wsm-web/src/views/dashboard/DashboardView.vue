@@ -74,7 +74,7 @@
               <h3 class="text-base font-semibold text-gray-800">近 7 天各平台 SKU 销量趋势</h3>
             </div>
           </div>
-          <v-chart ref="comboChartRef" class="combo-chart" :option="platformSkuComboOption" autoresize @wheel.prevent="handleComboChartWheel" />
+          <v-chart ref="comboChartRef" class="combo-chart" :option="platformSkuComboOption" autoresize />
         </div>
       </el-col>
     </el-row>
@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -113,6 +113,7 @@ import StatCard from '@/components/StatCard.vue'
 
 use([CanvasRenderer, LineChart, PieChart, BarChart, HeatmapChart, RadarChart, GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, RadarComponent, GraphicComponent])
 
+
 const comboChartRef = ref<any>(null)
 
 const dashboard = ref<DashboardData>({
@@ -126,17 +127,6 @@ const dashboard = ref<DashboardData>({
   topSkus: [],
 })
 
-// 处理图表区域滚轮事件，让 tooltip 滚动而不是页面滚动
-const handleComboChartWheel = (e: WheelEvent) => {
-  const tooltipDom = document.querySelector('.echarts-tooltip')
-  if (tooltipDom) {
-    const scrollContainer = tooltipDom.querySelector('[style*="overflow-y"]') as HTMLElement
-    if (scrollContainer) {
-      e.preventDefault()
-      scrollContainer.scrollTop += e.deltaY
-    }
-  }
-}
 
 // 辅助函数：给颜色添加透明度（支持 hex 和 rgb 格式）
 const colorWithAlpha = (color: string, alpha: number): string => {
@@ -444,16 +434,52 @@ const platformSkuComboOption = computed(() => {
     })
   })
 
+  // 添加总计曲线
+  legendData.push('总计趋势')
+  const totalData = dates.map((date) => {
+    let total = 0
+    platformSales.forEach((ps) => {
+      total += ps.skuSales?.filter((s) => s.date === date).reduce((sum, s) => sum + s.quantity, 0) || 0
+    })
+    return total
+  })
+
+  series.push({
+    name: '总计趋势',
+    type: 'line',
+    data: totalData,
+    smooth: 0.4,
+    symbol: 'circle',
+    symbolSize: 6,
+    lineStyle: {
+      width: 2,
+      color: '#f97316',
+    },
+    itemStyle: {
+      color: '#f97316',
+      borderColor: '#fff',
+      borderWidth: 2,
+    },
+  })
+
+  // 预计算每天每个平台的SKU数据，避免在formatter中重复计算
+  const dailyPlatformData = new Map<string, Map<string, { sortedSales: { skuName: string; quantity: number }[] }>>()
+  dates.forEach((date) => {
+    const platformMap = new Map<string, { sortedSales: { skuName: string; quantity: number }[] }>()
+    platformSales.forEach((ps) => {
+      const skuSales = ps.skuSales?.filter(s => s.date === date) || []
+      const sortedSales = [...skuSales].sort((a, b) => b.quantity - a.quantity)
+      platformMap.set(ps.platformName, { sortedSales })
+    })
+    dailyPlatformData.set(date, platformMap)
+  })
+
   return {
     tooltip: {
       trigger: 'axis',
       confine: true,
       enterable: true,
       appendToBody: true,
-      position: function (point: any) {
-        // tooltip 出现在鼠标右侧偏移位置
-        return { left: point[0] + 20, top: point[1] - 50 }
-      },
       axisPointer: {
         type: 'shadow',
         shadowStyle: { color: 'rgba(0,0,0,0.05)' },
@@ -463,46 +489,67 @@ const platformSkuComboOption = computed(() => {
       borderWidth: 1,
       borderRadius: 12,
       padding: [14, 20],
-      textStyle: { color: '#374151', fontSize: 12 },
-      extraCssText: 'overscroll-behavior: contain; pointer-events: auto; max-width: 450px;',
+      textStyle: { color: '#374151', fontSize: 13 },
+      extraCssText: 'pointer-events: auto; max-width: 400px; max-height: 80vh; overflow-y: auto;',
       formatter: (params: any) => {
-        if (!params || params.length === 0) return ''
+        if (!params) return ''
         const dateLabel = params[0]?.axisValue || ''
         const originalDate = dates.find(d => d.slice(5) === dateLabel) || ''
 
-        let html = `<div style="min-width:350px;max-width:450px;max-height:500px;overflow-y:auto;padding:8px 16px;overscroll-behavior:contain;cursor:default" onmouseenter="event.stopPropagation()" onwheel="event.stopPropagation();event.preventDefault();this.scrollTop+=event.deltaY;return false">`
-        html += `<div style="font-weight:600;color:#1f2937;font-size:14px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;position:sticky;top:0;background:rgba(255,255,255,0.98);z-index:1">📅 ${dateLabel}</div>`
-
-        params.forEach((p: any) => {
-          if (p.value === 0) return
-          const platformName = p.seriesName
+        // 如果高亮的是单个柱子，只显示该平台
+        if (currentHoverPlatform) {
+          const platformName = currentHoverPlatform
           const platformColor = platformColors[platformName] || '#3b82f6'
-
           const platformData = platformSales.find(ps => ps.platformName === platformName)
           const skuSales = platformData?.skuSales?.filter(s => s.date === originalDate) || []
           const sortedSales = [...skuSales].sort((a, b) => b.quantity - a.quantity)
+          const total = sortedSales.reduce((sum, s) => sum + s.quantity, 0)
 
-          html += `<div style="margin-bottom:10px">`
-          html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${platformColor}"></span>
-            <span style="font-weight:600;color:#374151">${platformName}</span>
-            <span style="margin-left:auto;font-weight:600;color:#1f2937">${p.value} 件</span>
+          let html = `<div style="min-width:250px;max-width:400px;padding:4px 8px">`
+          html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e5e7eb">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${platformColor}"></span>
+            <span style="font-weight:600;color:#1f2937;font-size:15px">${platformName}</span>
+            <span style="margin-left:auto;color:#6b7280;font-size:12px">📅 ${dateLabel}</span>
           </div>`
-
+          html += `<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#6b7280">总销量</span><span style="font-weight:700;color:#1f2937;font-size:18px">${total} 件</span></div>`
           if (sortedSales.length > 0) {
-            html += `<div style="padding-left:18px;font-size:11px;color:#6b7280">`
-            sortedSales.forEach((s) => {
-              html += `<div style="display:flex;justify-content:space-between;padding:2px 0">
-                <span>${s.skuName}</span>
-                <span style="font-weight:500;color:#374151">${s.quantity}</span>
-              </div>`
-            })
+            html += `<div style="border-top:1px solid #f3f4f6;padding-top:8px"><div style="font-size:12px;color:#9ca3af;margin-bottom:4px">SKU 明细</div>`
+            for (const s of sortedSales) {
+              html += `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px"><span style="color:#374151">${s.skuName}</span><span style="font-weight:600;color:#1f2937">${s.quantity}</span></div>`
+            }
             html += `</div>`
           }
-
           html += `</div>`
-        })
+          return html
+        }
 
+        // 空白处hover - 显示当日总表
+        const platformDataMap = dailyPlatformData.get(originalDate)
+        let html = `<div style="min-width:300px;max-width:400px;padding:4px 8px">`
+        html += `<div style="font-weight:600;color:#1f2937;font-size:14px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">📅 ${dateLabel}</div>`
+
+        let grandTotal = 0
+        for (let i = 0; i < params.length; i++) {
+          const p = params[i]
+          if (p.value === 0 || p.seriesName === '总计趋势') continue
+          const platformName = p.seriesName
+          const platformColor = platformColors[platformName] || '#3b82f6'
+          const data = platformDataMap?.get(platformName)
+          const sortedSales = data?.sortedSales || []
+          grandTotal += p.value
+
+          html += `<div style="margin-bottom:8px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${platformColor};flex-shrink:0"></span><span style="font-weight:600;color:#374151;font-size:13px">${platformName}</span><span style="margin-left:auto;font-weight:700;color:#1f2937;font-size:13px">${p.value} 件</span></div>`
+          if (sortedSales.length > 0) {
+            html += `<div style="padding-left:16px;font-size:12px;color:#6b7280;line-height:1.4">`
+            for (const s of sortedSales) {
+              html += `<div style="display:flex;justify-content:space-between;padding:1px 0"><span>${s.skuName}</span><span style="font-weight:500;color:#374151">${s.quantity}</span></div>`
+            }
+            html += `</div>`
+          }
+          html += `</div>`
+        }
+
+        html += `<div style="margin-top:8px;padding-top:8px;border-top:2px solid #e5e7eb;display:flex;justify-content:space-between"><span style="font-weight:600;color:#6b7280">当日总计</span><span style="font-weight:700;color:#f97316;font-size:16px">${grandTotal} 件</span></div>`
         html += `</div>`
         return html
       },
@@ -950,7 +997,28 @@ const lowStockChartOption = computed(() => {
   }
 })
 
+// 存储当前高亮的平台名称
+let currentHoverPlatform = ''
+
 onMounted(async () => {
+  // 监听图表的 highlight 事件来追踪当前高亮的系列
+  nextTick(() => {
+    const chart = comboChartRef.value
+    if (chart) {
+      chart.on('highlight', (params: any) => {
+        if (params.batch && params.batch.length > 0) {
+          const idx = params.batch[0].seriesIndex
+          if (idx !== undefined && idx < platformSales.length) {
+            currentHoverPlatform = platformSales[idx].platformName
+          }
+        }
+      })
+      chart.on('downplay', () => {
+        currentHoverPlatform = ''
+      })
+    }
+  })
+
   try {
     const [dashRes, oosRes, lsRes] = await Promise.all([
       getDashboard(),
@@ -964,6 +1032,7 @@ onMounted(async () => {
     // 使用默认空数据
   }
 })
+
 </script>
 
 <style scoped lang="scss">
