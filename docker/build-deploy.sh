@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # WMS 本地打包脚本 - 生成 wms-deploy.tar.gz 部署包
-# 在开发机器上执行，打包后上传到服务器
+# 在项目根目录（/root/wms）执行：bash docker/build-deploy.sh
 # ============================================================
 
 set -e
@@ -12,9 +12,17 @@ NC='\033[0m'
 
 log() { echo -e "${GREEN}[INFO]${NC} $1"; }
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# 项目根目录 = 当前执行命令的目录
+PROJECT_ROOT="$(pwd)"
 BUILD_DIR="${PROJECT_ROOT}/.deploy-build"
 OUTPUT="${PROJECT_ROOT}/wms-deploy.tar.gz"
+
+# 检查目录结构
+if [ ! -d "${PROJECT_ROOT}/wms-backend" ] || [ ! -d "${PROJECT_ROOT}/wsm-web" ]; then
+    echo -e "${RED}[ERROR]${NC} 请在项目根目录执行（包含 wms-backend/ 和 wsm-web/ 的目录）"
+    echo "用法: cd /root/wms && bash docker/build-deploy.sh"
+    exit 1
+fi
 
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"/{wms-backend,wsm-web,docker}
@@ -79,7 +87,7 @@ log "前端构建完成"
 log "复制配置文件..."
 cp "${PROJECT_ROOT}/docker/init.sql" "${BUILD_DIR}/docker/"
 
-# docker-compose.yml（适配已构建的镜像）
+# docker-compose.yml
 cat > "${BUILD_DIR}/docker-compose.yml" <<'COMPOSE'
 services:
   mysql:
@@ -159,7 +167,6 @@ volumes:
   uploads_data:
 COMPOSE
 
-# 复制安装脚本
 cp "${PROJECT_ROOT}/docker/install-standalone.sh" "${BUILD_DIR}/"
 
 # ============================================================
@@ -183,7 +190,6 @@ echo "  上传到服务器:"
 echo "    scp ${OUTPUT} root@服务器IP:/opt/"
 echo ""
 echo "  在服务器上安装:"
-echo "    cd /opt && tar -xzf wms-deploy.tar.gz -C /tmp/wms-deploy"
-echo "    cd /tmp/wms-deploy && sudo bash install-standalone.sh"
+echo "    cd /opt && tar -xzf wms-deploy.tar.gz && bash install-standalone.sh"
 echo ""
 echo "============================================================"
