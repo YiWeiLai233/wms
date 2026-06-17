@@ -7,8 +7,7 @@
     </PageHeader>
 
     <div class="card">
-      <el-table :data="roleList" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="ID" width="60" />
+      <el-table :data="filteredRoleList" v-loading="loading" stripe border>
         <el-table-column prop="roleCode" label="角色编码" width="150" />
         <el-table-column prop="roleName" label="角色名称" width="150" />
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
@@ -68,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { ElTree } from 'element-plus'
@@ -81,6 +80,11 @@ import PageHeader from '@/components/PageHeader.vue'
 
 const loading = ref(false)
 const roleList = ref<Role[]>([])
+
+// 过滤掉超级管理员角色
+const filteredRoleList = computed(() =>
+  roleList.value.filter(r => r.roleCode !== 'SUPER_ADMIN')
+)
 
 // 角色编辑相关
 const dialogVisible = ref(false)
