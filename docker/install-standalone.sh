@@ -112,10 +112,14 @@ if command -v firewall-cmd &>/dev/null; then
 fi
 
 # ============================================================
-# 5. 启动
+# 5. 加载镜像并启动
 # ============================================================
-log "启动服务（首次构建约 3-5 分钟）..."
-docker compose up -d --build
+log "加载 Docker 镜像..."
+[ -f "${INSTALL_DIR}/wms-backend.tar" ] && docker load -i "${INSTALL_DIR}/wms-backend.tar"
+[ -f "${INSTALL_DIR}/wms-frontend.tar" ] && docker load -i "${INSTALL_DIR}/wms-frontend.tar"
+
+log "启动服务..."
+docker compose up -d
 
 log "等待 MySQL 就绪..."
 for i in $(seq 1 60); do

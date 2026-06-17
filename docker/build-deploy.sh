@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-# WMS 本地打包脚本 - 生成 wms-deploy.tar.gz 部署包
-# 在项目根目录（/root/wms）执行：bash docker/build-deploy.sh
+# WMS 打包脚本 - 用 Docker 构建，服务器无需安装 Java/Node.js
+# 在项目根目录执行：cd /root/wms && bash docker/build-deploy.sh
 # ============================================================
 
 set -e
@@ -12,117 +12,80 @@ NC='\033[0m'
 
 log() { echo -e "${GREEN}[INFO]${NC} $1"; }
 
-# 项目根目录 = 当前执行命令的目录
 PROJECT_ROOT="$(pwd)"
 BUILD_DIR="${PROJECT_ROOT}/.deploy-build"
 OUTPUT="${PROJECT_ROOT}/wms-deploy.tar.gz"
 
-# 检查目录结构
 if [ ! -d "${PROJECT_ROOT}/wms-backend" ] || [ ! -d "${PROJECT_ROOT}/wsm-web" ]; then
     echo -e "${RED}[ERROR]${NC} 请在项目根目录执行（包含 wms-backend/ 和 wsm-web/ 的目录）"
     echo "用法: cd /root/wms && bash docker/build-deploy.sh"
     exit 1
 fi
 
-# ============================================================
-# 0. 检查并安装依赖
-# ============================================================
-
-# 安装 Java 17
-if ! java -version 2>&1 | grep -q "17"; then
-    log "安装 Java 17..."
-    yum install -y java-17-openjdk java-17-openjdk-devel
-    export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
-    export PATH=$JAVA_HOME/bin:$PATH
-    log "Java 已安装: $(java -version 2>&1 | head -1)"
-fi
-
-# 安装 Maven
-if ! command -v mvn &>/dev/null; then
-    log "安装 Maven..."
-    yum install -y maven || {
-        # 如果 yum 没有 maven，手动安装
-        MVN_VERSION=3.9.9
-        curl -fsSL "https://dlcdn.apache.org/maven/maven-3/${MVN_VERSION}/binaries/apache-maven-${MVN_VERSION}-bin.tar.gz" -o /tmp/maven.tar.gz
-        tar -xzf /tmp/maven.tar.gz -C /opt/
-        ln -sf /opt/apache-maven-${MVN_VERSION}/bin/mvn /usr/local/bin/mvn
-        rm -f /tmp/maven.tar.gz
-    }
-    log "Maven 已安装: $(mvn --version 2>&1 | head -1)"
-fi
-
-# 安装 Node.js（前端构建需要）
-if ! command -v node &>/dev/null; then
-    log "安装 Node.js 20..."
-    curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
-    yum install -y nodejs
-    log "Node.js 已安装: $(node --version)"
-fi
-
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"/{wms-backend,wsm-web,docker}
 
 # ============================================================
-# 1. 构建后端 JAR
+# 1. 用 Docker 构建后端 JAR
 # ============================================================
-log "构建后端 JAR..."
-cd "${PROJECT_ROOT}/wms-backend"
+log "用 Docker 构建后端 JAR（无需本地安装 Java）..."
 
-if [ -f "mvnw" ]; then
-    chmod +x mvnw
-    ./mvnw package -DskipTests -Dmaven.test.skip=true -q
-else
-    mvn package -DskipTests -Dmaven.test.skip=true -q
-fi
+cat > "${PROJECT_ROOT}/wms-backend/Dockerfile.build" <<'DOCKERFILE'
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -q
+COPY src ./src
+RUN mvn package -DskipTests -Dmaven.test.skip=true -q
 
-cp target/*.jar "${BUILD_DIR}/wms-backend/app.jar"
-cp -r sql "${BUILD_DIR}/wms-backend/"
-
-# 后端 Dockerfile（直接用 JAR，不需要编译阶段）
-cat > "${BUILD_DIR}/wms-backend/Dockerfile" <<'DOCKERFILE'
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY app.jar app.jar
+COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]
 DOCKERFILE
 
+docker build -f "${PROJECT_ROOT}/wms-backend/Dockerfile.build" -t wms-backend:latest "${PROJECT_ROOT}/wms-backend"
+docker save wms-backend:latest -o "${BUILD_DIR}/wms-backend.tar"
+rm -f "${PROJECT_ROOT}/wms-backend/Dockerfile.build"
+
+# 复制 SQL 初始化脚本
+cp -r "${PROJECT_ROOT}/wms-backend/sql" "${BUILD_DIR}/wms-backend/"
+cp "${PROJECT_ROOT}/docker/init.sql" "${BUILD_DIR}/docker/"
+
 log "后端构建完成"
 
 # ============================================================
-# 2. 构建前端
+# 2. 用 Docker 构建前端
 # ============================================================
-log "构建前端..."
-cd "${PROJECT_ROOT}/wsm-web"
+log "用 Docker 构建前端（无需本地安装 Node.js）..."
 
-if [ -f "package-lock.json" ]; then
-    npm ci --registry https://registry.npmmirror.com
-else
-    npm install --registry https://registry.npmmirror.com
-fi
-npm run build
+cat > "${PROJECT_ROOT}/wsm-web/Dockerfile.build" <<'DOCKERFILE'
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --registry https://registry.npmmirror.com
+COPY . .
+RUN npm run build
 
-cp -r dist "${BUILD_DIR}/wsm-web/"
-cp "${PROJECT_ROOT}/wsm-web/nginx.conf" "${BUILD_DIR}/wsm-web/"
-
-# 前端 Dockerfile（直接用 dist，不需要编译阶段）
-cat > "${BUILD_DIR}/wsm-web/Dockerfile" <<'DOCKERFILE'
 FROM nginx:alpine
-COPY dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 DOCKERFILE
 
+docker build -f "${PROJECT_ROOT}/wsm-web/Dockerfile.build" -t wms-frontend:latest "${PROJECT_ROOT}/wsm-web"
+docker save wms-frontend:latest -o "${BUILD_DIR}/wms-frontend.tar"
+rm -f "${PROJECT_ROOT}/wsm-web/Dockerfile.build"
+
 log "前端构建完成"
 
 # ============================================================
-# 3. 复制配置文件
+# 3. 生成 docker-compose.yml（用预构建镜像）
 # ============================================================
-log "复制配置文件..."
-cp "${PROJECT_ROOT}/docker/init.sql" "${BUILD_DIR}/docker/"
+log "生成配置文件..."
 
-# docker-compose.yml
 cat > "${BUILD_DIR}/docker-compose.yml" <<'COMPOSE'
 services:
   mysql:
@@ -159,9 +122,7 @@ services:
       retries: 5
 
   wms-backend:
-    build:
-      context: ./wms-backend
-      dockerfile: Dockerfile
+    image: wms-backend:latest
     container_name: wms-backend
     restart: unless-stopped
     depends_on:
@@ -195,9 +156,7 @@ services:
       - uploads_data:/app/uploads
 
   wms-frontend:
-    build:
-      context: ./wsm-web
-      dockerfile: Dockerfile
+    image: wms-frontend:latest
     container_name: wms-frontend
     restart: unless-stopped
     depends_on:
@@ -211,6 +170,7 @@ volumes:
   uploads_data:
 COMPOSE
 
+# 复制安装脚本
 cp "${PROJECT_ROOT}/docker/install-standalone.sh" "${BUILD_DIR}/"
 
 # ============================================================
