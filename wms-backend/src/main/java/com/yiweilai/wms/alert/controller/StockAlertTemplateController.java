@@ -12,9 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import com.yiweilai.wms.security.RequirePermission;
+
 /**
  * 预警模板 Controller
  */
+@RequirePermission("system.stock-alert-template")
 @RestController
 @RequestMapping("/api/stock-alert-templates")
 @RequiredArgsConstructor
