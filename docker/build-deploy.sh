@@ -24,6 +24,41 @@ if [ ! -d "${PROJECT_ROOT}/wms-backend" ] || [ ! -d "${PROJECT_ROOT}/wsm-web" ];
     exit 1
 fi
 
+# ============================================================
+# 0. 检查并安装依赖
+# ============================================================
+
+# 安装 Java 17
+if ! java -version 2>&1 | grep -q "17"; then
+    log "安装 Java 17..."
+    yum install -y java-17-openjdk java-17-openjdk-devel
+    export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+    export PATH=$JAVA_HOME/bin:$PATH
+    log "Java 已安装: $(java -version 2>&1 | head -1)"
+fi
+
+# 安装 Maven
+if ! command -v mvn &>/dev/null; then
+    log "安装 Maven..."
+    yum install -y maven || {
+        # 如果 yum 没有 maven，手动安装
+        MVN_VERSION=3.9.9
+        curl -fsSL "https://dlcdn.apache.org/maven/maven-3/${MVN_VERSION}/binaries/apache-maven-${MVN_VERSION}-bin.tar.gz" -o /tmp/maven.tar.gz
+        tar -xzf /tmp/maven.tar.gz -C /opt/
+        ln -sf /opt/apache-maven-${MVN_VERSION}/bin/mvn /usr/local/bin/mvn
+        rm -f /tmp/maven.tar.gz
+    }
+    log "Maven 已安装: $(mvn --version 2>&1 | head -1)"
+fi
+
+# 安装 Node.js（前端构建需要）
+if ! command -v node &>/dev/null; then
+    log "安装 Node.js 20..."
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+    yum install -y nodejs
+    log "Node.js 已安装: $(node --version)"
+fi
+
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"/{wms-backend,wsm-web,docker}
 
