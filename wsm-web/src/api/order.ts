@@ -9,6 +9,7 @@ export interface OrderItem {
   skuName: string
   sizeValue?: string
   quantity: number
+  returnedQuantity?: number
   unitPrice: number
   totalPrice: number
 }

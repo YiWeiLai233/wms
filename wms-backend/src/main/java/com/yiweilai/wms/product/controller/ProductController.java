@@ -9,10 +9,12 @@ import com.yiweilai.wms.product.vo.ProductVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 商品 Controller
  */
+@RequirePermission("product.list")
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor

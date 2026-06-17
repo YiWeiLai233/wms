@@ -29,6 +29,9 @@ public class ReturnConfirmDTO {
         @NotNull(message = "明细ID不能为空")
         private Long itemId;
 
+        /** 质检数量 */
+        private Integer quantity;
+
         /** 质检状态：SELLABLE/DEFECTIVE/SCRAPPED */
         @NotBlank(message = "质检状态不能为空")
         private String qualityStatus;

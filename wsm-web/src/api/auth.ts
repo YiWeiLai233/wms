@@ -28,3 +28,7 @@ export function login(data: LoginParams) {
 export function getProfile() {
   return request.get<any, ApiResponse<UserProfile>>('/auth/profile')
 }
+
+export function logout() {
+  return request.post<any, ApiResponse<void>>('/auth/logout')
+}

@@ -12,9 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import com.yiweilai.wms.security.RequirePermission;
+
 /**
  * 平台 Controller
  */
+@RequirePermission("system.platforms")
 @RestController
 @RequestMapping("/api/platforms")
 @RequiredArgsConstructor

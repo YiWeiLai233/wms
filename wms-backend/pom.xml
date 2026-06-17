@@ -89,6 +89,13 @@
 			<version>2.1.0</version>
 		</dependency>
 
+		<!-- SSH/SCP 跨平台支持 -->
+		<dependency>
+			<groupId>com.hierynomus</groupId>
+			<artifactId>sshj</artifactId>
+			<version>0.39.0</version>
+		</dependency>
+
 		<!-- 参数校验 -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

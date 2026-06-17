@@ -16,6 +16,9 @@ import java.util.List;
 /**
  * 快递公司 Controller
  */
+import com.yiweilai.wms.security.RequirePermission;
+
+@RequirePermission("express.company")
 @Tag(name = "快递公司", description = "快递公司管理")
 @RestController
 @RequestMapping("/api/express/companies")

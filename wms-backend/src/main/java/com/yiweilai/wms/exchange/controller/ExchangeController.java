@@ -13,10 +13,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 换货 Controller
  */
+@RequirePermission("exchange.list")
 @RestController
 @RequestMapping("/api/exchange")
 @RequiredArgsConstructor

@@ -168,16 +168,22 @@ onMounted(async () => {
   }
 })
 
-function handleCommand(command: string) {
+async function handleCommand(command: string) {
   if (command === 'logout') {
-    ElMessageBox.confirm('确定退出登录吗？', '提示', {
-      type: 'warning',
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-    }).then(() => {
+    try {
+      await ElMessageBox.confirm('确定退出登录吗？', '提示', {
+        type: 'warning',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      })
+      // 调用后端登出接口，使当前 token 失效
+      try {
+        const { logout } = await import('@/api/auth')
+        await logout()
+      } catch {}
       userStore.logout()
       router.push('/login')
-    })
+    } catch {}
   }
 }
 </script>

@@ -9,10 +9,12 @@ import com.yiweilai.wms.warehouse.vo.WarehouseVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 仓库 Controller
  */
+@RequirePermission("warehouse.list")
 @RestController
 @RequestMapping("/api/warehouses")
 @RequiredArgsConstructor

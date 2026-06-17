@@ -100,6 +100,28 @@ public class JwtUtils {
         return "jwt:blacklist:" + token.hashCode();
     }
 
+    /**
+     * 获取用户级登出时间戳的 Redis Key（logout 使该用户所有旧 token 失效）
+     */
+    public static String getUserLogoutKey(Long userId) {
+        return "jwt:logout:" + userId;
+    }
+
+    /**
+     * 从 Token 中获取签发时间
+     */
+    public Date getIssuedAtFromToken(String token) {
+        Claims claims = parseToken(token);
+        return claims.getIssuedAt();
+    }
+
+    /**
+     * 获取 Token 最大有效期（毫秒）
+     */
+    public long getExpiration() {
+        return expiration;
+    }
+
     private Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())

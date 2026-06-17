@@ -13,10 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 商品SKU Controller
  */
+@RequirePermission("product.sku")
 @RestController
 @RequestMapping("/api/skus")
 @RequiredArgsConstructor

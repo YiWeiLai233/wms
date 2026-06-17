@@ -169,7 +169,11 @@
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
             <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column label="数量" width="100" align="center">
+            <template #default="{ row }">
+              <el-input-number v-model="row.quantity" :min="1" :max="row.originalQuantity" size="small" controls-position="right" style="width: 80px" />
+            </template>
+          </el-table-column>
           <el-table-column label="质检结果" width="150">
             <template #default="{ row }">
               <el-select v-model="row.qualityStatus" style="width: 120px">
@@ -201,7 +205,11 @@
         <el-table-column prop="sizeValue" label="码数" width="80" align="center">
           <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="quantity" label="退货数量" width="90" align="center" />
+        <el-table-column label="退货数量" width="120" align="center">
+          <template #default="{ row }">
+            <el-input-number v-model="row.quantity" :min="1" :max="row.originalQuantity" size="small" controls-position="right" style="width: 90px" />
+          </template>
+        </el-table-column>
         <el-table-column label="质检结果" width="130" align="center">
           <template #default="{ row }">
             <el-select v-model="row.qualityStatus" size="small" style="width: 110px">
@@ -246,7 +254,11 @@
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
             <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column label="数量" width="100" align="center">
+            <template #default="{ row }">
+              <el-input-number v-model="row.quantity" :min="1" :max="row.originalQuantity" size="small" controls-position="right" style="width: 80px" />
+            </template>
+          </el-table-column>
           <el-table-column label="质检结果" width="150">
             <template #default="{ row }">
               <el-select v-model="row.qualityStatus" style="width: 120px">
@@ -292,7 +304,7 @@ const checking = ref(false)
 const checkFormRef = ref<FormInstance>()
 const checkForm = ref({
   returnId: 0,
-  items: [] as { itemId: number; skuName: string; sizeValue?: string; quantity: number; qualityStatus: string }[],
+  items: [] as { itemId: number; skuName: string; sizeValue?: string; quantity: number; originalQuantity: number; qualityStatus: string }[],
 })
 
 const confirmDialogVisible = ref(false)
@@ -373,6 +385,7 @@ async function handleBatchCheck() {
           skuName: i.skuName || i.skuCode,
           sizeValue: i.sizeValue,
           quantity: i.quantity,
+          originalQuantity: i.quantity,
           qualityStatus: i.qualityStatus || 'SELLABLE',
         })),
       })
@@ -391,6 +404,7 @@ async function handleBatchCheckSubmit() {
         returnId: ret.id,
         items: ret.items.map((i: any) => ({
           itemId: i.id,
+          quantity: i.quantity,
           qualityStatus: i.qualityStatus,
         })),
       })
@@ -525,6 +539,7 @@ async function openCheckDialog(row: ReturnOrder) {
       skuName: item.skuName || item.skuCode,
       sizeValue: item.sizeValue,
       quantity: item.quantity,
+      originalQuantity: item.quantity,
       qualityStatus: item.qualityStatus || 'SELLABLE',
     })),
   }
@@ -538,6 +553,7 @@ async function handleCheck() {
       returnId: checkForm.value.returnId,
       items: checkForm.value.items.map((item) => ({
         itemId: item.itemId,
+        quantity: item.quantity,
         qualityStatus: item.qualityStatus,
       })),
     })
@@ -556,7 +572,10 @@ async function openConfirmDialog(row: ReturnOrder) {
   try {
     const res = await getReturnDetail(row.id)
     const returnData = res.data
-    confirmItems.value = returnData.items || []
+    confirmItems.value = (returnData.items || []).map((item: any) => ({
+      ...item,
+      originalQuantity: item.quantity,
+    }))
   } catch {
     confirmItems.value = []
   }
@@ -578,6 +597,7 @@ async function handleConfirmReturn() {
     // 传递质检结果给后端
     const items = confirmItems.value.map((item: any) => ({
       itemId: item.id,
+      quantity: item.quantity,
       qualityStatus: item.qualityStatus || 'SELLABLE',
     }))
     await confirmReturn(confirmReturnId.value, items)

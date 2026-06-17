@@ -7,9 +7,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.yiweilai.wms.security.RequirePermission;
+
 /**
  * 文件 Controller
  */
+@RequirePermission("system.files")
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor

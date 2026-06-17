@@ -24,6 +24,7 @@ import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import com.yiweilai.wms.product.util.ProductImageHelper;
+import com.yiweilai.wms.returns.mapper.ReturnOrderItemMapper;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.entity.StockLog;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
@@ -38,7 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -57,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
     private final StockLogMapper stockLogMapper;
     private final StockService stockService;
     private final ProductImageHelper productImageHelper;
+    private final ReturnOrderItemMapper returnOrderItemMapper;
     private final PrivacyCryptoService privacyCryptoService;
     private final PrivacyHashService privacyHashService;
     private final CacheService cacheService;
@@ -94,9 +98,22 @@ public class OrderServiceImpl implements OrderService {
 
         OrderVO vo = convertToVO(order);
 
+        // 查询各SKU已退货数量
+        List<Map<String, Object>> returnedQtys = returnOrderItemMapper.sumReturnedQuantityByOrderId(id);
+        Map<Long, Integer> returnedQtyMap = new HashMap<>();
+        for (Map<String, Object> row : returnedQtys) {
+            Long skuId = ((Number) row.get("sku_id")).longValue();
+            Integer qty = ((Number) row.get("returned_qty")).intValue();
+            returnedQtyMap.put(skuId, returnedQtyMap.getOrDefault(skuId, 0) + qty);
+        }
+
         // 查询订单明细
         List<OrderItemVO> items = orderItemMapper.findByOrderId(id).stream()
-                .map(this::convertToItemVO)
+                .map(item -> {
+                    OrderItemVO voItem = convertToItemVO(item);
+                    voItem.setReturnedQuantity(returnedQtyMap.getOrDefault(item.getSkuId(), 0));
+                    return voItem;
+                })
                 .collect(Collectors.toList());
         vo.setItems(items);
 
@@ -292,7 +309,7 @@ public class OrderServiceImpl implements OrderService {
             case "WAIT_OUTBOUND" -> "OUTBOUNDING".equals(target);
             case "OUTBOUNDING" -> "SHIPPED".equals(target);
             case "SHIPPED" -> "FINISHED".equals(target) || "RETURNING".equals(target) || "EXCHANGING".equals(target);
-            case "RETURNING" -> "RETURNED".equals(target);
+            case "RETURNING" -> "RETURNED".equals(target) || "PARTIAL_RETURNED".equals(target);
             case "EXCHANGING" -> "EXCHANGED".equals(target) || "SHIPPED".equals(target);
             case "EXCHANGED" -> "FINISHED".equals(target);
             default -> false;

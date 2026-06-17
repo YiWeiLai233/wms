@@ -10,10 +10,12 @@ import com.yiweilai.wms.stock.vo.StockCheckVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 库存盘点 Controller
  */
+@RequirePermission("stock.check")
 @RestController
 @RequestMapping("/api/stock-checks")
 @RequiredArgsConstructor

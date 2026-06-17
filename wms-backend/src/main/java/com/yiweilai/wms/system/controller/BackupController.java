@@ -17,9 +17,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import com.yiweilai.wms.security.RequirePermission;
+
 /**
  * 数据库备份 Controller
  */
+@RequirePermission("system.backup")
 @RestController
 @RequestMapping("/api/backup")
 @RequiredArgsConstructor

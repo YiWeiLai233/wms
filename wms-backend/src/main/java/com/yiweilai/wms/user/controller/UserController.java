@@ -22,9 +22,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.yiweilai.wms.security.RequirePermission;
+
 /**
  * 用户控制器
  */
+@RequirePermission("system.users")
 @Tag(name = "用户管理", description = "用户登录、用户信息管理")
 @RestController
 @RequestMapping("/api")
@@ -48,12 +51,19 @@ public class UserController {
         String authHeader = request.getHeader(Constants.TOKEN_HEADER);
         if (StringUtils.hasText(authHeader) && authHeader.startsWith(Constants.TOKEN_PREFIX)) {
             String token = authHeader.substring(Constants.TOKEN_PREFIX.length());
-            // 将 Token 加入黑名单，TTL 等于 Token 剩余有效期
+            Long userId = jwtUtils.getUserIdFromToken(token);
+
+            // 1. 将当前 Token 加入黑名单
             long remaining = jwtUtils.getTokenRemainingTime(token);
             if (remaining > 0) {
                 String blacklistKey = JwtUtils.getTokenBlacklistKey(token);
                 cacheService.set(blacklistKey, "logout", remaining, TimeUnit.MILLISECONDS);
             }
+
+            // 2. 记录用户级登出时间戳，使该用户所有旧 Token 全部失效
+            //    （同一浏览器登录多个账号时，旧账号的 token 也会失效）
+            String logoutKey = JwtUtils.getUserLogoutKey(userId);
+            cacheService.set(logoutKey, System.currentTimeMillis(), jwtUtils.getExpiration(), TimeUnit.MILLISECONDS);
         }
         return Result.success();
     }

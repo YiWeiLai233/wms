@@ -44,7 +44,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -115,8 +117,9 @@ public class ReturnServiceImpl implements ReturnService {
             throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
         }
 
-        // 检查订单状态（已发货或已换货才能退货）
-        if (!"SHIPPED".equals(order.getOrderStatus()) && !"RETURNING".equals(order.getOrderStatus()) && !"EXCHANGED".equals(order.getOrderStatus())) {
+        // 检查订单状态（已发货、已换货、部分退货才能退货）
+        if (!"SHIPPED".equals(order.getOrderStatus()) && !"RETURNING".equals(order.getOrderStatus())
+                && !"EXCHANGED".equals(order.getOrderStatus()) && !"PARTIAL_RETURNED".equals(order.getOrderStatus())) {
             throw new BusinessException(ErrorCode.ORDER_STATUS_ERROR, "订单状态不允许退货");
         }
 
@@ -242,14 +245,14 @@ public class ReturnServiceImpl implements ReturnService {
             throw new BusinessException(ErrorCode.RETURN_STATUS_ERROR, "退货单状态不是待质检");
         }
 
-        // 更新每个明细的质检状态
+        // 更新每个明细的质检状态和数量
         for (ReturnCheckDTO.ReturnCheckItemDTO itemDTO : dto.getItems()) {
             ReturnOrderItem item = returnOrderItemMapper.findById(itemDTO.getItemId());
             if (item == null) {
                 continue;
             }
-            returnOrderItemMapper.updateQualityStatus(
-                    item.getId(), itemDTO.getQualityStatus());
+            returnOrderItemMapper.updateQualityStatusAndQuantity(
+                    item.getId(), itemDTO.getQualityStatus(), itemDTO.getQuantity());
         }
 
         // 更新退货单状态为可售（如果有可售的）
@@ -275,10 +278,14 @@ public class ReturnServiceImpl implements ReturnService {
             throw new BusinessException(ErrorCode.RETURN_STATUS_ERROR, "退货单状态不允许确认入库");
         }
 
-        // 如果传入了质检结果，先更新质检状态
+        // 如果传入了质检结果，先更新质检状态和数量
         if (confirmItems != null && !confirmItems.isEmpty()) {
             for (ReturnConfirmDTO.ReturnConfirmItemDTO confirmItem : confirmItems) {
-                returnOrderItemMapper.updateQualityStatus(confirmItem.getItemId(), confirmItem.getQualityStatus());
+                if (confirmItem.getQuantity() != null) {
+                    returnOrderItemMapper.updateQualityStatusAndQuantity(confirmItem.getItemId(), confirmItem.getQualityStatus(), confirmItem.getQuantity());
+                } else {
+                    returnOrderItemMapper.updateQualityStatus(confirmItem.getItemId(), confirmItem.getQualityStatus());
+                }
             }
         }
 
@@ -316,8 +323,29 @@ public class ReturnServiceImpl implements ReturnService {
         // 更新退货单状态
         returnOrderMapper.updateStatus(returnId, "COMPLETED");
 
-        // 更新订单状态
-        salesOrderMapper.updateStatus(order.getOrderId(), "RETURNED");
+        // 判断是全部退货还是部分退货
+        List<com.yiweilai.wms.order.entity.SalesOrderItem> orderItems = salesOrderItemMapper.findByOrderId(order.getOrderId());
+        List<Map<String, Object>> returnedQtys = returnOrderItemMapper.sumReturnedQuantityByOrderId(order.getOrderId());
+
+        java.util.Map<Long, Long> returnedQtyMap = new java.util.HashMap<>();
+        for (Map<String, Object> row : returnedQtys) {
+            Long skuId = ((Number) row.get("sku_id")).longValue();
+            Long qty = ((Number) row.get("returned_qty")).longValue();
+            returnedQtyMap.put(skuId, qty);
+        }
+
+        boolean allReturned = true;
+        for (com.yiweilai.wms.order.entity.SalesOrderItem orderItem : orderItems) {
+            Long returnedQty = returnedQtyMap.getOrDefault(orderItem.getSkuId(), 0L);
+            if (returnedQty < orderItem.getQuantity()) {
+                allReturned = false;
+                break;
+            }
+        }
+
+        // 更新订单状态：全部退货→RETURNED，部分退货→PARTIAL_RETURNED
+        String newOrderStatus = allReturned ? "RETURNED" : "PARTIAL_RETURNED";
+        salesOrderMapper.updateStatus(order.getOrderId(), newOrderStatus);
 
         // 清除仪表盘缓存
         cacheService.delete("cache:dashboard");
@@ -453,8 +481,38 @@ public class ReturnServiceImpl implements ReturnService {
         // 更新退货单状态为已取消
         returnOrderMapper.updateStatus(returnOrder.getId(), "CANCELLED");
 
-        // 更新订单状态回已发货（允许重新创建退货）
-        salesOrderMapper.updateStatus(returnOrder.getOrderId(), "SHIPPED");
+        // 检查是否还有其他已完成的退货单
+        List<ReturnOrder> otherReturns = returnOrderMapper.findByOrderId(returnOrder.getOrderId());
+        boolean hasOtherCompleted = otherReturns.stream()
+                .anyMatch(r -> !r.getId().equals(returnOrder.getId())
+                        && !"CANCELLED".equals(r.getStatus()) && !"PENDING_CHECK".equals(r.getStatus()));
+
+        if (hasOtherCompleted) {
+            // 还有其他已完成的退货单，重新判断是全部退货还是部分退货
+            List<com.yiweilai.wms.order.entity.SalesOrderItem> orderItems = salesOrderItemMapper.findByOrderId(returnOrder.getOrderId());
+            List<Map<String, Object>> returnedQtys = returnOrderItemMapper.sumReturnedQuantityByOrderId(returnOrder.getOrderId());
+
+            Map<Long, Long> returnedQtyMap = new HashMap<>();
+            for (Map<String, Object> row : returnedQtys) {
+                Long skuId = ((Number) row.get("sku_id")).longValue();
+                Long qty = ((Number) row.get("returned_qty")).longValue();
+                returnedQtyMap.put(skuId, qty);
+            }
+
+            boolean allReturned = true;
+            for (com.yiweilai.wms.order.entity.SalesOrderItem orderItem : orderItems) {
+                Long returnedQty = returnedQtyMap.getOrDefault(orderItem.getSkuId(), 0L);
+                if (returnedQty < orderItem.getQuantity()) {
+                    allReturned = false;
+                    break;
+                }
+            }
+
+            salesOrderMapper.updateStatus(returnOrder.getOrderId(), allReturned ? "RETURNED" : "PARTIAL_RETURNED");
+        } else {
+            // 没有其他退货单，恢复为已发货
+            salesOrderMapper.updateStatus(returnOrder.getOrderId(), "SHIPPED");
+        }
     }
 
     private ReturnOrderVO convertToVO(ReturnOrder order) {

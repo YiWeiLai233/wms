@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 快递查询 Controller
  */
+import com.yiweilai.wms.security.RequirePermission;
+
+@RequirePermission("express.query")
 @Tag(name = "快递查询", description = "快递物流查询、费用计算")
 @RestController
 @RequestMapping("/api/express")

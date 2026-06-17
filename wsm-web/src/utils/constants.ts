@@ -8,6 +8,7 @@ export const ORDER_STATUS_MAP: Record<string, { label: string; color: string; ef
   OUTBOUND_FAILED: { label: '出库失败', color: 'danger' },
   RETURNING: { label: '退货中', color: 'danger', effect: 'dark' },
   RETURNED: { label: '已退货', color: 'info', effect: 'dark' },
+  PARTIAL_RETURNED: { label: '部分退货', color: 'warning', effect: 'dark' },
   EXCHANGING: { label: '换货中', color: 'purple' },
   EXCHANGED: { label: '已换货', color: 'purple', effect: 'dark' },
 }
@@ -144,8 +145,8 @@ export const MENU_LIST: MenuItem[] = [
       { title: '角色管理', path: '/system/roles', permission: 'system.roles' },
       { title: '文件管理', path: '/system/files', permission: 'system.files' },
       { title: '操作日志', path: '/system/logs', permission: 'system.logs' },
-      { title: '库存预警设置', path: '/system/stock-alert', permission: 'system.stock-alert' },
-      { title: '预警模板管理', path: '/system/stock-alert-template', permission: 'system.stock-alert-template' },
+      { title: '库存预警设置', path: '/system/stock-alert', permission: 'system' },
+      { title: '预警模板管理', path: '/system/stock-alert-template', permission: 'system' },
       { title: '平台管理', path: '/system/platforms', permission: 'system.platforms' },
       { title: '数据库备份', path: '/system/backup', permission: 'system.backup' },
     ],

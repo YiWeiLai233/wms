@@ -12,10 +12,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 库存 Controller
  */
+@RequirePermission("stock.query")
 @RestController
 @RequestMapping("/api/stocks")
 @RequiredArgsConstructor

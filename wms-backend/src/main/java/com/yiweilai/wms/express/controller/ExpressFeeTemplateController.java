@@ -16,6 +16,9 @@ import java.util.List;
 /**
  * 快递费用模板 Controller
  */
+import com.yiweilai.wms.security.RequirePermission;
+
+@RequirePermission("express.template")
 @Tag(name = "快递费用模板", description = "快递费用模板管理")
 @RestController
 @RequestMapping("/api/express/fee-templates")

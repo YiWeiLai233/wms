@@ -67,6 +67,9 @@ public class UserServiceImpl implements UserService {
         // 生成 Token
         String token = jwtUtils.generateToken(user.getId(), user.getUsername(), roles);
 
+        // 清除该用户的旧登出时间戳（确保新 token 不会被旧的登出记录拒绝）
+        cacheService.delete(JwtUtils.getUserLogoutKey(user.getId()));
+
         log.info("用户登录成功: username={}", user.getUsername());
 
         return LoginResponse.builder()

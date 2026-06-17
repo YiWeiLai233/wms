@@ -59,12 +59,12 @@ export function createBatchReturn(data: { orderIds: number[]; reason: string; tr
 }
 
 // 退货质检
-export function checkReturn(data: { returnId: number; items: { itemId: number; qualityStatus: string }[] }) {
+export function checkReturn(data: { returnId: number; items: { itemId: number; quantity: number; qualityStatus: string }[] }) {
   return request.post<any, ApiResponse<void>>('/returns/check', data)
 }
 
 // 确认退货入库
-export function confirmReturn(returnId: number, items?: { itemId: number; qualityStatus: string }[]) {
+export function confirmReturn(returnId: number, items?: { itemId: number; quantity?: number; qualityStatus: string }[]) {
   return request.post<any, ApiResponse<void>>('/returns/confirm', { returnId, items })
 }
 

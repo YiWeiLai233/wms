@@ -96,6 +96,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         Long userId = jwtUtils.getUserIdFromToken(token);
         String username = jwtUtils.getUsernameFromToken(token);
         List<String> roles = jwtUtils.getRolesFromToken(token);
+
+        // 检查用户级登出时间戳（同浏览器多账号场景：logout 后旧 token 全部失效）
+        String logoutKey = JwtUtils.getUserLogoutKey(userId);
+        Object logoutTime = cacheService.get(logoutKey);
+        if (logoutTime != null) {
+            long logoutTs = Long.parseLong(logoutTime.toString());
+            java.util.Date issuedAt = jwtUtils.getIssuedAtFromToken(token);
+            if (issuedAt != null && issuedAt.getTime() < logoutTs) {
+                writeUnauthorized(response, "登录已失效，请重新登录");
+                return;
+            }
+        }
         if (roles == null) {
             roles = List.of();
         }

@@ -41,4 +41,9 @@ public interface ReturnOrderMapper {
      * 根据订单ID查询最新的退货单
      */
     ReturnOrder findLatestByOrderId(@Param("orderId") Long orderId);
+
+    /**
+     * 根据订单ID查询所有退货单
+     */
+    List<ReturnOrder> findByOrderId(@Param("orderId") Long orderId);
 }

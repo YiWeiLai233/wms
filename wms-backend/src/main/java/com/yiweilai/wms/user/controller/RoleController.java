@@ -12,9 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import com.yiweilai.wms.security.RequirePermission;
+
 /**
  * 角色 Controller
  */
+@RequirePermission("system.roles")
 @Tag(name = "角色管理", description = "角色增删改查、权限配置")
 @RestController
 @RequestMapping("/api/roles")

@@ -9,10 +9,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 商品分类 Controller
  */
+@RequirePermission("product.list")
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor

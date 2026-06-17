@@ -2,15 +2,17 @@ package com.yiweilai.wms.system.service;
 
 import com.yiweilai.wms.system.entity.BackupConfig;
 import lombok.extern.slf4j.Slf4j;
+import net.schmizz.sshj.SSHClient;
+import net.schmizz.sshj.sftp.SFTPClient;
+import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
+import java.util.concurrent.TimeUnit;
 
 /**
- * 远程备份服务 - 使用 SCP 上传备份文件
+ * 远程备份服务 - 使用 sshj（纯 Java SSH）跨平台支持
  */
 @Slf4j
 @Service
@@ -29,41 +31,37 @@ public class RemoteBackupService {
             return false;
         }
 
+        SSHClient ssh = new SSHClient();
         try {
-            // 使用 ProcessBuilder 调用 scp 命令
-            String remoteTarget = config.getRemoteUsername() + "@" + config.getRemoteHost() + ":"
-                    + config.getRemotePath() + "/" + file.getName();
+            ssh.addHostKeyVerifier(new PromiscuousVerifier());
+            ssh.setConnectTimeout(10000);
 
-            ProcessBuilder pb = new ProcessBuilder("scp", "-P",
-                    String.valueOf(config.getRemotePort() != null ? config.getRemotePort() : 22),
-                    "-o", "StrictHostKeyChecking=no",
-                    file.getAbsolutePath(), remoteTarget);
+            int port = config.getRemotePort() != null ? config.getRemotePort() : 22;
+            ssh.connect(config.getRemoteHost(), port);
 
-            // 如果配置了密码，使用 sshpass
+            // 认证
             if (config.getRemotePassword() != null && !config.getRemotePassword().isBlank()) {
-                pb = new ProcessBuilder("sshpass", "-p", config.getRemotePassword(),
-                        "scp", "-P", String.valueOf(config.getRemotePort() != null ? config.getRemotePort() : 22),
-                        "-o", "StrictHostKeyChecking=no",
-                        file.getAbsolutePath(), remoteTarget);
-            }
-
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            // 读取输出
-            String output = new String(process.getInputStream().readAllBytes());
-            int exitCode = process.waitFor();
-
-            if (exitCode == 0) {
-                log.info("远程备份成功: {} -> {}:{}", file.getName(), config.getRemoteHost(), config.getRemotePath());
-                return true;
+                ssh.authPassword(config.getRemoteUsername(), config.getRemotePassword());
             } else {
-                log.error("远程备份失败: exitCode={}, output={}", exitCode, output);
-                return false;
+                ssh.authPublickey(config.getRemoteUsername());
             }
-        } catch (IOException | InterruptedException e) {
+
+            // SFTP 上传
+            try (SFTPClient sftp = ssh.newSFTPClient()) {
+                String remotePath = config.getRemotePath() + "/" + file.getName();
+                sftp.put(file.getAbsolutePath(), remotePath);
+            }
+
+            log.info("远程备份成功: {} -> {}:{}", file.getName(), config.getRemoteHost(), config.getRemotePath());
+            return true;
+        } catch (IOException e) {
             log.error("远程备份异常: {}", e.getMessage());
             return false;
+        } finally {
+            try {
+                ssh.disconnect();
+            } catch (IOException ignored) {
+            }
         }
     }
 
@@ -75,31 +73,30 @@ public class RemoteBackupService {
             return false;
         }
 
+        SSHClient ssh = new SSHClient();
         try {
-            ProcessBuilder pb;
-            String sshTarget = config.getRemoteUsername() + "@" + config.getRemoteHost();
+            ssh.addHostKeyVerifier(new PromiscuousVerifier());
+            ssh.setConnectTimeout(5000);
 
+            int port = config.getRemotePort() != null ? config.getRemotePort() : 22;
+            ssh.connect(config.getRemoteHost(), port);
+
+            // 认证
             if (config.getRemotePassword() != null && !config.getRemotePassword().isBlank()) {
-                pb = new ProcessBuilder("sshpass", "-p", config.getRemotePassword(),
-                        "ssh", "-p", String.valueOf(config.getRemotePort() != null ? config.getRemotePort() : 22),
-                        "-o", "StrictHostKeyChecking=no",
-                        "-o", "ConnectTimeout=5",
-                        sshTarget, "echo ok");
+                ssh.authPassword(config.getRemoteUsername(), config.getRemotePassword());
             } else {
-                pb = new ProcessBuilder("ssh", "-p",
-                        String.valueOf(config.getRemotePort() != null ? config.getRemotePort() : 22),
-                        "-o", "StrictHostKeyChecking=no",
-                        "-o", "ConnectTimeout=5",
-                        sshTarget, "echo ok");
+                ssh.authPublickey(config.getRemoteUsername());
             }
 
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-            int exitCode = process.waitFor();
-            return exitCode == 0;
-        } catch (IOException | InterruptedException e) {
+            return true;
+        } catch (IOException e) {
             log.error("远程连接测试失败: {}", e.getMessage());
             return false;
+        } finally {
+            try {
+                ssh.disconnect();
+            } catch (IOException ignored) {
+            }
         }
     }
 }

@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import com.yiweilai.wms.security.RequirePermission;
+
+@RequirePermission("ai.assistant")
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor

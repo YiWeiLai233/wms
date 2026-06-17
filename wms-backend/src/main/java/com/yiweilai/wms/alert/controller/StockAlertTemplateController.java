@@ -7,17 +7,17 @@ import com.yiweilai.wms.alert.vo.StockAlertTemplateVO;
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
 import jakarta.validation.Valid;
+import com.yiweilai.wms.security.RequirePermission;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 预警模板 Controller
  */
-@RequirePermission("system.stock-alert-template")
+@RequirePermission("system")
 @RestController
 @RequestMapping("/api/stock-alert-templates")
 @RequiredArgsConstructor

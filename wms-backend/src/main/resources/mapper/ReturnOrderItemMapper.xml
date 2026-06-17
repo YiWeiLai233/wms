@@ -47,8 +47,22 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updateQualityStatusAndQuantity">
+        UPDATE return_order_item
+        SET quality_status = #{qualityStatus}, quantity = #{quantity}
+        WHERE id = #{id}
+    </update>
+
     <delete id="deleteByReturnId">
         DELETE FROM return_order_item WHERE return_id = #{returnId}
     </delete>
+
+    <select id="sumReturnedQuantityByOrderId" resultType="java.util.Map">
+        SELECT ri.sku_id, SUM(ri.quantity) AS returned_qty
+        FROM return_order_item ri
+        JOIN return_order ro ON ri.return_id = ro.id AND ro.deleted = 0 AND ro.status != 'CANCELLED'
+        WHERE ro.order_id = #{orderId}
+        GROUP BY ri.sku_id
+    </select>
 
 </mapper>

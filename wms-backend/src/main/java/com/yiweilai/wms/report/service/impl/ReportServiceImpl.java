@@ -17,9 +17,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 报表统计 Service 实现
@@ -175,6 +177,7 @@ public class ReportServiceImpl implements ReportService {
         statusMap.put("SHIPPED", "已发货");
         statusMap.put("FINISHED", "已完成");
         statusMap.put("CANCELLED", "已取消");
+        statusMap.put("PARTIAL_RETURNED", "部分退货");
 
         for (Map.Entry<String, String> entry : statusMap.entrySet()) {
             Long count = jdbcTemplate.queryForObject(
@@ -188,24 +191,52 @@ public class ReportServiceImpl implements ReportService {
         }
         vo.setOrderStatusDistribution(statusDistribution);
 
-        // 本月出货量TOP10 SKU
+        // 本月出货量TOP10 SKU（扣除已退货数量）
         String monthStart = LocalDate.now().withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        List<DashboardVO.SkuRank> topSkus = jdbcTemplate.query(
-                "SELECT oi.sku_id, oi.sku_code, oi.sku_name, SUM(oi.quantity) AS total_quantity " +
+
+        // 1. 查询出库数量
+        List<Map<String, Object>> shippedList = jdbcTemplate.queryForList(
+                "SELECT oi.sku_id, oi.sku_code, oi.sku_name, SUM(oi.quantity) AS shipped_qty " +
                 "FROM outbound_order_item oi " +
                 "JOIN outbound_order o ON oi.outbound_id = o.id AND o.deleted = 0 " +
                 "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? " +
-                "GROUP BY oi.sku_id, oi.sku_code, oi.sku_name " +
-                "ORDER BY total_quantity DESC " +
-                "LIMIT 10",
-                (rs, rowNum) -> {
+                "GROUP BY oi.sku_id, oi.sku_code, oi.sku_name",
+                monthStart);
+
+        // 2. 查询退货数量
+        List<Map<String, Object>> returnedList = jdbcTemplate.queryForList(
+                "SELECT ri.sku_id, SUM(ri.quantity) AS returned_qty " +
+                "FROM return_order_item ri " +
+                "JOIN return_order ro ON ri.return_id = ro.id AND ro.deleted = 0 AND ro.status != 'CANCELLED' " +
+                "WHERE ro.created_at >= ? " +
+                "GROUP BY ri.sku_id",
+                monthStart);
+
+        // 3. 合并：出库 - 退货
+        Map<Long, Long> returnedQtyMap = new HashMap<>();
+        for (Map<String, Object> row : returnedList) {
+            Long skuId = ((Number) row.get("sku_id")).longValue();
+            Long qty = ((Number) row.get("returned_qty")).longValue();
+            returnedQtyMap.put(skuId, returnedQtyMap.getOrDefault(skuId, 0L) + qty);
+        }
+
+        List<DashboardVO.SkuRank> topSkus = shippedList.stream()
+                .map(row -> {
+                    Long skuId = ((Number) row.get("sku_id")).longValue();
+                    Long shippedQty = ((Number) row.get("shipped_qty")).longValue();
+                    Long returnedQty = returnedQtyMap.getOrDefault(skuId, 0L);
+                    long netQty = Math.max(shippedQty - returnedQty, 0);
+
                     DashboardVO.SkuRank rank = new DashboardVO.SkuRank();
-                    rank.setSkuId(rs.getLong("sku_id"));
-                    rank.setSkuCode(rs.getString("sku_code"));
-                    rank.setSkuName(rs.getString("sku_name"));
-                    rank.setTotalQuantity(rs.getLong("total_quantity"));
+                    rank.setSkuId(skuId);
+                    rank.setSkuCode((String) row.get("sku_code"));
+                    rank.setSkuName((String) row.get("sku_name"));
+                    rank.setTotalQuantity(netQty);
                     return rank;
-                }, monthStart);
+                })
+                .sorted((a, b) -> Long.compare(b.getTotalQuantity(), a.getTotalQuantity()))
+                .limit(10)
+                .collect(Collectors.toList());
 
         // 查询各平台信息
         List<Map<String, Object>> platformList = jdbcTemplate.queryForList(
@@ -221,7 +252,8 @@ public class ReportServiceImpl implements ReportService {
                 String platformName = (String) platform.get("name");
                 String platformColor = (String) platform.get("color");
 
-                Long quantity = jdbcTemplate.queryForObject(
+                // 查询该平台该SKU的出库数量
+                Long shippedQty = jdbcTemplate.queryForObject(
                         "SELECT COALESCE(SUM(oi.quantity), 0) " +
                         "FROM outbound_order_item oi " +
                         "JOIN outbound_order o ON oi.outbound_id = o.id AND o.deleted = 0 " +
@@ -229,6 +261,17 @@ public class ReportServiceImpl implements ReportService {
                         "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? " +
                         "AND oi.sku_id = ? AND so.platform_id = ?",
                         Long.class, monthStart, rank.getSkuId(), platformId);
+
+                // 查询该平台该SKU的退货数量
+                Long returnedQty = jdbcTemplate.queryForObject(
+                        "SELECT COALESCE(SUM(ri.quantity), 0) " +
+                        "FROM return_order_item ri " +
+                        "JOIN return_order ro ON ri.return_id = ro.id AND ro.deleted = 0 AND ro.status != 'CANCELLED' " +
+                        "JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0 " +
+                        "WHERE ri.sku_id = ? AND so.platform_id = ? AND ro.created_at >= ?",
+                        Long.class, rank.getSkuId(), platformId, monthStart);
+
+                Long quantity = Math.max((shippedQty != null ? shippedQty : 0L) - (returnedQty != null ? returnedQty : 0L), 0L);
 
                 quantity = quantity != null ? quantity : 0L;
                 remainingQuantity -= quantity;
@@ -297,32 +340,89 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private List<DashboardVO.SkuDaySales> queryPlatformSkuSales(String sevenDaysAgo, Long platformId) {
-        String platformCondition = platformId == null
+        // 1. 查询出库数据
+        String shippedPlatformCondition = platformId == null
                 ? "AND (so.platform_id IS NULL OR NOT EXISTS (SELECT 1 FROM platform p WHERE p.id = so.platform_id AND p.deleted = 0 AND p.enabled = 1)) "
                 : "AND so.platform_id = ? ";
-        Object[] params = platformId == null
+        Object[] shippedParams = platformId == null
                 ? new Object[]{sevenDaysAgo}
                 : new Object[]{sevenDaysAgo, platformId};
 
-        return jdbcTemplate.query(
-                "SELECT DATE(COALESCE(o.shipped_at, o.updated_at)) as sale_date, oi.sku_name, SUM(oi.quantity) as total_qty " +
+        List<Map<String, Object>> shippedList = jdbcTemplate.queryForList(
+                "SELECT DATE(COALESCE(o.shipped_at, o.updated_at)) as sale_date, oi.sku_name, SUM(oi.quantity) as shipped_qty " +
                 "FROM outbound_order o " +
                 "JOIN outbound_order_item oi ON o.id = oi.outbound_id " +
                 "LEFT JOIN sales_order so ON (o.order_id = so.id OR (o.order_id IS NULL AND o.order_no = so.order_no)) AND so.deleted = 0 " +
                 "WHERE o.deleted = 0 AND o.status = 'SHIPPED' " +
                 "AND so.id IS NOT NULL " +
                 "AND COALESCE(o.shipped_at, o.updated_at) >= ? " +
-                "AND so.order_status NOT IN ('RETURNING', 'RETURNED', 'CANCELLED', 'EXCHANGING') " +
-                platformCondition +
-                "GROUP BY DATE(COALESCE(o.shipped_at, o.updated_at)), oi.sku_name " +
-                "ORDER BY sale_date, oi.sku_name",
-                (rs, rowNum) -> {
-                    DashboardVO.SkuDaySales sds = new DashboardVO.SkuDaySales();
-                    sds.setDate(rs.getString("sale_date"));
-                    sds.setSkuName(rs.getString("sku_name"));
-                    sds.setQuantity(rs.getLong("total_qty"));
-                    return sds;
-                }, params);
+                "AND so.order_status NOT IN ('CANCELLED', 'EXCHANGING') " +
+                shippedPlatformCondition +
+                "GROUP BY DATE(COALESCE(o.shipped_at, o.updated_at)), oi.sku_name",
+                shippedParams);
+
+        // 2. 查询退货数据
+        String returnedPlatformCondition = platformId == null
+                ? "AND (so.platform_id IS NULL OR NOT EXISTS (SELECT 1 FROM platform p WHERE p.id = so.platform_id AND p.deleted = 0 AND p.enabled = 1)) "
+                : "AND so.platform_id = ? ";
+        Object[] returnedParams = platformId == null
+                ? new Object[]{sevenDaysAgo}
+                : new Object[]{sevenDaysAgo, platformId};
+
+        List<Map<String, Object>> returnedList = jdbcTemplate.queryForList(
+                "SELECT DATE(ro.created_at) as return_date, ri.sku_name, SUM(ri.quantity) as returned_qty " +
+                "FROM return_order_item ri " +
+                "JOIN return_order ro ON ri.return_id = ro.id AND ro.deleted = 0 AND ro.status != 'CANCELLED' " +
+                "JOIN sales_order so ON ro.order_id = so.id AND so.deleted = 0 " +
+                "WHERE ro.created_at >= ? " +
+                returnedPlatformCondition +
+                "GROUP BY DATE(ro.created_at), ri.sku_name",
+                returnedParams);
+
+        // 3. 合并：出库 - 退货
+        // 返回退货 Map: "date|skuName" -> qty
+        Map<String, Long> returnMap = new HashMap<>();
+        for (Map<String, Object> row : returnedList) {
+            String date = row.get("return_date").toString();
+            String skuName = (String) row.get("sku_name");
+            Long qty = ((Number) row.get("returned_qty")).longValue();
+            String key = date + "|" + skuName;
+            returnMap.put(key, returnMap.getOrDefault(key, 0L) + qty);
+        }
+
+        // 合并结果
+        // shipped Map: "date|skuName" -> shippedQty
+        Map<String, Long> resultMap = new LinkedHashMap<>();
+        for (Map<String, Object> row : shippedList) {
+            String date = row.get("sale_date").toString();
+            String skuName = (String) row.get("sku_name");
+            Long shippedQty = ((Number) row.get("shipped_qty")).longValue();
+            String key = date + "|" + skuName;
+            resultMap.put(key, resultMap.getOrDefault(key, 0L) + shippedQty);
+        }
+
+        List<DashboardVO.SkuDaySales> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : resultMap.entrySet()) {
+            String[] parts = entry.getKey().split("\\|", 2);
+            String date = parts[0];
+            String skuName = parts[1];
+            Long shippedQty = entry.getValue();
+            Long returnedQty = returnMap.getOrDefault(entry.getKey(), 0L);
+            long netQty = Math.max(shippedQty - returnedQty, 0);
+            if (netQty > 0) {
+                DashboardVO.SkuDaySales sds = new DashboardVO.SkuDaySales();
+                sds.setDate(date);
+                sds.setSkuName(skuName);
+                sds.setQuantity(netQty);
+                result.add(sds);
+            }
+        }
+
+        result.sort((a, b) -> {
+            int cmp = a.getDate().compareTo(b.getDate());
+            return cmp != 0 ? cmp : a.getSkuName().compareTo(b.getSkuName());
+        });
+        return result;
     }
 
     @Override

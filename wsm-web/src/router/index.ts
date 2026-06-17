@@ -1,5 +1,22 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { MENU_LIST } from '@/utils/constants'
+import { useUserStore } from '@/stores/user'
+
+// 从 MENU_LIST 构建 path -> permission 映射
+const ROUTE_PERM_MAP: Record<string, string> = {}
+MENU_LIST.forEach((group) => {
+  if (group.children) {
+    group.children.forEach((child) => {
+      if (child.path && child.permission) {
+        ROUTE_PERM_MAP['/' + child.path] = child.permission
+      }
+    })
+  }
+  if (group.path && group.permission) {
+    ROUTE_PERM_MAP['/' + group.path] = group.permission
+  }
+})
 
 const routes: RouteRecordRaw[] = [
   {
@@ -198,15 +215,32 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫：未登录跳转登录页
-router.beforeEach((to, _from, next) => {
+// 路由守卫：未登录跳转登录页 + 权限校验
+router.beforeEach(async (to) => {
   const token = localStorage.getItem('token')
+
   if (to.path !== '/login' && !token) {
-    next('/login')
-  } else if (to.path === '/login' && token) {
-    next('/dashboard')
-  } else {
-    next()
+    return '/login'
+  }
+  if (to.path === '/login' && token) {
+    return '/dashboard'
+  }
+
+  // 权限校验
+  const requiredPerm = ROUTE_PERM_MAP[to.path]
+  if (requiredPerm && token) {
+    const userStore = useUserStore()
+    // 页面刷新时权限可能还没加载，先加载
+    if (userStore.permissions.length === 0 && userStore.roles.length === 0) {
+      try {
+        await userStore.fetchProfile()
+      } catch {
+        return '/login'
+      }
+    }
+    if (!userStore.hasPermission(requiredPerm)) {
+      return '/dashboard'
+    }
   }
 })
 

@@ -11,10 +11,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 报表统计 Controller
  */
+@RequirePermission("dashboard")
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor

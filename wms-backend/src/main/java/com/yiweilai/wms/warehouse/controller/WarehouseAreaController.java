@@ -9,10 +9,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 库区 Controller
  */
+@RequirePermission("warehouse.list")
 @RestController
 @RequestMapping("/api/warehouse-areas")
 @RequiredArgsConstructor

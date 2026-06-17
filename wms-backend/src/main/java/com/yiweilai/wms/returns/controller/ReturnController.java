@@ -31,9 +31,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.yiweilai.wms.security.RequirePermission;
+
 /**
  * 退货 Controller
  */
+@RequirePermission("returns.list")
 @Slf4j
 @RestController
 @RequestMapping("/api/returns")

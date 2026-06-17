@@ -7,10 +7,12 @@ import com.yiweilai.wms.stock.service.StockLogService;
 import com.yiweilai.wms.stock.vo.StockLogVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 库存流水 Controller
  */
+@RequirePermission("stock.log")
 @RestController
 @RequestMapping("/api/stock-logs")
 @RequiredArgsConstructor

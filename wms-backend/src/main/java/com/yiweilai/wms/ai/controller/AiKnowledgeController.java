@@ -16,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+import com.yiweilai.wms.security.RequirePermission;
+
+@RequirePermission("ai.knowledge")
 @RestController
 @RequestMapping("/api/ai/knowledge")
 @RequiredArgsConstructor

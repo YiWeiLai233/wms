@@ -145,10 +145,10 @@
             <el-button v-if="row.orderStatus === 'OUTBOUNDING'" type="primary" link icon="TopRight" @click="router.push({ path: '/outbound/list', query: { orderNo: row.orderNo } })">
               发货管理
             </el-button>
-            <el-button v-if="row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED'" type="warning" link icon="BottomLeft" @click="openReturnDialog(row)">
+            <el-button v-if="row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED' || row.orderStatus === 'PARTIAL_RETURNED'" type="warning" link icon="BottomLeft" @click="openReturnDialog(row)">
               退货
             </el-button>
-            <el-button v-if="row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED'" link icon="Sort" class="exchange-btn" @click="openExchangeDialog(row)">
+            <el-button v-if="row.orderStatus === 'SHIPPED' || row.orderStatus === 'EXCHANGED' || row.orderStatus === 'PARTIAL_RETURNED'" link icon="Sort" class="exchange-btn" @click="openExchangeDialog(row)">
               换货
             </el-button>
             <el-button v-if="row.orderStatus === 'EXCHANGING'" link icon="Sort" class="exchange-btn" @click="router.push({ path: '/exchange/list', query: { orderNo: row.orderNo } })">
@@ -303,7 +303,15 @@
           <el-table-column label="仓库" width="100" align="center">
             <template #default>{{ detail.warehouseName || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column label="数量" width="130" align="center">
+            <template #default="{ row }">
+              <span v-if="row.returnedQuantity > 0">
+                <span style="text-decoration: line-through; color: #999;">{{ row.quantity }}</span>
+                <span style="color: #e6a23c; margin-left: 4px;">→ {{ row.quantity - row.returnedQuantity }}</span>
+              </span>
+              <span v-else>{{ row.quantity }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="totalPrice" label="小计" width="90" align="right">
             <template #default="{ row }">¥{{ row.totalPrice?.toFixed(2) }}</template>
           </el-table-column>
@@ -524,10 +532,15 @@
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
             <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="orderedQty" label="订单数量" width="90" align="center" />
+          <el-table-column label="可退数量" width="100" align="center">
+            <template #default="{ row }">
+              <span v-if="row.orderedQty !== row.maxQty" style="color: #e6a23c">{{ row.maxQty }}</span>
+              <span v-else>{{ row.orderedQty }}</span>
+            </template>
+          </el-table-column>
           <el-table-column label="退货数量" width="150" align="center">
             <template #default="{ row }">
-              <el-input-number v-model="row.quantity" :min="1" :max="row.orderedQty" size="small" style="width: 120px" />
+              <el-input-number v-model="row.quantity" :min="1" :max="row.maxQty" size="small" style="width: 120px" />
             </template>
           </el-table-column>
         </el-table>
@@ -581,10 +594,15 @@
         <el-table-column prop="sizeValue" label="码数" width="80" align="center">
           <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="orderedQty" label="订单数量" width="80" align="center" />
+        <el-table-column label="可退数量" width="100" align="center">
+          <template #default="{ row }">
+            <span v-if="row.orderedQty !== row.maxQty" style="color: #e6a23c">{{ row.maxQty }}</span>
+            <span v-else>{{ row.orderedQty }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="退回数量" width="120" align="center">
           <template #default="{ row }">
-            <el-input-number v-model="row.quantity" :min="1" :max="row.orderedQty" size="small" style="width: 90px" :disabled="!row.checked" />
+            <el-input-number v-model="row.quantity" :min="1" :max="row.maxQty" size="small" style="width: 90px" :disabled="!row.checked" />
           </template>
         </el-table-column>
       </el-table>
@@ -806,7 +824,11 @@
         <el-table-column prop="sizeValue" label="码数" width="80" align="center">
           <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="quantity" label="数量" width="80" align="center" />
+        <el-table-column label="数量" width="100" align="center">
+          <template #default="{ row }">
+            <el-input-number v-model="row.quantity" :min="1" :max="row.originalQuantity" size="small" controls-position="right" style="width: 80px" />
+          </template>
+        </el-table-column>
         <el-table-column label="质检结果" width="130">
           <template #default="{ row }">
             <el-select v-model="row.qualityStatus" size="small" style="width: 110px">
@@ -1325,6 +1347,7 @@ async function openQuickReturnDialog(row: Order) {
       sizeValue: item.sizeValue,
       skuImage: item.skuImage,
       quantity: item.quantity,
+      originalQuantity: item.quantity,
       qualityStatus: item.qualityStatus || 'SELLABLE',
     }))
   } catch {
@@ -1345,6 +1368,7 @@ async function handleQuickReturnSubmit() {
       returnId: quickReturnId.value,
       items: quickReturnItems.value.map((item: any) => ({
         itemId: item.itemId,
+        quantity: item.quantity,
         qualityStatus: item.qualityStatus,
       })),
     })
@@ -2007,15 +2031,19 @@ async function openReturnDialog(row: Order) {
     feeTemplateId: undefined,
     estimatedWeight: undefined,
     remark: '',
-    items: (order.items || []).map((item) => ({
-      checked: true,
-      skuId: item.skuId,
-      skuCode: item.skuCode,
-      skuName: item.skuName,
-      sizeValue: item.sizeValue,
-      orderedQty: item.quantity,
-      quantity: item.quantity,
-    })),
+    items: (order.items || []).map((item) => {
+      const remainingQty = Math.max(item.quantity - (item.returnedQuantity || 0), 0)
+      return {
+        checked: true,
+        skuId: item.skuId,
+        skuCode: item.skuCode,
+        skuName: item.skuName,
+        sizeValue: item.sizeValue,
+        orderedQty: item.quantity,
+        quantity: remainingQty,
+        maxQty: remainingQty,
+      }
+    }),
   })
 
   // 加载快递费用模板（优先选择"退货"公司）
@@ -2086,16 +2114,20 @@ async function openExchangeDialog(row: Order) {
     reason: '',
     responsibleParty: 'SELLER',
     remark: '',
-    returnItems: (order.items || []).map((item: any) => ({
-      skuId: item.skuId,
-      skuCode: item.skuCode,
-      skuName: item.skuName,
-      sizeValue: item.sizeValue,
-      quantity: item.quantity,
-      orderedQty: item.quantity,
-      image: item.skuImage || item.image || '',
-      checked: true,
-    })),
+    returnItems: (order.items || []).map((item: any) => {
+      const remainingQty = Math.max(item.quantity - (item.returnedQuantity || 0), 0)
+      return {
+        skuId: item.skuId,
+        skuCode: item.skuCode,
+        skuName: item.skuName,
+        sizeValue: item.sizeValue,
+        quantity: remainingQty,
+        orderedQty: item.quantity,
+        maxQty: remainingQty,
+        image: item.skuImage || item.image || '',
+        checked: true,
+      }
+    }),
     exchangeItems: [],
   })
   skuList.value = []

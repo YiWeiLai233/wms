@@ -9,10 +9,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 货架 Controller
  */
+@RequirePermission("warehouse.shelf")
 @RestController
 @RequestMapping("/api/warehouse-shelves")
 @RequiredArgsConstructor

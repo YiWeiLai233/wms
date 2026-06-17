@@ -11,10 +11,21 @@ export const useUserStore = defineStore('user', () => {
   const permissions = ref<string[]>([])
 
   async function login(params: LoginParams) {
+    // 清除旧状态，确保干净登录
+    token.value = ''
+    roles.value = []
+    permissions.value = []
+    userInfo.value = null
+    localStorage.removeItem('token')
+    localStorage.removeItem('userId')
+    localTabUserId = null
+
     const res = await loginApi(params)
     token.value = res.data.token
     roles.value = res.data.roles
     localStorage.setItem('token', res.data.token)
+    localStorage.setItem('userId', String(res.data.userId))
+    localTabUserId = String(res.data.userId)
     // 登录后获取权限
     await fetchPermissions()
     return res.data
@@ -55,6 +66,8 @@ export const useUserStore = defineStore('user', () => {
     roles.value = []
     permissions.value = []
     localStorage.removeItem('token')
+    localStorage.removeItem('userId')
+    localTabUserId = null
   }
 
   return {
@@ -63,3 +76,43 @@ export const useUserStore = defineStore('user', () => {
     hasPermission, hasAnyPermission, logout
   }
 })
+
+// 跨标签页单账号：记录本标签页的 userId + 监听 storage 变化
+let localTabUserId: string | null = localStorage.getItem('userId')
+
+export function updateLocalTabUserId(id: string | null) {
+  localTabUserId = id
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== 'token' && e.key !== 'userId') return
+
+    // 当前标签页没登录，跳过
+    if (!localTabUserId) return
+
+    // userId 被清除或变了（另一个标签页退出/切换账号）
+    if (e.key === 'userId' && e.newValue !== localTabUserId) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('userId')
+      localTabUserId = null
+      window.location.href = '/login'
+      return
+    }
+
+    // token 被清除
+    if (e.key === 'token' && e.newValue === null) {
+      localStorage.removeItem('userId')
+      localTabUserId = null
+      window.location.href = '/login'
+      return
+    }
+  })
+
+  // 每次页面可见时同步本地记录（防止本标签页登录后未更新）
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      localTabUserId = localStorage.getItem('userId')
+    }
+  })
+}

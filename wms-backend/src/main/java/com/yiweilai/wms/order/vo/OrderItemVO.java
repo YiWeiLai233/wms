@@ -35,6 +35,9 @@ public class OrderItemVO {
     /** 数量 */
     private Integer quantity;
 
+    /** 已退货数量 */
+    private Integer returnedQuantity;
+
     /** 单价 */
     private BigDecimal unitPrice;
 

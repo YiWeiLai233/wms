@@ -10,17 +10,17 @@ import com.yiweilai.wms.alert.vo.StockAlertStatusVO;
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
 import jakarta.validation.Valid;
+import com.yiweilai.wms.security.RequirePermission;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import com.yiweilai.wms.security.RequirePermission;
 
 /**
  * 库存预警配置 Controller
  */
-@RequirePermission("system.stock-alert")
+@RequirePermission("system")
 @RestController
 @RequestMapping("/api/stock-alert-configs")
 @RequiredArgsConstructor
