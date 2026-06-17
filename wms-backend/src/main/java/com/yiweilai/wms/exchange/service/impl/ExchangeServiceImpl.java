@@ -3,6 +3,7 @@ package com.yiweilai.wms.exchange.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.yiweilai.wms.common.PageResult;
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.exchange.dto.ExchangeCheckDTO;
@@ -61,6 +62,7 @@ public class ExchangeServiceImpl implements ExchangeService {
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
     private final WarehouseMapper warehouseMapper;
+    private final CacheService cacheService;
 
     @Override
     public PageResult<ExchangeOrderVO> findByPage(ExchangeQueryDTO query) {
@@ -343,6 +345,9 @@ public class ExchangeServiceImpl implements ExchangeService {
 
         // 更新原订单状态为已换货
         salesOrderMapper.updateStatus(order.getOrderId(), "EXCHANGED");
+
+        // 清除仪表盘缓存
+        cacheService.delete("cache:dashboard");
     }
 
     /**
