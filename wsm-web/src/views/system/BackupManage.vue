@@ -90,8 +90,8 @@
     </el-dialog>
 
     <!-- 备份设置弹窗 -->
-    <el-dialog v-model="configDialogVisible" title="备份设置" width="650px" destroy-on-close>
-      <el-form :model="configForm" label-width="120px">
+    <el-dialog v-model="configDialogVisible" title="备份设置" width="600px" destroy-on-close>
+      <el-form :model="configForm" label-width="100px">
         <el-divider content-position="left">自动备份</el-divider>
         <el-form-item label="启用自动备份">
           <el-switch v-model="configForm.autoBackupEnabled" />
@@ -104,13 +104,7 @@
             </el-radio-group>
           </el-form-item>
           <el-form-item label="备份时间">
-            <el-select v-model="configForm.autoBackupCron" style="width: 100%">
-              <el-option label="每天凌晨 2:00" value="0 0 2 * * ?" />
-              <el-option label="每天凌晨 3:00" value="0 0 3 * * ?" />
-              <el-option label="每天中午 12:00" value="0 0 12 * * ?" />
-              <el-option label="每12小时" value="0 0 */12 * * ?" />
-              <el-option label="每6小时" value="0 0 */6 * * ?" />
-            </el-select>
+            <el-time-picker v-model="configForm.autoBackupTime" format="HH:mm" value-format="HH:mm" placeholder="选择时间" style="width: 100%" />
           </el-form-item>
           <el-form-item label="备份路径">
             <el-input v-model="configForm.backupPath" placeholder="留空使用默认路径 backups/" />
@@ -292,7 +286,7 @@ const testing = ref(false)
 const configForm = reactive<BackupConfig>({
   autoBackupEnabled: false,
   autoBackupType: 'FULL',
-  autoBackupCron: '0 0 2 * * ?',
+  autoBackupTime: '02:00',
   backupPath: '',
   remoteBackupEnabled: false,
   remoteHost: '',

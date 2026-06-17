@@ -11,7 +11,7 @@ public class BackupConfig {
     private Long id;
     private Boolean autoBackupEnabled;    // 是否启用自动备份
     private String autoBackupType;        // FULL / INCREMENTAL
-    private String autoBackupCron;        // cron 表达式
+    private String autoBackupTime;        // 备份时间，格式 HH:mm（如 02:00）
     private String backupPath;            // 备份路径
     private Boolean remoteBackupEnabled;  // 是否启用远程备份
     private String remoteHost;            // 远程主机

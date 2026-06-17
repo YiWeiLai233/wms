@@ -17,7 +17,7 @@ export interface BackupConfig {
   id?: number
   autoBackupEnabled: boolean
   autoBackupType: string
-  autoBackupCron: string
+  autoBackupTime: string
   backupPath: string
   remoteBackupEnabled: boolean
   remoteHost: string

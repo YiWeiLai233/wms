@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 自动备份调度器
@@ -24,17 +26,34 @@ public class BackupScheduler {
     private final BackupConfigMapper backupConfigMapper;
     private final RemoteBackupService remoteBackupService;
 
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+
     /**
-     * 每天凌晨2点检查是否需要自动备份
+     * 每分钟检查一次，匹配到配置时间时执行备份
      */
-    @Scheduled(cron = "0 0 2 * * ?")
-    public void autoBackup() {
+    @Scheduled(cron = "0 * * * * ?")
+    public void checkAndBackup() {
         BackupConfig config = backupConfigMapper.getConfig();
         if (config == null || !Boolean.TRUE.equals(config.getAutoBackupEnabled())) {
             return;
         }
 
-        log.info("开始自动备份: type={}", config.getAutoBackupType());
+        // 检查当前时间是否匹配配置的备份时间
+        String backupTime = config.getAutoBackupTime();
+        if (backupTime == null || backupTime.isBlank()) {
+            return;
+        }
+
+        String now = LocalTime.now().format(TIME_FMT);
+        if (!now.equals(backupTime)) {
+            return;
+        }
+
+        doBackup(config);
+    }
+
+    private void doBackup(BackupConfig config) {
+        log.info("开始自动备份: type={}, time={}", config.getAutoBackupType(), config.getAutoBackupTime());
 
         try {
             BackupRecord record;

@@ -6,7 +6,7 @@
         <id column="id" property="id"/>
         <result column="auto_backup_enabled" property="autoBackupEnabled"/>
         <result column="auto_backup_type" property="autoBackupType"/>
-        <result column="auto_backup_cron" property="autoBackupCron"/>
+        <result column="auto_backup_time" property="autoBackupTime"/>
         <result column="backup_path" property="backupPath"/>
         <result column="remote_backup_enabled" property="remoteBackupEnabled"/>
         <result column="remote_host" property="remoteHost"/>
@@ -18,7 +18,7 @@
     </resultMap>
 
     <select id="getConfig" resultMap="BaseResultMap">
-        SELECT id, auto_backup_enabled, auto_backup_type, auto_backup_cron, backup_path,
+        SELECT id, auto_backup_enabled, auto_backup_type, auto_backup_time, backup_path,
                remote_backup_enabled, remote_host, remote_port, remote_username, remote_password,
                remote_path, updated_at
         FROM backup_config
@@ -26,10 +26,10 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO backup_config (auto_backup_enabled, auto_backup_type, auto_backup_cron, backup_path,
+        INSERT INTO backup_config (auto_backup_enabled, auto_backup_type, auto_backup_time, backup_path,
                                    remote_backup_enabled, remote_host, remote_port, remote_username,
                                    remote_password, remote_path)
-        VALUES (#{autoBackupEnabled}, #{autoBackupType}, #{autoBackupCron}, #{backupPath},
+        VALUES (#{autoBackupEnabled}, #{autoBackupType}, #{autoBackupTime}, #{backupPath},
                 #{remoteBackupEnabled}, #{remoteHost}, #{remotePort}, #{remoteUsername},
                 #{remotePassword}, #{remotePath})
     </insert>
@@ -38,7 +38,7 @@
         UPDATE backup_config
         SET auto_backup_enabled = #{autoBackupEnabled},
             auto_backup_type = #{autoBackupType},
-            auto_backup_cron = #{autoBackupCron},
+            auto_backup_time = #{autoBackupTime},
             backup_path = #{backupPath},
             remote_backup_enabled = #{remoteBackupEnabled},
             remote_host = #{remoteHost},

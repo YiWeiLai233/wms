@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS backup_config (
     id                   BIGINT PRIMARY KEY AUTO_INCREMENT,
     auto_backup_enabled  TINYINT DEFAULT 0 COMMENT '是否启用自动备份',
     auto_backup_type     VARCHAR(20) DEFAULT 'FULL' COMMENT '备份类型: FULL/INCREMENTAL',
-    auto_backup_cron     VARCHAR(50) DEFAULT '0 0 2 * * ?' COMMENT 'cron表达式',
+    auto_backup_time     VARCHAR(10) DEFAULT '02:00' COMMENT '备份时间 HH:mm',
     backup_path          VARCHAR(500) COMMENT '备份路径',
     remote_backup_enabled TINYINT DEFAULT 0 COMMENT '是否启用远程备份',
     remote_host          VARCHAR(100) COMMENT '远程主机',
@@ -15,5 +15,5 @@ CREATE TABLE IF NOT EXISTS backup_config (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='备份配置表';
 
 -- 插入默认配置
-INSERT INTO backup_config (auto_backup_enabled, auto_backup_type, auto_backup_cron, remote_backup_enabled, remote_port)
-VALUES (0, 'FULL', '0 0 2 * * ?', 0, 22);
+INSERT INTO backup_config (auto_backup_enabled, auto_backup_type, auto_backup_time, remote_backup_enabled, remote_port)
+VALUES (0, 'FULL', '02:00', 0, 22);

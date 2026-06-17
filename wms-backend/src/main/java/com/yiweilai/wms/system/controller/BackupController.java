@@ -104,7 +104,7 @@ public class BackupController {
             config = new BackupConfig();
             config.setAutoBackupEnabled(false);
             config.setAutoBackupType("FULL");
-            config.setAutoBackupCron("0 0 2 * * ?");
+            config.setAutoBackupTime("02:00");
             config.setRemoteBackupEnabled(false);
             config.setRemotePort(22);
         }
