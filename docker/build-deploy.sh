@@ -49,7 +49,7 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY app.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]
 DOCKERFILE
 
 log "后端构建完成"
@@ -145,8 +145,17 @@ services:
       REDIS_DB: 0
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET:-WmsJwtSecret2026ChangeMeInProduction!}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
       FILE_UPLOAD_PATH: /app/uploads
+      FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:8080}
       IMAGE_STORAGE_PATH: /app/uploads/images
+      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-http://localhost:8080/images}
+      AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://localhost:8010}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-ChangeMeAiServiceToken}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PRIVACY_MASTER_KEY: ${PRIVACY_MASTER_KEY:-P3HBjvkFvIi7Q/MOLgHA32Fgx8eutYLL3sqMmTKKLE8=}
+      PRIVACY_HASH_KEY: ${PRIVACY_HASH_KEY:-Td7H0vwQxi59YCQ8TpZXWpMiyS/lFadx2PMdQnLKuyU=}
     volumes:
       - uploads_data:/app/uploads
 
