@@ -346,7 +346,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="importDialogVisible" title="导入订单" width="900px" destroy-on-close>
+    <el-dialog v-model="importDialogVisible" title="导入订单" width="900px" destroy-on-close style="margin-top: 5vh">
       <el-form ref="importFormRef" :model="importForm" :rules="importRules" label-width="90px">
         <el-row :gutter="16">
           <el-col :span="8">
