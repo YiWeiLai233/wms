@@ -38,7 +38,7 @@ RUN mvn dependency:go-offline -q
 COPY src ./src
 RUN mvn package -DskipTests -Dmaven.test.skip=true -q
 
-FROM eclipse-temurin:17-jre-alpine
+FROM openjdk:17-slim
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
