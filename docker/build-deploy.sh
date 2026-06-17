@@ -31,18 +31,30 @@ mkdir -p "${BUILD_DIR}"/{wms-backend,wsm-web,docker}
 log "用 Docker 构建后端 JAR（无需本地安装 Java）..."
 
 cat > "${PROJECT_ROOT}/wms-backend/Dockerfile.build" <<'DOCKERFILE'
-FROM maven:3.9-eclipse-temurin-17 AS builder
+FROM maven:3.9-eclipse-temurin-17
 WORKDIR /app
+RUN mkdir -p ~/.m2 && cat > ~/.m2/settings.xml <<'SETTINGS'
+<settings>
+  <mirrors>
+    <mirror>
+      <id>aliyun</id>
+      <mirrorOf>central</mirrorOf>
+      <url>https://maven.aliyun.com/repository/central</url>
+    </mirror>
+    <mirror>
+      <id>aliyun-public</id>
+      <mirrorOf>public</mirrorOf>
+      <url>https://maven.aliyun.com/repository/public</url>
+    </mirror>
+  </mirrors>
+</settings>
+SETTINGS
 COPY pom.xml .
 RUN mvn dependency:go-offline -q
 COPY src ./src
 RUN mvn package -DskipTests -Dmaven.test.skip=true -q
-
-FROM openjdk:17-slim
-WORKDIR /app
-COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]
+ENTRYPOINT ["java", "-jar", "target/wms-0.0.1-SNAPSHOT.jar", "--spring.profiles.active=docker"]
 DOCKERFILE
 
 docker build -f "${PROJECT_ROOT}/wms-backend/Dockerfile.build" -t wms-backend:latest "${PROJECT_ROOT}/wms-backend"
