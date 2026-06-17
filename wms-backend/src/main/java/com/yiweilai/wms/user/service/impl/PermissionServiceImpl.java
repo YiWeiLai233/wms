@@ -2,6 +2,7 @@ package com.yiweilai.wms.user.service.impl;
 
 import com.yiweilai.wms.user.entity.SysPermission;
 import com.yiweilai.wms.user.mapper.PermissionMapper;
+import com.yiweilai.wms.user.mapper.UserMapper;
 import com.yiweilai.wms.user.service.PermissionService;
 import com.yiweilai.wms.user.vo.PermissionVO;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 public class PermissionServiceImpl implements PermissionService {
 
     private final PermissionMapper permissionMapper;
+    private final UserMapper userMapper;
 
     @Override
     public List<PermissionVO> getPermissionTree() {
@@ -43,6 +45,13 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     public List<String> getPermissionCodesByUserId(Long userId) {
+        // 超级管理员拥有所有权限
+        List<String> roles = userMapper.selectRoleCodesByUserId(userId);
+        if (roles != null && roles.contains("SUPER_ADMIN")) {
+            return permissionMapper.selectAll().stream()
+                    .map(SysPermission::getPermissionCode)
+                    .collect(Collectors.toList());
+        }
         return permissionMapper.selectCodesByUserId(userId);
     }
 
