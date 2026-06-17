@@ -25,7 +25,7 @@
           active-text-color="#ffffff"
           router
         >
-          <template v-for="item in MENU_LIST" :key="item.title">
+          <template v-for="item in filteredMenuList" :key="item.title">
             <!-- 有子菜单 -->
             <el-sub-menu v-if="item.children" :index="item.title">
               <template #title>
@@ -133,6 +133,7 @@ import { ElMessageBox } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 import { MENU_LIST } from '@/utils/constants'
+import type { MenuItem } from '@/utils/constants'
 import AiFloatingChat from '@/components/AiFloatingChat.vue'
 
 const route = useRoute()
@@ -142,6 +143,22 @@ const userStore = useUserStore()
 
 const currentPath = computed(() => route.path)
 const currentTitle = computed(() => (route.meta?.title as string) || '')
+
+// 根据权限过滤菜单
+const filteredMenuList = computed(() => {
+  return MENU_LIST.map(item => {
+    if (item.children) {
+      const filteredChildren = item.children.filter(child => {
+        if (!child.permission) return true
+        return userStore.hasPermission(child.permission)
+      })
+      if (filteredChildren.length === 0) return null
+      return { ...item, children: filteredChildren }
+    }
+    if (item.permission && !userStore.hasPermission(item.permission)) return null
+    return item
+  }).filter(Boolean) as MenuItem[]
+})
 
 onMounted(async () => {
   try {

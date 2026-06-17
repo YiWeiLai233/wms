@@ -126,6 +126,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/BackupManage.vue'),
         meta: { title: '数据库备份', icon: 'Download' },
       },
+      {
+        path: 'system/roles',
+        name: 'RoleList',
+        component: () => import('@/views/system/RoleList.vue'),
+        meta: { title: '角色管理', icon: 'UserFilled' },
+      },
       // 订单管理
       {
         path: 'order/list',

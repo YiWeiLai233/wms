@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.user.mapper.PermissionMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.user.entity.SysPermission">
+        <id column="id" property="id"/>
+        <result column="permission_code" property="permissionCode"/>
+        <result column="permission_name" property="permissionName"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="type" property="type"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT id, permission_code, permission_name, parent_id, type, sort_order, deleted, created_at
+        FROM sys_permission
+        WHERE deleted = 0
+        ORDER BY sort_order, id
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, permission_code, permission_name, parent_id, type, sort_order, deleted, created_at
+        FROM sys_permission
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByCode" resultMap="BaseResultMap">
+        SELECT id, permission_code, permission_name, parent_id, type, sort_order, deleted, created_at
+        FROM sys_permission
+        WHERE permission_code = #{code} AND deleted = 0
+    </select>
+
+    <select id="selectByRoleId" resultMap="BaseResultMap">
+        SELECT p.id, p.permission_code, p.permission_name, p.parent_id, p.type, p.sort_order, p.deleted, p.created_at
+        FROM sys_permission p
+        INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
+        WHERE rp.role_id = #{roleId} AND p.deleted = 0
+        ORDER BY p.sort_order, p.id
+    </select>
+
+    <select id="selectCodesByUserId" resultType="string">
+        SELECT DISTINCT p.permission_code
+        FROM sys_permission p
+        INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
+        INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id
+        WHERE ur.user_id = #{userId} AND p.deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_permission (permission_code, permission_name, parent_id, type, sort_order)
+        VALUES (#{permissionCode}, #{permissionName}, #{parentId}, #{type}, #{sortOrder})
+    </insert>
+
+    <update id="update">
+        UPDATE sys_permission
+        SET permission_name = #{permissionName},
+            parent_id = #{parentId},
+            type = #{type},
+            sort_order = #{sortOrder}
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE sys_permission SET deleted = 1 WHERE id = #{id}
+    </update>
+
+</mapper>

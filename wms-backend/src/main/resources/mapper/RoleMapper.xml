@@ -32,4 +32,21 @@
         WHERE ur.user_id = #{userId} AND r.deleted = 0
     </select>
 
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_role (role_code, role_name, description)
+        VALUES (#{roleCode}, #{roleName}, #{description})
+    </insert>
+
+    <update id="update">
+        UPDATE sys_role
+        SET role_code = #{roleCode},
+            role_name = #{roleName},
+            description = #{description}
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE sys_role SET deleted = 1 WHERE id = #{id}
+    </update>
+
 </mapper>
