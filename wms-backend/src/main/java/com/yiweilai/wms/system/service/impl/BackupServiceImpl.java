@@ -180,15 +180,21 @@ public class BackupServiceImpl implements BackupService {
 
             try (Connection conn = dataSource.getConnection()) {
                 for (String table : INCREMENTAL_TABLES) {
+                    // 检查表是否有 updated_at 字段
+                    boolean hasUpdatedAt = false;
+                    try (ResultSet metaRs = conn.getMetaData().getColumns(null, null, table, "updated_at")) {
+                        hasUpdatedAt = metaRs.next();
+                    }
+
                     String sql;
-                    if (lastBackupTime != null) {
+                    if (lastBackupTime != null && hasUpdatedAt) {
                         sql = "SELECT * FROM `" + table + "` WHERE updated_at > ?";
                     } else {
                         sql = "SELECT * FROM `" + table + "`";
                     }
 
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        if (lastBackupTime != null) {
+                        if (lastBackupTime != null && hasUpdatedAt) {
                             ps.setTimestamp(1, Timestamp.valueOf(lastBackupTime));
                         }
 
