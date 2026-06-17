@@ -120,6 +120,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/PlatformList.vue'),
         meta: { title: '平台管理', icon: 'Platform' },
       },
+      {
+        path: 'system/backup',
+        name: 'BackupManage',
+        component: () => import('@/views/system/BackupManage.vue'),
+        meta: { title: '数据库备份', icon: 'Download' },
+      },
       // 订单管理
       {
         path: 'order/list',

@@ -145,6 +145,7 @@ export const MENU_LIST: MenuItem[] = [
       { title: '库存预警设置', path: '/system/stock-alert' },
       { title: '预警模板管理', path: '/system/stock-alert-template' },
       { title: '平台管理', path: '/system/platforms' },
+      { title: '数据库备份', path: '/system/backup' },
     ],
   },
 ]
