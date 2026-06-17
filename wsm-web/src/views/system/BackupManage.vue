@@ -2,6 +2,7 @@
   <div class="page-container">
     <PageHeader title="数据库备份" subtitle="全量备份与增量备份">
       <template #actions>
+        <el-button type="warning" icon="Setting" @click="openConfigDialog">备份设置</el-button>
         <el-button type="primary" icon="Download" @click="openBackupDialog('INCREMENTAL')">增量备份</el-button>
         <el-button type="success" icon="FolderOpened" @click="openBackupDialog('FULL')">全量备份</el-button>
       </template>
@@ -87,6 +88,65 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 备份设置弹窗 -->
+    <el-dialog v-model="configDialogVisible" title="备份设置" width="650px" destroy-on-close>
+      <el-form :model="configForm" label-width="120px">
+        <el-divider content-position="left">自动备份</el-divider>
+        <el-form-item label="启用自动备份">
+          <el-switch v-model="configForm.autoBackupEnabled" />
+        </el-form-item>
+        <template v-if="configForm.autoBackupEnabled">
+          <el-form-item label="备份类型">
+            <el-radio-group v-model="configForm.autoBackupType">
+              <el-radio value="FULL">全量备份</el-radio>
+              <el-radio value="INCREMENTAL">增量备份</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="备份时间">
+            <el-select v-model="configForm.autoBackupCron" style="width: 100%">
+              <el-option label="每天凌晨 2:00" value="0 0 2 * * ?" />
+              <el-option label="每天凌晨 3:00" value="0 0 3 * * ?" />
+              <el-option label="每天中午 12:00" value="0 0 12 * * ?" />
+              <el-option label="每12小时" value="0 0 */12 * * ?" />
+              <el-option label="每6小时" value="0 0 */6 * * ?" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="备份路径">
+            <el-input v-model="configForm.backupPath" placeholder="留空使用默认路径 backups/" />
+          </el-form-item>
+        </template>
+
+        <el-divider content-position="left">远程备份</el-divider>
+        <el-form-item label="启用远程备份">
+          <el-switch v-model="configForm.remoteBackupEnabled" />
+        </el-form-item>
+        <template v-if="configForm.remoteBackupEnabled">
+          <el-form-item label="远程主机">
+            <el-input v-model="configForm.remoteHost" placeholder="如 192.168.1.100" />
+          </el-form-item>
+          <el-form-item label="SSH端口">
+            <el-input-number v-model="configForm.remotePort" :min="1" :max="65535" />
+          </el-form-item>
+          <el-form-item label="用户名">
+            <el-input v-model="configForm.remoteUsername" placeholder="SSH用户名" />
+          </el-form-item>
+          <el-form-item label="密码">
+            <el-input v-model="configForm.remotePassword" type="password" show-password placeholder="SSH密码" />
+          </el-form-item>
+          <el-form-item label="远程路径">
+            <el-input v-model="configForm.remotePath" placeholder="如 /data/backup" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="testing" @click="handleTestRemote">测试连接</el-button>
+          </el-form-item>
+        </template>
+      </el-form>
+      <template #footer>
+        <el-button @click="configDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingConfig" @click="handleSaveConfig">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -94,8 +154,11 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { fullBackup, incrementalBackup, getBackupList, downloadBackup, deleteBackup } from '@/api/backup'
-import type { BackupRecord } from '@/api/backup'
+import {
+  fullBackup, incrementalBackup, getBackupList, downloadBackup, deleteBackup,
+  getBackupConfig, saveBackupConfig, testRemoteConnection
+} from '@/api/backup'
+import type { BackupRecord, BackupConfig } from '@/api/backup'
 import PageHeader from '@/components/PageHeader.vue'
 
 const loading = ref(false)
@@ -220,4 +283,57 @@ function formatDateTime(dateStr?: string): string {
 onMounted(() => {
   fetchBackupList()
 })
+
+// 备份设置相关
+const configDialogVisible = ref(false)
+const savingConfig = ref(false)
+const testing = ref(false)
+
+const configForm = reactive<BackupConfig>({
+  autoBackupEnabled: false,
+  autoBackupType: 'FULL',
+  autoBackupCron: '0 0 2 * * ?',
+  backupPath: '',
+  remoteBackupEnabled: false,
+  remoteHost: '',
+  remotePort: 22,
+  remoteUsername: '',
+  remotePassword: '',
+  remotePath: ''
+})
+
+async function openConfigDialog() {
+  try {
+    const res = await getBackupConfig()
+    if (res.data) {
+      Object.assign(configForm, res.data)
+    }
+  } catch {}
+  configDialogVisible.value = true
+}
+
+async function handleSaveConfig() {
+  savingConfig.value = true
+  try {
+    await saveBackupConfig(configForm)
+    ElMessage.success('配置保存成功')
+    configDialogVisible.value = false
+  } catch {} finally {
+    savingConfig.value = false
+  }
+}
+
+async function handleTestRemote() {
+  testing.value = true
+  try {
+    const res = await testRemoteConnection(configForm)
+    if (res.data) {
+      ElMessage.success('连接成功')
+    } else {
+      ElMessage.error('连接失败，请检查配置')
+    }
+  } catch {} finally {
+    testing.value = false
+  }
+}
 </script>

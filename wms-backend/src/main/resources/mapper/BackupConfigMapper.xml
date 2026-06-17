@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yiweilai.wms.system.mapper.BackupConfigMapper">
+
+    <resultMap id="BaseResultMap" type="com.yiweilai.wms.system.entity.BackupConfig">
+        <id column="id" property="id"/>
+        <result column="auto_backup_enabled" property="autoBackupEnabled"/>
+        <result column="auto_backup_type" property="autoBackupType"/>
+        <result column="auto_backup_cron" property="autoBackupCron"/>
+        <result column="backup_path" property="backupPath"/>
+        <result column="remote_backup_enabled" property="remoteBackupEnabled"/>
+        <result column="remote_host" property="remoteHost"/>
+        <result column="remote_port" property="remotePort"/>
+        <result column="remote_username" property="remoteUsername"/>
+        <result column="remote_password" property="remotePassword"/>
+        <result column="remote_path" property="remotePath"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="getConfig" resultMap="BaseResultMap">
+        SELECT id, auto_backup_enabled, auto_backup_type, auto_backup_cron, backup_path,
+               remote_backup_enabled, remote_host, remote_port, remote_username, remote_password,
+               remote_path, updated_at
+        FROM backup_config
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO backup_config (auto_backup_enabled, auto_backup_type, auto_backup_cron, backup_path,
+                                   remote_backup_enabled, remote_host, remote_port, remote_username,
+                                   remote_password, remote_path)
+        VALUES (#{autoBackupEnabled}, #{autoBackupType}, #{autoBackupCron}, #{backupPath},
+                #{remoteBackupEnabled}, #{remoteHost}, #{remotePort}, #{remoteUsername},
+                #{remotePassword}, #{remotePath})
+    </insert>
+
+    <update id="update">
+        UPDATE backup_config
+        SET auto_backup_enabled = #{autoBackupEnabled},
+            auto_backup_type = #{autoBackupType},
+            auto_backup_cron = #{autoBackupCron},
+            backup_path = #{backupPath},
+            remote_backup_enabled = #{remoteBackupEnabled},
+            remote_host = #{remoteHost},
+            remote_port = #{remotePort},
+            remote_username = #{remoteUsername},
+            remote_password = #{remotePassword},
+            remote_path = #{remotePath},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

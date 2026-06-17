@@ -13,6 +13,20 @@ export interface BackupRecord {
   createdAt: string
 }
 
+export interface BackupConfig {
+  id?: number
+  autoBackupEnabled: boolean
+  autoBackupType: string
+  autoBackupCron: string
+  backupPath: string
+  remoteBackupEnabled: boolean
+  remoteHost: string
+  remotePort: number
+  remoteUsername: string
+  remotePassword: string
+  remotePath: string
+}
+
 // 全量备份
 export function fullBackup(backupPath?: string) {
   return request.post<any, ApiResponse<BackupRecord>>('/backup/full', backupPath ? { backupPath } : {})
@@ -46,4 +60,19 @@ export async function downloadBackup(fileName: string) {
 // 删除备份记录
 export function deleteBackup(id: number) {
   return request.delete<any, ApiResponse<void>>(`/backup/${id}`)
+}
+
+// 获取备份配置
+export function getBackupConfig() {
+  return request.get<any, ApiResponse<BackupConfig>>('/backup/config')
+}
+
+// 保存备份配置
+export function saveBackupConfig(data: BackupConfig) {
+  return request.post<any, ApiResponse<void>>('/backup/config', data)
+}
+
+// 测试远程连接
+export function testRemoteConnection(data: BackupConfig) {
+  return request.post<any, ApiResponse<boolean>>('/backup/config/test-remote', data)
 }

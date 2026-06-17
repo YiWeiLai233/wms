@@ -1,8 +1,12 @@
 package com.yiweilai.wms.system.controller;
 
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.system.entity.BackupConfig;
 import com.yiweilai.wms.system.entity.BackupRecord;
+import com.yiweilai.wms.system.mapper.BackupConfigMapper;
 import com.yiweilai.wms.system.service.BackupService;
+import com.yiweilai.wms.system.service.RemoteBackupService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +26,8 @@ import java.util.Map;
 public class BackupController {
 
     private final BackupService backupService;
+    private final BackupConfigMapper backupConfigMapper;
+    private final RemoteBackupService remoteBackupService;
 
     /**
      * 全量备份
@@ -85,5 +91,49 @@ public class BackupController {
     public Result<Void> delete(@PathVariable Long id) {
         backupService.deleteBackup(id);
         return Result.success();
+    }
+
+    /**
+     * 获取备份配置
+     */
+    @Operation(summary = "获取备份配置")
+    @GetMapping("/config")
+    public Result<BackupConfig> getConfig() {
+        BackupConfig config = backupConfigMapper.getConfig();
+        if (config == null) {
+            config = new BackupConfig();
+            config.setAutoBackupEnabled(false);
+            config.setAutoBackupType("FULL");
+            config.setAutoBackupCron("0 0 2 * * ?");
+            config.setRemoteBackupEnabled(false);
+            config.setRemotePort(22);
+        }
+        return Result.success(config);
+    }
+
+    /**
+     * 保存备份配置
+     */
+    @Operation(summary = "保存备份配置")
+    @PostMapping("/config")
+    public Result<Void> saveConfig(@RequestBody BackupConfig config) {
+        BackupConfig existing = backupConfigMapper.getConfig();
+        if (existing == null) {
+            backupConfigMapper.insert(config);
+        } else {
+            config.setId(existing.getId());
+            backupConfigMapper.update(config);
+        }
+        return Result.success();
+    }
+
+    /**
+     * 测试远程连接
+     */
+    @Operation(summary = "测试远程备份连接")
+    @PostMapping("/config/test-remote")
+    public Result<Boolean> testRemoteConnection(@RequestBody BackupConfig config) {
+        boolean success = remoteBackupService.testConnection(config);
+        return Result.success(success);
     }
 }
