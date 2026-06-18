@@ -546,7 +546,30 @@ async function openCheckDialog(row: ReturnOrder) {
   checkDialogVisible.value = true
 }
 
+function validateInspectionItems(items: any[]) {
+  if (!items.length) {
+    ElMessage.warning('质检明细不能为空')
+    return false
+  }
+  const allowedStatuses = new Set(['SELLABLE', 'DEFECTIVE', 'SCRAPPED'])
+  for (const item of items) {
+    const quantity = Number(item.quantity)
+    const maxQuantity = Number(item.originalQuantity ?? item.quantity)
+    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > maxQuantity) {
+      ElMessage.warning(`SKU ${item.skuName || item.skuCode || item.itemId} 的质检数量不正确`)
+      return false
+    }
+    if (!allowedStatuses.has(item.qualityStatus || '')) {
+      ElMessage.warning(`请选择 SKU ${item.skuName || item.skuCode || item.itemId} 的质检结果`)
+      return false
+    }
+  }
+  return true
+}
+
 async function handleCheck() {
+  if (!validateInspectionItems(checkForm.value.items)) return
+
   checking.value = true
   try {
     await checkReturn({
@@ -592,6 +615,8 @@ async function openConfirmDialog(row: ReturnOrder) {
 }
 
 async function handleConfirmReturn() {
+  if (!validateInspectionItems(confirmItems.value)) return
+
   confirming.value = true
   try {
     // 传递质检结果给后端

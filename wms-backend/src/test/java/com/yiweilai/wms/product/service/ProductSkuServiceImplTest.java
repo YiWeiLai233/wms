@@ -1,5 +1,6 @@
 package com.yiweilai.wms.product.service;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.product.dto.ProductSkuSaveDTO;
 import com.yiweilai.wms.product.entity.Product;
@@ -52,6 +53,9 @@ class ProductSkuServiceImplTest {
     @Mock
     private StockLogMapper stockLogMapper;
 
+    @Mock
+    private CacheService cacheService;
+
     private ProductSkuServiceImpl service;
 
     @BeforeEach
@@ -62,7 +66,8 @@ class ProductSkuServiceImplTest {
                 productMapper,
                 shelfMapper,
                 stockMapper,
-                stockLogMapper);
+                stockLogMapper,
+                cacheService);
     }
 
     @Test

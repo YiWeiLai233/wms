@@ -1,5 +1,6 @@
 package com.yiweilai.wms.order.service;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
 import com.yiweilai.wms.order.entity.SalesOrder;
 import com.yiweilai.wms.order.entity.SalesOrderItem;
@@ -14,6 +15,7 @@ import com.yiweilai.wms.product.entity.ProductSku;
 import com.yiweilai.wms.product.mapper.ProductMapper;
 import com.yiweilai.wms.product.mapper.ProductSkuMapper;
 import com.yiweilai.wms.product.util.ProductImageHelper;
+import com.yiweilai.wms.returns.mapper.ReturnOrderItemMapper;
 import com.yiweilai.wms.stock.entity.Stock;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
@@ -42,8 +44,10 @@ class OrderServicePrivacyTest {
     private StockLogMapper stockLogMapper;
     private StockService stockService;
     private ProductImageHelper productImageHelper;
+    private ReturnOrderItemMapper returnOrderItemMapper;
     private AesGcmPrivacyCryptoService cryptoService;
     private HmacPrivacyHashService hashService;
+    private CacheService cacheService;
     private OrderServiceImpl service;
 
     @BeforeEach
@@ -56,8 +60,10 @@ class OrderServicePrivacyTest {
         stockLogMapper = mock(StockLogMapper.class);
         stockService = mock(StockService.class);
         productImageHelper = mock(ProductImageHelper.class);
+        returnOrderItemMapper = mock(ReturnOrderItemMapper.class);
         cryptoService = new AesGcmPrivacyCryptoService(properties());
         hashService = new HmacPrivacyHashService(properties());
+        cacheService = mock(CacheService.class);
         service = new OrderServiceImpl(
                 orderMapper,
                 orderItemMapper,
@@ -67,8 +73,10 @@ class OrderServicePrivacyTest {
                 stockLogMapper,
                 stockService,
                 productImageHelper,
+                returnOrderItemMapper,
                 cryptoService,
-                hashService);
+                hashService,
+                cacheService);
     }
 
     @Test
@@ -111,6 +119,7 @@ class OrderServicePrivacyTest {
         encrypted.setReceiverAddress(cryptoService.encrypt("Address 1"));
         when(orderMapper.findById(101L)).thenReturn(encrypted);
         when(orderItemMapper.findByOrderId(101L)).thenReturn(List.of());
+        when(returnOrderItemMapper.sumReturnedQuantityByOrderId(101L)).thenReturn(List.of());
 
         OrderVO vo = service.getById(101L);
 

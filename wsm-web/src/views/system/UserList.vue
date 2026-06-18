@@ -179,6 +179,7 @@ const form = reactive<UserForm>({
 const rules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 4, message: '密码至少4位', trigger: 'blur' }],
+  roleIds: [{ required: true, message: '请至少选择一个角色', trigger: 'change' }],
 }
 
 // 重置密码

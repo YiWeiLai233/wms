@@ -1,5 +1,6 @@
 package com.yiweilai.wms.order.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -40,6 +41,7 @@ public class OrderImportDTO {
     private String remark;
 
     /** 订单明细列表 */
+    @Valid
     @NotEmpty(message = "订单明细不能为空")
     private List<OrderItemDTO> items;
 

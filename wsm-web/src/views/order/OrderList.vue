@@ -553,8 +553,8 @@
 
     <!-- 换货弹窗 -->
     <el-dialog v-model="exchangeDialogVisible" title="创建换货单" width="900px" destroy-on-close>
-      <el-form ref="exchangeFormRef" :model="exchangeForm" label-width="90px">
-        <el-form-item label="换货原因">
+      <el-form ref="exchangeFormRef" :model="exchangeForm" :rules="exchangeRules" label-width="90px">
+        <el-form-item label="换货原因" prop="reason">
           <el-select v-model="exchangeForm.reason" filterable allow-create default-first-option placeholder="请选择或输入换货原因" style="width: 100%">
             <el-option label="尺码不合适" value="尺码不合适" />
             <el-option label="商品质量问题" value="商品质量问题" />
@@ -563,6 +563,11 @@
             <el-option label="快递丢失/损坏" value="快递丢失/损坏" />
             <el-option label="客户要求换货" value="客户要求换货" />
             <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="出库仓库" prop="shipWarehouseId">
+          <el-select v-model="exchangeForm.shipWarehouseId" placeholder="请选择出库仓库" style="width: 100%" @change="handleExchangeWarehouseChange">
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="责任方">
@@ -610,12 +615,7 @@
       <!-- 换出商品 -->
       <div class="flex items-center justify-between mb-2">
         <h4 class="text-sm font-semibold text-gray-700">换出商品</h4>
-        <div class="flex items-center gap-2">
-          <el-select v-model="exchangeForm.shipWarehouseId" placeholder="选择出库仓库" size="small" style="width: 160px" @change="handleExchangeWarehouseChange">
-            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
-          </el-select>
-          <el-button type="primary" size="small" icon="Plus" :disabled="!exchangeForm.shipWarehouseId" @click="exchangeSkuSelectorVisible = true">添加换出商品</el-button>
-        </div>
+        <el-button type="primary" size="small" icon="Plus" :disabled="!exchangeForm.shipWarehouseId" @click="exchangeSkuSelectorVisible = true">添加换出商品</el-button>
       </div>
       <el-table :data="exchangeForm.exchangeItems" border size="small" max-height="250">
         <el-table-column label="图片" width="60" align="center">
@@ -701,24 +701,24 @@
       </el-table>
 
       <el-divider content-position="left">快递信息</el-divider>
-      <el-form label-width="100px">
-        <el-form-item label="快递单号" required>
+      <el-form ref="quickShipFormRef" :model="quickShipForm" :rules="quickShipRules" label-width="100px">
+        <el-form-item label="快递单号" prop="trackingNo">
           <el-input v-model="quickShipForm.trackingNo" placeholder="请输入快递单号" />
         </el-form-item>
-        <el-form-item label="快递公司" required>
+        <el-form-item label="快递公司" prop="expressCompanyId">
           <el-select v-model="quickShipForm.expressCompanyId" placeholder="请选择快递公司" style="width: 100%" @change="handleQuickShipCompanyChange">
             <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="费用模板" required>
+        <el-form-item label="费用模板" prop="feeTemplateId">
           <el-select v-model="quickShipForm.feeTemplateId" placeholder="请选择费用模板" style="width: 100%" @change="handleQuickShipTemplateChange">
             <el-option v-for="t in quickShipTemplateList" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="预估重量(kg)" required>
+        <el-form-item label="预估重量(kg)" prop="estimatedWeight">
           <el-input-number v-model="quickShipForm.estimatedWeight" :min="0.01" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" @change="calculateQuickShipFee" />
         </el-form-item>
-        <el-form-item label="快递费用" required>
+        <el-form-item label="快递费用" prop="shippingFee">
           <el-input-number v-model="quickShipForm.shippingFee" :min="0.01" :precision="2" style="width: 100%" />
           <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
         </el-form-item>
@@ -872,14 +872,14 @@
         <el-button type="warning" link icon="Download" @click="downloadReturnTemplate">下载批量退货模板</el-button>
       </div>
 
-      <el-form :model="fileImportForm" label-width="80px">
-        <el-form-item label="导入类型" required>
+      <el-form ref="fileImportFormRef" :model="fileImportForm" :rules="fileImportRules" label-width="80px">
+        <el-form-item label="导入类型" prop="importType">
           <el-radio-group v-model="fileImportForm.importType">
             <el-radio value="order">订单导入</el-radio>
             <el-radio value="return">批量退货</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="fileImportForm.importType === 'order'" label="目标仓库" required>
+        <el-form-item v-if="fileImportForm.importType === 'order'" label="目标仓库" prop="warehouseId" required>
           <el-select v-model="fileImportForm.warehouseId" placeholder="请选择目标仓库" style="width: 100%">
             <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
           </el-select>
@@ -1446,10 +1446,15 @@ const exchangeForm = reactive({
   returnItems: [] as { skuId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; orderedQty: number; image?: string; checked: boolean }[],
   exchangeItems: [] as { skuId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; image?: string; availableQty?: number; lowStockThreshold?: number; outOfStockThreshold?: number }[],
 })
+const exchangeRules: FormRules = {
+  reason: [{ required: true, message: '请选择或输入换货原因', trigger: 'change' }],
+  shipWarehouseId: [{ required: true, message: '请选择出库仓库', trigger: 'change' }],
+}
 
 // 快速发货相关
 const quickShipDialogVisible = ref(false)
 const quickShipping = ref(false)
+const quickShipFormRef = ref<FormInstance>()
 const quickShipDetail = ref<any>({})
 const quickShipTemplateList = ref<any[]>([])
 const quickShipTemplateDetail = ref<any>(null)
@@ -1461,6 +1466,26 @@ const quickShipForm = reactive({
   estimatedWeight: 0,
   shippingFee: undefined as number | undefined,
 })
+const positiveNumberValidator = (message: string) => (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+  if (value === undefined || value === null || Number(value) <= 0) {
+    callback(new Error(message))
+    return
+  }
+  callback()
+}
+const quickShipRules: FormRules = {
+  trackingNo: [{ required: true, message: '请输入快递单号', trigger: 'blur' }],
+  expressCompanyId: [{ required: true, message: '请选择快递公司', trigger: 'change' }],
+  feeTemplateId: [{ required: true, message: '请选择费用模板', trigger: 'change' }],
+  estimatedWeight: [
+    { required: true, message: '请输入预估重量', trigger: 'change' },
+    { validator: positiveNumberValidator('请输入大于0的预估重量'), trigger: 'change' },
+  ],
+  shippingFee: [
+    { required: true, message: '请输入快递费用', trigger: 'change' },
+    { validator: positiveNumberValidator('请输入大于0的快递费用'), trigger: 'change' },
+  ],
+}
 
 // 监听重量变化，自动计算快递费
 watch(
@@ -1534,14 +1559,28 @@ function calculateReturnFee() {
 // 文档导入相关
 const fileImportDialogVisible = ref(false)
 const fileImporting = ref(false)
+const fileImportFormRef = ref<FormInstance>()
 const uploadRef = ref()
 const selectedFile = ref<File | null>(null)
 const fileImportForm = reactive({
   importType: 'order' as 'order' | 'return',
   warehouseId: undefined as number | undefined,
 })
+const fileImportRules: FormRules = {
+  importType: [{ required: true, message: '请选择导入类型', trigger: 'change' }],
+  warehouseId: [{
+    validator: (_rule, value, callback) => {
+      if (fileImportForm.importType === 'order' && !value) {
+        callback(new Error('请选择目标仓库'))
+        return
+      }
+      callback()
+    },
+    trigger: 'change',
+  }],
+}
 
-const BASE_URL = 'http://localhost:8080'
+const BASE_URL = ''
 const uploadUrl = computed(() =>
   fileImportForm.importType === 'return'
     ? `${BASE_URL}/api/returns/import-file`
@@ -1826,12 +1865,10 @@ function handleUploadError() {
 }
 
 async function handleFileImport() {
+  const valid = await fileImportFormRef.value?.validate().catch(() => false)
+  if (!valid) return
   if (!selectedFile.value) {
     ElMessage.warning('请先选择要导入的文件')
-    return
-  }
-  if (fileImportForm.importType === 'order' && !fileImportForm.warehouseId) {
-    ElMessage.warning('请选择目标仓库')
     return
   }
 
@@ -2167,10 +2204,8 @@ function addExchangeItem(sku: any) {
 }
 
 async function handleExchange() {
-  if (!exchangeForm.shipWarehouseId) {
-    ElMessage.warning('请选择出库仓库')
-    return
-  }
+  const valid = await exchangeFormRef.value?.validate().catch(() => false)
+  if (!valid) return
   const checkedReturnItems = exchangeForm.returnItems.filter(i => i.checked)
   if (checkedReturnItems.length === 0) {
     ElMessage.warning('请至少勾选一个退回商品')
@@ -2337,26 +2372,8 @@ function calculateQuickShipFee() {
 }
 
 async function handleQuickShipConfirm() {
-  if (!quickShipForm.trackingNo) {
-    ElMessage.warning('请输入快递单号')
-    return
-  }
-  if (!quickShipForm.expressCompanyId) {
-    ElMessage.warning('请选择快递公司')
-    return
-  }
-  if (!quickShipForm.feeTemplateId) {
-    ElMessage.warning('请选择费用模板')
-    return
-  }
-  if (!quickShipForm.estimatedWeight || quickShipForm.estimatedWeight <= 0) {
-    ElMessage.warning('请输入预估重量')
-    return
-  }
-  if (!quickShipForm.shippingFee || quickShipForm.shippingFee <= 0) {
-    ElMessage.warning('请输入快递费用')
-    return
-  }
+  const valid = await quickShipFormRef.value?.validate().catch(() => false)
+  if (!valid) return
   try {
     await ElMessageBox.confirm('确认发货后将扣减库存，确定继续吗？', '确认发货', { type: 'warning' })
   } catch { return }

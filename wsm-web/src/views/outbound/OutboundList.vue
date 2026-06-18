@@ -270,24 +270,24 @@
       </el-table>
 
       <el-divider content-position="left">快递信息</el-divider>
-      <el-form label-width="100px">
-        <el-form-item label="快递单号" required>
+      <el-form ref="confirmFormRef" :model="confirmForm" :rules="confirmRules" label-width="100px">
+        <el-form-item label="快递单号" prop="trackingNo">
           <el-input v-model="confirmForm.trackingNo" placeholder="请输入快递单号" />
         </el-form-item>
-        <el-form-item label="快递公司" required>
+        <el-form-item label="快递公司" prop="expressCompanyId">
           <el-select v-model="confirmForm.expressCompanyId" placeholder="请选择快递公司" style="width: 100%" @change="handleCompanyChange">
             <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="费用模板" required>
+        <el-form-item label="费用模板" prop="feeTemplateId">
           <el-select v-model="confirmForm.feeTemplateId" placeholder="请选择费用模板" style="width: 100%" @change="handleTemplateChange">
             <el-option v-for="t in templateList" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="预估重量(kg)" required>
+        <el-form-item label="预估重量(kg)" prop="estimatedWeight">
           <el-input-number v-model="confirmForm.estimatedWeight" :min="0.01" :precision="2" style="width: 100%" @focus="($event.target as HTMLInputElement).select()" />
         </el-form-item>
-        <el-form-item label="快递费用" required>
+        <el-form-item label="快递费用" prop="shippingFee">
           <el-input-number v-model="confirmForm.shippingFee" :min="0.01" :precision="2" style="width: 100%" />
           <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
         </el-form-item>
@@ -709,6 +709,7 @@ async function handleScan() {
 // 确认发货弹窗
 const confirmDialogVisible = ref(false)
 const confirming = ref(false)
+const confirmFormRef = ref<FormInstance>()
 const confirmDetail = ref<OutboundOrder | Record<string, never>>({})
 const confirmForm = reactive({
   outboundId: 0,
@@ -718,6 +719,26 @@ const confirmForm = reactive({
   estimatedWeight: undefined as number | undefined,
   shippingFee: undefined as number | undefined,
 })
+const confirmPositiveValidator = (message: string) => (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+  if (value === undefined || value === null || Number(value) <= 0) {
+    callback(new Error(message))
+    return
+  }
+  callback()
+}
+const confirmRules: FormRules = {
+  trackingNo: [{ required: true, message: '请输入快递单号', trigger: 'blur' }],
+  expressCompanyId: [{ required: true, message: '请选择快递公司', trigger: 'change' }],
+  feeTemplateId: [{ required: true, message: '请选择费用模板', trigger: 'change' }],
+  estimatedWeight: [
+    { required: true, message: '请输入预估重量', trigger: 'change' },
+    { validator: confirmPositiveValidator('请输入大于0的预估重量'), trigger: 'change' },
+  ],
+  shippingFee: [
+    { required: true, message: '请输入快递费用', trigger: 'change' },
+    { validator: confirmPositiveValidator('请输入大于0的快递费用'), trigger: 'change' },
+  ],
+}
 
 const confirmTemplateDetail = ref<any>(null) // 缓存模板详情
 
@@ -859,26 +880,8 @@ async function handleCancel(id: number) {
 }
 
 async function handleConfirm() {
-  if (!confirmForm.trackingNo) {
-    ElMessage.warning('请输入快递单号')
-    return
-  }
-  if (!confirmForm.expressCompanyId) {
-    ElMessage.warning('请选择快递公司')
-    return
-  }
-  if (!confirmForm.feeTemplateId) {
-    ElMessage.warning('请选择费用模板')
-    return
-  }
-  if (!confirmForm.estimatedWeight || confirmForm.estimatedWeight <= 0) {
-    ElMessage.warning('请输入预估重量')
-    return
-  }
-  if (!confirmForm.shippingFee || confirmForm.shippingFee <= 0) {
-    ElMessage.warning('请输入快递费用')
-    return
-  }
+  const valid = await confirmFormRef.value?.validate().catch(() => false)
+  if (!valid) return
   try {
     await ElMessageBox.confirm('确认发货后将扣减库存，确定继续吗？', '确认发货', { type: 'warning' })
   } catch {

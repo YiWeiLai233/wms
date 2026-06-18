@@ -157,6 +157,10 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(UserSaveDTO dto) {
+        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "密码不能为空");
+        }
+
         // 检查用户名唯一性
         SysUser existing = userMapper.selectByUsername(dto.getUsername());
         if (existing != null) {

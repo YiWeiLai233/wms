@@ -3,6 +3,7 @@ package com.yiweilai.wms.stock.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.util.List;
@@ -34,6 +35,7 @@ public class BatchStockAdjustDTO {
 
         /** 入库数量 */
         @NotNull(message = "入库数量不能为空")
+        @Positive(message = "入库数量必须大于0")
         private Integer quantity;
     }
 }

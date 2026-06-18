@@ -1,5 +1,6 @@
 package com.yiweilai.wms.report.service.impl;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.stock.mapper.StockMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,11 +32,14 @@ class ReportServiceImplTest {
     @Mock
     private StockMapper stockMapper;
 
+    @Mock
+    private CacheService cacheService;
+
     private ReportServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new ReportServiceImpl(jdbcTemplate, stockMapper);
+        service = new ReportServiceImpl(jdbcTemplate, stockMapper, cacheService);
     }
 
     @Test

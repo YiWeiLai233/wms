@@ -1,6 +1,9 @@
 package com.yiweilai.wms.stock.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.util.List;
@@ -16,7 +19,8 @@ public class StockCheckSubmitDTO {
     private Long checkId;
 
     /** 盘点明细列表 */
-    @NotNull(message = "盘点明细不能为空")
+    @Valid
+    @NotEmpty(message = "盘点明细不能为空")
     private List<StockCheckItemDTO> items;
 
     /**
@@ -31,6 +35,7 @@ public class StockCheckSubmitDTO {
 
         /** 实际盘点数量 */
         @NotNull(message = "实际数量不能为空")
+        @PositiveOrZero(message = "实际数量不能小于0")
         private Integer actualQty;
     }
 }

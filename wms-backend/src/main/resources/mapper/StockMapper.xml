@@ -29,19 +29,17 @@
         INNER JOIN product_sku ps ON s.sku_id = ps.id AND ps.deleted = 0
         LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
         LEFT JOIN warehouse w ON s.warehouse_id = w.id AND w.deleted = 0
-        LEFT JOIN (
-            SELECT ac_main.sku_id, ac_main.low_stock_threshold, ac_main.out_of_stock_threshold
-            FROM stock_alert_config ac_main
-            INNER JOIN (
-                SELECT sku_id, MIN(CASE WHEN warehouse_id IS NOT NULL THEN 0 ELSE 1 END) AS priority
-                FROM stock_alert_config
-                WHERE deleted = 0 AND enabled = 1
-                GROUP BY sku_id
-            ) ac_priority ON ac_main.sku_id = ac_priority.sku_id
-                AND ((ac_main.warehouse_id IS NOT NULL AND ac_priority.priority = 0)
-                    OR (ac_main.warehouse_id IS NULL AND ac_priority.priority = 1))
-            WHERE ac_main.deleted = 0 AND ac_main.enabled = 1
-        ) ac ON ac.sku_id = s.sku_id
+        LEFT JOIN stock_alert_config ac ON ac.id = (
+            SELECT ac2.id
+            FROM stock_alert_config ac2
+            WHERE ac2.sku_id = s.sku_id
+              AND (ac2.warehouse_id = s.warehouse_id OR ac2.warehouse_id IS NULL)
+              AND ac2.deleted = 0
+              AND ac2.enabled = 1
+            ORDER BY CASE WHEN ac2.warehouse_id = s.warehouse_id THEN 0 ELSE 1 END,
+                     ac2.id DESC
+            LIMIT 1
+        )
         WHERE s.deleted = 0
         <if test="skuId != null">
             AND s.sku_id = #{skuId}

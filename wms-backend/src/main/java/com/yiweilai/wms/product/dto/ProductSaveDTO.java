@@ -1,7 +1,9 @@
 package com.yiweilai.wms.product.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -51,6 +53,7 @@ public class ProductSaveDTO {
     private Long alertTemplateId;
 
     /** 创建商品时批量生成的码数 SKU 列表 */
+    @Valid
     private List<SizeSkuDTO> skuList = new ArrayList<>();
 
     /**
@@ -90,6 +93,7 @@ public class ProductSaveDTO {
         private String name;
 
         /** 初始库存数量 */
+        @PositiveOrZero(message = "初始库存数量不能小于0")
         private Integer quantity = 0;
 
         /** 成本价 */

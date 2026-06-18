@@ -1,6 +1,9 @@
 package com.yiweilai.wms.user.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
@@ -19,6 +22,7 @@ public class UserSaveDTO {
     private String username;
 
     /** 密码（新增时必填，修改时可选） */
+    @Size(min = 4, message = "密码至少4位")
     private String password;
 
     /** 真实姓名 */
@@ -34,5 +38,6 @@ public class UserSaveDTO {
     private Integer status = 1;
 
     /** 角色ID列表 */
-    private List<Long> roleIds;
+    @NotEmpty(message = "至少选择一个角色")
+    private List<@NotNull(message = "角色不能为空") Long> roleIds;
 }

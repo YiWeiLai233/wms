@@ -59,7 +59,7 @@
 
     <!-- 备份对话框 -->
     <el-dialog v-model="backupDialogVisible" :title="backupType === 'FULL' ? '全量备份' : '增量备份'" width="520px" destroy-on-close>
-      <el-form ref="backupFormRef" :model="backupForm" label-width="100px">
+      <el-form ref="backupFormRef" :model="backupForm" :rules="backupRules" label-width="100px">
         <el-form-item v-if="backupType === 'INCREMENTAL'" label="基准备份">
           <el-select v-model="backupForm.baseBackupId" placeholder="选择基准全量备份（不选则自动取最近备份）" clearable style="width: 100%">
             <el-option
@@ -77,7 +77,7 @@
             <el-radio value="server">保存到服务器</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="backupForm.saveMode === 'server'" label="服务器路径">
+        <el-form-item v-if="backupForm.saveMode === 'server'" label="服务器路径" prop="backupPath" required>
           <el-input v-model="backupForm.backupPath" placeholder="如 /data/backup" />
         </el-form-item>
       </el-form>
@@ -91,7 +91,7 @@
 
     <!-- 备份设置弹窗 -->
     <el-dialog v-model="configDialogVisible" title="备份设置" width="600px" destroy-on-close>
-      <el-form :model="configForm" label-width="100px">
+      <el-form ref="configFormRef" :model="configForm" :rules="configRules" label-width="100px">
         <el-divider content-position="left">自动备份</el-divider>
         <el-form-item label="启用自动备份">
           <el-switch v-model="configForm.autoBackupEnabled" />
@@ -103,7 +103,7 @@
               <el-radio value="INCREMENTAL">增量备份</el-radio>
             </el-radio-group>
           </el-form-item>
-          <el-form-item label="备份时间">
+          <el-form-item label="备份时间" prop="autoBackupTime" required>
             <el-time-picker v-model="configForm.autoBackupTime" format="HH:mm" value-format="HH:mm" placeholder="选择时间" style="width: 100%" />
           </el-form-item>
           <el-form-item label="备份路径">
@@ -116,19 +116,19 @@
           <el-switch v-model="configForm.remoteBackupEnabled" />
         </el-form-item>
         <template v-if="configForm.remoteBackupEnabled">
-          <el-form-item label="远程主机">
+          <el-form-item label="远程主机" prop="remoteHost" required>
             <el-input v-model="configForm.remoteHost" placeholder="如 192.168.1.100" />
           </el-form-item>
-          <el-form-item label="SSH端口">
+          <el-form-item label="SSH端口" prop="remotePort" required>
             <el-input-number v-model="configForm.remotePort" :min="1" :max="65535" />
           </el-form-item>
-          <el-form-item label="用户名">
+          <el-form-item label="用户名" prop="remoteUsername" required>
             <el-input v-model="configForm.remoteUsername" placeholder="SSH用户名" />
           </el-form-item>
-          <el-form-item label="密码">
+          <el-form-item label="密码" prop="remotePassword" required>
             <el-input v-model="configForm.remotePassword" type="password" show-password placeholder="SSH密码" />
           </el-form-item>
-          <el-form-item label="远程路径">
+          <el-form-item label="远程路径" prop="remotePath" required>
             <el-input v-model="configForm.remotePath" placeholder="如 /data/backup" />
           </el-form-item>
           <el-form-item>
@@ -147,7 +147,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import {
   fullBackup, incrementalBackup, getBackupList, downloadBackup, deleteBackup,
   getBackupConfig, saveBackupConfig, testRemoteConnection
@@ -173,6 +173,18 @@ const backupForm = reactive({
   backupPath: '',
   baseBackupId: undefined as number | undefined,
 })
+const backupRules: FormRules = {
+  backupPath: [{
+    validator: (_rule, value, callback) => {
+      if (backupForm.saveMode === 'server' && !String(value || '').trim()) {
+        callback(new Error('请输入服务器备份路径'))
+        return
+      }
+      callback()
+    },
+    trigger: 'blur',
+  }],
+}
 
 async function fetchBackupList() {
   loading.value = true
@@ -203,6 +215,9 @@ function openIncrDialog(row: BackupRecord) {
 }
 
 async function handleBackup() {
+  const valid = await backupFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   backing.value = true
   try {
     const backupPath = backupForm.saveMode === 'server' ? backupForm.backupPath : undefined
@@ -282,6 +297,7 @@ onMounted(() => {
 const configDialogVisible = ref(false)
 const savingConfig = ref(false)
 const testing = ref(false)
+const configFormRef = ref<FormInstance>()
 
 const configForm = reactive<BackupConfig>({
   autoBackupEnabled: false,
@@ -295,6 +311,40 @@ const configForm = reactive<BackupConfig>({
   remotePassword: '',
   remotePath: ''
 })
+const requiredWhenRemoteEnabled = (message: string) => (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+  if (configForm.remoteBackupEnabled && !String(value ?? '').trim()) {
+    callback(new Error(message))
+    return
+  }
+  callback()
+}
+const configRules: FormRules = {
+  autoBackupTime: [{
+    validator: (_rule, value, callback) => {
+      if (configForm.autoBackupEnabled && !value) {
+        callback(new Error('请选择自动备份时间'))
+        return
+      }
+      callback()
+    },
+    trigger: 'change',
+  }],
+  remoteHost: [{ validator: requiredWhenRemoteEnabled('请输入远程主机'), trigger: 'blur' }],
+  remotePort: [{
+    validator: (_rule, value, callback) => {
+      const port = Number(value)
+      if (configForm.remoteBackupEnabled && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+        callback(new Error('SSH端口必须在1到65535之间'))
+        return
+      }
+      callback()
+    },
+    trigger: 'change',
+  }],
+  remoteUsername: [{ validator: requiredWhenRemoteEnabled('请输入SSH用户名'), trigger: 'blur' }],
+  remotePassword: [{ validator: requiredWhenRemoteEnabled('请输入SSH密码'), trigger: 'blur' }],
+  remotePath: [{ validator: requiredWhenRemoteEnabled('请输入远程备份路径'), trigger: 'blur' }],
+}
 
 async function openConfigDialog() {
   try {
@@ -307,6 +357,9 @@ async function openConfigDialog() {
 }
 
 async function handleSaveConfig() {
+  const valid = await configFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   savingConfig.value = true
   try {
     await saveBackupConfig(configForm)
@@ -318,6 +371,13 @@ async function handleSaveConfig() {
 }
 
 async function handleTestRemote() {
+  if (!configForm.remoteBackupEnabled) {
+    ElMessage.warning('请先启用远程备份')
+    return
+  }
+  const valid = await configFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   testing.value = true
   try {
     const res = await testRemoteConnection(configForm)

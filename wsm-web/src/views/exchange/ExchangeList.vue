@@ -227,8 +227,8 @@
         <el-table-column prop="quantity" label="数量" width="80" align="center" />
       </el-table>
 
-      <el-form :model="shipForm" label-width="90px">
-        <el-form-item label="快递单号">
+      <el-form ref="shipFormRef" :model="shipForm" :rules="shipRules" label-width="90px">
+        <el-form-item label="快递单号" prop="trackingNo">
           <el-input v-model="shipForm.trackingNo" placeholder="快递单号" />
         </el-form-item>
         <!-- 我们原因：可填退回运费 -->
@@ -237,21 +237,21 @@
           <div class="text-xs text-gray-400 mt-1">客户退回商品的运费（我们承担）</div>
         </el-form-item>
         <el-divider content-position="left">换货快递费（模板计算）</el-divider>
-        <el-form-item label="快递公司">
+        <el-form-item label="快递公司" prop="expressCompanyId">
           <el-select v-model="shipForm.expressCompanyId" placeholder="选择快递公司" clearable style="width: 100%">
             <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="费用模板">
+        <el-form-item label="费用模板" prop="feeTemplateId">
           <el-select v-model="shipForm.feeTemplateId" placeholder="选择模板自动计算" clearable style="width: 100%" @change="handleShipTemplateChange">
             <el-option v-for="t in shipTemplateList" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="预估重量(kg)">
-          <el-input-number v-model="shipForm.estimatedWeight" :min="0" :precision="2" style="width: 100%" />
+        <el-form-item label="预估重量(kg)" prop="estimatedWeight">
+          <el-input-number v-model="shipForm.estimatedWeight" :min="0.01" :precision="2" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="换货快递费">
-          <el-input-number v-model="shipForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
+        <el-form-item label="换货快递费" prop="shippingFee">
+          <el-input-number v-model="shipForm.shippingFee" :min="0.01" :precision="2" style="width: 100%" />
           <div class="text-xs text-gray-400 mt-1">选择模板后自动计算，也可手动修改</div>
         </el-form-item>
         <el-form-item v-if="isSellerResponsible" label="总费用">
@@ -280,12 +280,12 @@
             平台单号：{{ exchangeOrder.platformOrderNo || '-' }}，收件人：{{ exchangeOrder.receiverName }}，状态：{{ ORDER_STATUS_MAP[exchangeOrder.orderStatus]?.label }}
           </div>
         </el-form-item>
-        <el-form-item label="仓库" prop="warehouseId">
-          <el-select v-model="createForm.warehouseId" placeholder="选择发货仓库" style="width: 100%">
+        <el-form-item label="出库仓库" prop="warehouseId">
+          <el-select v-model="createForm.warehouseId" placeholder="选择出库仓库" style="width: 100%" @change="handleCreateWarehouseChange">
             <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="换货原因">
+        <el-form-item label="换货原因" prop="reason">
           <el-select v-model="createForm.reason" filterable allow-create default-first-option placeholder="请选择或输入换货原因" style="width: 100%">
             <el-option label="尺码不合适" value="尺码不合适" />
             <el-option label="商品质量问题" value="商品质量问题" />
@@ -347,12 +347,7 @@
 
         <div class="flex items-center justify-between mb-2">
           <h4 class="text-sm font-semibold text-gray-700">换出商品</h4>
-          <div class="flex items-center gap-2">
-            <el-select v-model="createForm.shipWarehouseId" placeholder="选择出库仓库" size="small" style="width: 160px" @change="handleCreateWarehouseChange">
-              <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
-            </el-select>
-            <el-button type="primary" size="small" icon="Plus" :disabled="!createForm.shipWarehouseId" @click="openSkuSelector">添加换出商品</el-button>
-          </div>
+          <el-button type="primary" size="small" icon="Plus" :disabled="!createForm.warehouseId" @click="openSkuSelector">添加换出商品</el-button>
         </div>
         <el-table :data="createForm.items" border size="small">
           <el-table-column label="图片" width="60" align="center">
@@ -446,6 +441,7 @@ const checkItems = ref<{ itemId: number; skuCode: string; skuName: string; sizeV
 // 发货相关
 const shipDialogVisible = ref(false)
 const shipping = ref(false)
+const shipFormRef = ref<FormInstance>()
 const shipData = ref<any>({})
 const shipExchangeItems = ref<any[]>([])
 const shipForm = reactive({
@@ -456,6 +452,26 @@ const shipForm = reactive({
   shippingFee: undefined as number | undefined,
   returnShippingFee: undefined as number | undefined,
 })
+const shipPositiveValidator = (message: string) => (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+  if (value === undefined || value === null || Number(value) <= 0) {
+    callback(new Error(message))
+    return
+  }
+  callback()
+}
+const shipRules: FormRules = {
+  trackingNo: [{ required: true, message: '请输入快递单号', trigger: 'blur' }],
+  expressCompanyId: [{ required: true, message: '请选择快递公司', trigger: 'change' }],
+  feeTemplateId: [{ required: true, message: '请选择费用模板', trigger: 'change' }],
+  estimatedWeight: [
+    { required: true, message: '请输入预估重量', trigger: 'change' },
+    { validator: shipPositiveValidator('请输入大于0的预估重量'), trigger: 'change' },
+  ],
+  shippingFee: [
+    { required: true, message: '请输入换货快递费', trigger: 'change' },
+    { validator: shipPositiveValidator('请输入大于0的换货快递费'), trigger: 'change' },
+  ],
+}
 const shipTemplateList = ref<any[]>([])
 const shipTemplateDetail = ref<any>(null)
 
@@ -481,7 +497,6 @@ const skuList = ref<any[]>([])
 const createForm = ref({
   orderNo: '',
   warehouseId: undefined as number | undefined,
-  shipWarehouseId: undefined as number | undefined,
   reason: '',
   responsibleParty: 'SELLER' as 'CUSTOMER' | 'SELLER',
   returnTrackingNo: '',
@@ -507,7 +522,8 @@ watch(
 
 const createRules: FormRules = {
   orderNo: [{ required: true, message: '请输入订单号', trigger: 'blur' }],
-  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
+  warehouseId: [{ required: true, message: '请选择出库仓库', trigger: 'change' }],
+  reason: [{ required: true, message: '请选择或输入换货原因', trigger: 'change' }],
 }
 
 const returnItems = computed(() => (detail.value.items || []).filter((i: any) => i.itemType === 'RETURN_ITEM'))
@@ -604,7 +620,23 @@ async function openCheckDialog(row: ExchangeOrder) {
   checkDialogVisible.value = true
 }
 
+function validateExchangeInspectionItems() {
+  if (!checkItems.value.length) {
+    ElMessage.warning('质检明细不能为空')
+    return false
+  }
+  const allowedStatuses = new Set(['SELLABLE', 'DEFECTIVE', 'SCRAPPED'])
+  const invalidItem = checkItems.value.find(item => !allowedStatuses.has(item.qualityStatus))
+  if (invalidItem) {
+    ElMessage.warning(`请选择 SKU ${invalidItem.skuName || invalidItem.skuCode} 的质检结果`)
+    return false
+  }
+  return true
+}
+
 async function handleCheck() {
+  if (!validateExchangeInspectionItems()) return
+
   checking.value = true
   try {
     await checkExchange({
@@ -714,6 +746,9 @@ async function handleShip(row: ExchangeOrder) {
 }
 
 async function handleShipSubmit() {
+  const valid = await shipFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   shipping.value = true
   try {
     // 计算总运费 = 退回运费 + 换货快递费
@@ -748,7 +783,6 @@ async function openCreateDialog() {
   createForm.value = {
     orderNo: '',
     warehouseId: undefined,
-    shipWarehouseId: undefined,
     reason: '',
     responsibleParty: 'SELLER',
     returnTrackingNo: '',
@@ -792,6 +826,7 @@ async function loadOrderForExchange() {
     // 默认仓库
     if (!createForm.value.warehouseId && detailRes.data.warehouseId) {
       createForm.value.warehouseId = detailRes.data.warehouseId
+      await handleCreateWarehouseChange(detailRes.data.warehouseId)
     }
   } catch {
     ElMessage.error('查询订单失败')
@@ -932,10 +967,6 @@ async function handleCreate() {
     ElMessage.warning('请先查询订单')
     return
   }
-  if (!createForm.value.shipWarehouseId) {
-    ElMessage.warning('请选择出库仓库')
-    return
-  }
   if (createForm.value.items.length === 0) {
     ElMessage.warning('请添加换出商品')
     return
@@ -945,8 +976,8 @@ async function handleCreate() {
   try {
     await createExchange({
       orderId: exchangeOrder.value.id,
-      warehouseId: createForm.value.shipWarehouseId,
-      reason: createForm.value.reason || undefined,
+      warehouseId: createForm.value.warehouseId,
+      reason: createForm.value.reason,
       returnTrackingNo: createForm.value.returnTrackingNo || undefined,
       expressCompanyId: createForm.value.expressCompanyId || undefined,
       shippingFee: createForm.value.responsibleParty === 'CUSTOMER' ? 0 : createForm.value.shippingFee,

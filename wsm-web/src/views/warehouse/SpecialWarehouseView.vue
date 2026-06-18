@@ -58,17 +58,17 @@
 
     <!-- 确认可售弹窗 -->
     <el-dialog v-model="sellableDialogVisible" title="确认可售 - 转移到普通仓" width="450px" destroy-on-close>
-      <el-form label-width="80px">
+      <el-form ref="sellableFormRef" :model="sellableTarget" :rules="sellableRules" label-width="80px">
         <el-form-item label="商品">
           <span>{{ sellableTarget.skuName }} ({{ sellableTarget.skuCode }})</span>
         </el-form-item>
         <el-form-item label="可转数量">
           <span class="font-bold text-orange-500">{{ sellableTarget.maxQty }}</span>
         </el-form-item>
-        <el-form-item label="转移数量" required>
+        <el-form-item label="转移数量" prop="transferQty">
           <el-input-number v-model="sellableTarget.transferQty" :min="1" :max="sellableTarget.maxQty" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="目标仓库" required>
+        <el-form-item label="目标仓库" prop="warehouseId">
           <el-select v-model="sellableTarget.warehouseId" placeholder="选择普通仓" style="width: 100%">
             <el-option v-for="w in normalWarehouses" :key="w.id" :label="w.name" :value="w.id" />
           </el-select>
@@ -82,14 +82,14 @@
 
     <!-- 转报废仓弹窗 -->
     <el-dialog v-model="scrapDialogVisible" title="转入报废仓" width="420px" destroy-on-close>
-      <el-form label-width="80px">
+      <el-form ref="scrapFormRef" :model="scrapTarget" :rules="scrapRules" label-width="80px">
         <el-form-item label="商品">
           <span>{{ scrapTarget.skuName }} ({{ scrapTarget.skuCode }})</span>
         </el-form-item>
         <el-form-item label="可转数量">
           <span class="font-bold text-orange-500">{{ scrapTarget.maxQty }}</span>
         </el-form-item>
-        <el-form-item label="转移数量" required>
+        <el-form-item label="转移数量" prop="transferQty">
           <el-input-number v-model="scrapTarget.transferQty" :min="1" :max="scrapTarget.maxQty" style="width: 100%" />
         </el-form-item>
       </el-form>
@@ -101,14 +101,14 @@
 
     <!-- 确认报废弹窗 -->
     <el-dialog v-model="disposeDialogVisible" title="确认报废处置" width="420px" destroy-on-close>
-      <el-form label-width="80px">
+      <el-form ref="disposeFormRef" :model="disposeTarget" :rules="disposeRules" label-width="80px">
         <el-form-item label="商品">
           <span>{{ disposeTarget.skuName }} ({{ disposeTarget.skuCode }})</span>
         </el-form-item>
         <el-form-item label="可报废数量">
           <span class="font-bold text-red-500">{{ disposeTarget.maxQty }}</span>
         </el-form-item>
-        <el-form-item label="报废数量" required>
+        <el-form-item label="报废数量" prop="disposeQty">
           <el-input-number v-model="disposeTarget.disposeQty" :min="1" :max="disposeTarget.maxQty" style="width: 100%" />
         </el-form-item>
       </el-form>
@@ -123,6 +123,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { getSpecialStock, confirmSellable, confirmDispose, confirmScrap } from '@/api/stock'
 import type { StockItem } from '@/api/stock'
 import { getWarehouseList } from '@/api/warehouse'
@@ -142,6 +143,7 @@ const searchParams = reactive({
 
 // 确认可售
 const sellableDialogVisible = ref(false)
+const sellableFormRef = ref<FormInstance>()
 const sellableTarget = reactive({
   stockId: 0,
   skuCode: '',
@@ -150,9 +152,25 @@ const sellableTarget = reactive({
   transferQty: 1,
   warehouseId: undefined as number | undefined,
 })
+const quantityValidator = (maxQty: () => number, message: string) => (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+  const quantity = Number(value)
+  if (!Number.isInteger(quantity) || quantity <= 0 || quantity > maxQty()) {
+    callback(new Error(message))
+    return
+  }
+  callback()
+}
+const sellableRules: FormRules = {
+  transferQty: [
+    { required: true, message: '请输入转移数量', trigger: 'change' },
+    { validator: quantityValidator(() => sellableTarget.maxQty, '转移数量必须在可转数量范围内'), trigger: 'change' },
+  ],
+  warehouseId: [{ required: true, message: '请选择目标仓库', trigger: 'change' }],
+}
 
 // 转报废仓
 const scrapDialogVisible = ref(false)
+const scrapFormRef = ref<FormInstance>()
 const scrapTarget = reactive({
   stockId: 0,
   skuCode: '',
@@ -160,9 +178,16 @@ const scrapTarget = reactive({
   maxQty: 0,
   transferQty: 1,
 })
+const scrapRules: FormRules = {
+  transferQty: [
+    { required: true, message: '请输入转移数量', trigger: 'change' },
+    { validator: quantityValidator(() => scrapTarget.maxQty, '转移数量必须在可转数量范围内'), trigger: 'change' },
+  ],
+}
 
 // 确认报废
 const disposeDialogVisible = ref(false)
+const disposeFormRef = ref<FormInstance>()
 const disposeTarget = reactive({
   stockId: 0,
   skuCode: '',
@@ -170,6 +195,12 @@ const disposeTarget = reactive({
   maxQty: 0,
   disposeQty: 1,
 })
+const disposeRules: FormRules = {
+  disposeQty: [
+    { required: true, message: '请输入报废数量', trigger: 'change' },
+    { validator: quantityValidator(() => disposeTarget.maxQty, '报废数量必须在可报废数量范围内'), trigger: 'change' },
+  ],
+}
 
 const submitting = ref(false)
 
@@ -211,10 +242,8 @@ function openSellableDialog(row: StockItem) {
 }
 
 async function handleSellable() {
-  if (!sellableTarget.warehouseId) {
-    ElMessage.warning('请选择目标仓库')
-    return
-  }
+  const valid = await sellableFormRef.value?.validate().catch(() => false)
+  if (!valid) return
   submitting.value = true
   try {
     await confirmSellable(sellableTarget.stockId, sellableTarget.warehouseId, sellableTarget.transferQty)
@@ -237,6 +266,9 @@ function openScrapDialog(row: StockItem) {
 }
 
 async function handleScrap() {
+  const valid = await scrapFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   submitting.value = true
   try {
     await confirmScrap(scrapTarget.stockId, scrapTarget.transferQty)
@@ -259,6 +291,9 @@ function openDisposeDialog(row: StockItem) {
 }
 
 async function handleDispose() {
+  const valid = await disposeFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   submitting.value = true
   try {
     await confirmDispose(disposeTarget.stockId, disposeTarget.disposeQty)

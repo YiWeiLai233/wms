@@ -1,5 +1,6 @@
 package com.yiweilai.wms.returns.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -17,6 +18,7 @@ public class ReturnConfirmDTO {
     private Long returnId;
 
     /** 质检明细列表（可选，用于更新质检结果） */
+    @Valid
     private List<ReturnConfirmItemDTO> items;
 
     /**

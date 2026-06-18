@@ -2,6 +2,7 @@ package com.yiweilai.wms.product.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ public class ProductSkuSaveDTO {
     private Integer quantity;
 
     /** Initial inbound quantity used when creating a SKU. */
+    @PositiveOrZero(message = "初始入库数量不能小于0")
     private Integer initialQuantity;
 
     /** Initial inbound warehouse ID. */

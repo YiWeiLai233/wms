@@ -2,6 +2,7 @@ package com.yiweilai.wms.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yiweilai.wms.common.Constants;
+import com.yiweilai.wms.config.CacheService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -13,6 +14,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class JwtAuthFilterTest {
 
@@ -28,7 +30,7 @@ class JwtAuthFilterTest {
         ReflectionTestUtils.setField(jwtUtils, "expiration", 86400000L);
         String token = jwtUtils.generateToken(1L, "admin", List.of("SUPER_ADMIN"));
 
-        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper());
+        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper(), mock(CacheService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/reports/dashboard");
         request.addHeader(Constants.TOKEN_HEADER, Constants.TOKEN_PREFIX + token);
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -44,7 +46,7 @@ class JwtAuthFilterTest {
     @Test
     void optionsRequestPassesWithoutJwt() throws Exception {
         JwtUtils jwtUtils = new JwtUtils();
-        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper());
+        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper(), mock(CacheService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/reports/dashboard");
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
@@ -58,7 +60,7 @@ class JwtAuthFilterTest {
     @Test
     void imageResourceRequestPassesWithoutJwt() throws Exception {
         JwtUtils jwtUtils = new JwtUtils();
-        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper());
+        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper(), mock(CacheService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/images/uploaded.jpg");
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
@@ -72,7 +74,7 @@ class JwtAuthFilterTest {
     @Test
     void aiServiceTokenAuthenticatesOnlyPendingActionCreation() throws Exception {
         JwtUtils jwtUtils = new JwtUtils();
-        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper());
+        JwtAuthFilter filter = new JwtAuthFilter(jwtUtils, new ObjectMapper(), mock(CacheService.class));
         ReflectionTestUtils.setField(filter, "aiServiceToken", "secret-ai-token");
 
         MockHttpServletRequest createRequest = new MockHttpServletRequest("POST", "/api/ai/actions/pending");

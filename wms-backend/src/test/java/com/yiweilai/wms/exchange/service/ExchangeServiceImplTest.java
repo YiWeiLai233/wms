@@ -1,5 +1,6 @@
 package com.yiweilai.wms.exchange.service;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exchange.entity.ExchangeOrder;
 import com.yiweilai.wms.exchange.entity.ExchangeOrderItem;
 import com.yiweilai.wms.exchange.mapper.ExchangeOrderItemMapper;
@@ -62,6 +63,9 @@ class ExchangeServiceImplTest {
     @Mock
     private WarehouseMapper warehouseMapper;
 
+    @Mock
+    private CacheService cacheService;
+
     private ExchangeServiceImpl service;
 
     @BeforeEach
@@ -75,7 +79,8 @@ class ExchangeServiceImplTest {
                 outboundOrderItemMapper,
                 stockMapper,
                 stockLogMapper,
-                warehouseMapper);
+                warehouseMapper,
+                cacheService);
     }
 
     @Test

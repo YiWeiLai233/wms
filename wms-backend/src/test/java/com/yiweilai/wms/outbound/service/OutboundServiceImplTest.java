@@ -1,5 +1,6 @@
 package com.yiweilai.wms.outbound.service;
 
+import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.outbound.dto.OutboundBatchCreateDTO;
 import com.yiweilai.wms.outbound.entity.OutboundOrder;
 import com.yiweilai.wms.outbound.entity.OutboundOrderItem;
@@ -85,6 +86,9 @@ class OutboundServiceImplTest {
     @Mock
     private ExpressFeeTemplateMapper feeTemplateMapper;
 
+    @Mock
+    private CacheService cacheService;
+
     private OutboundServiceImpl service;
 
     @BeforeEach
@@ -104,6 +108,7 @@ class OutboundServiceImplTest {
                 warehouseMapper,
                 shelfMapper,
                 feeStepMapper,
+                cacheService,
                 feeTemplateMapper);
     }
 

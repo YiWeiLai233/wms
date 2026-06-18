@@ -1,5 +1,6 @@
 package com.yiweilai.wms.exchange.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -17,6 +18,7 @@ public class ExchangeCheckDTO {
     private Long exchangeId;
 
     /** 质检明细列表 */
+    @Valid
     @NotEmpty(message = "质检明细不能为空")
     private List<ExchangeCheckItemDTO> items;
 

@@ -1,8 +1,10 @@
 package com.yiweilai.wms.exchange.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -38,6 +40,7 @@ public class ExchangeCreateDTO {
     private String remark;
 
     /** 换货明细列表 */
+    @Valid
     @NotEmpty(message = "换货明细不能为空")
     private List<ExchangeItemDTO> items;
 
@@ -62,6 +65,7 @@ public class ExchangeCreateDTO {
 
         /** 数量 */
         @NotNull(message = "数量不能为空")
+        @Positive(message = "数量必须大于0")
         private Integer quantity;
 
         /** 单价 */

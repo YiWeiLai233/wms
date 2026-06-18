@@ -201,24 +201,24 @@
           <el-divider content-position="left">首重续重配置</el-divider>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="首重(kg)" label-width="80px">
+              <el-form-item label="首重(kg)" prop="firstWeight" label-width="80px">
                 <el-input-number v-model="form.firstWeight" :min="0.1" :precision="2" style="width: 100%" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="首重费用" label-width="80px">
+              <el-form-item label="首重费用" prop="firstFee" label-width="80px">
                 <el-input-number v-model="form.firstFee" :min="0" :precision="2" style="width: 100%" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="续重(kg)" label-width="80px">
+              <el-form-item label="续重(kg)" prop="additionalWeight" label-width="80px">
                 <el-input-number v-model="form.additionalWeight" :min="0.1" :precision="2" style="width: 100%" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="续重费用" label-width="80px">
+              <el-form-item label="续重费用" prop="additionalFee" label-width="80px">
                 <el-input-number v-model="form.additionalFee" :min="0" :precision="2" style="width: 100%" />
                 <div class="text-xs text-gray-400">元/kg</div>
               </el-form-item>
@@ -274,6 +274,29 @@ const form = reactive({
 const rules: FormRules = {
   companyId: [{ required: true, message: '请选择快递公司', trigger: 'change' }],
   name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
+  templateType: [{ required: true, message: '请选择模板类型', trigger: 'change' }],
+  firstWeight: [
+    { required: true, message: '请输入首重重量', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (form.templateType === 'FIRST_CONTINUE' && Number(value) <= 0) callback(new Error('首重重量必须大于0'))
+        else callback()
+      },
+      trigger: 'change',
+    },
+  ],
+  firstFee: [{ required: true, message: '请输入首重费用', trigger: 'change' }],
+  additionalWeight: [
+    { required: true, message: '请输入续重重量', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (form.templateType === 'FIRST_CONTINUE' && Number(value) <= 0) callback(new Error('续重重量必须大于0'))
+        else callback()
+      },
+      trigger: 'change',
+    },
+  ],
+  additionalFee: [{ required: true, message: '请输入续重费用', trigger: 'change' }],
 }
 
 onMounted(async () => {
@@ -389,15 +412,46 @@ function removeStep(index: number) {
   form.steps.splice(index, 1)
 }
 
+function validateFeeTemplatePricing() {
+  if (form.templateType === 'FIRST_CONTINUE') {
+    if (form.firstFee < 0 || form.additionalFee < 0) {
+      ElMessage.warning('快递费用不能小于0')
+      return false
+    }
+    return true
+  }
+
+  if (form.steps.length === 0) {
+    ElMessage.warning('请至少添加一个费用阶梯')
+    return false
+  }
+
+  for (let index = 0; index < form.steps.length; index++) {
+    const step = form.steps[index]
+    if (step.minWeight === undefined || step.maxWeight === undefined || step.fee === undefined) {
+      ElMessage.warning(`请完整填写第 ${index + 1} 个费用阶梯`)
+      return false
+    }
+    if (step.minWeight < 0 || step.maxWeight <= step.minWeight) {
+      ElMessage.warning(`第 ${index + 1} 个费用阶梯的最大重量必须大于最小重量`)
+      return false
+    }
+    if (step.fee < 0) {
+      ElMessage.warning(`第 ${index + 1} 个费用阶梯的费用不能小于0`)
+      return false
+    }
+    if (index > 0 && step.minWeight < form.steps[index - 1].maxWeight) {
+      ElMessage.warning(`第 ${index + 1} 个费用阶梯与前一阶梯存在重叠`)
+      return false
+    }
+  }
+  return true
+}
+
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
-
-  // 阶梯计费类型需要检查 steps
-  if (form.templateType === 'LADDER' && form.steps.length === 0) {
-    ElMessage.warning('请至少添加一个费用阶梯')
-    return
-  }
+  if (!validateFeeTemplatePricing()) return
 
   submitting.value = true
   try {

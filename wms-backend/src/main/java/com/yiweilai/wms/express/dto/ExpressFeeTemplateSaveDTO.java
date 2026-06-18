@@ -1,5 +1,6 @@
 package com.yiweilai.wms.express.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -49,6 +50,7 @@ public class ExpressFeeTemplateSaveDTO {
     private String remark;
 
     /** 费用阶梯列表（阶梯计费类型使用） */
+    @Valid
     private List<FeeStepDTO> steps;
 
     /**

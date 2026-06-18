@@ -1,7 +1,10 @@
 package com.yiweilai.wms.returns.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.util.List;
@@ -17,7 +20,8 @@ public class ReturnCheckDTO {
     private Long returnId;
 
     /** 质检明细列表 */
-    @NotNull(message = "质检明细不能为空")
+    @Valid
+    @NotEmpty(message = "质检明细不能为空")
     private List<ReturnCheckItemDTO> items;
 
     /**
@@ -32,6 +36,7 @@ public class ReturnCheckDTO {
 
         /** 质检数量 */
         @NotNull(message = "数量不能为空")
+        @Positive(message = "数量必须大于0")
         private Integer quantity;
 
         /** 质检状态：SELLABLE/DEFECTIVE/SCRAPPED */

@@ -294,6 +294,7 @@ const sizeRangeText = ref('30-40')
 const rules: FormRules = {
   spuCode: [{ required: true, message: '请输入SPU编码', trigger: 'blur' }],
   name: [{ required: true, message: '请输入商品名称', trigger: 'blur' }],
+  warehouseId: [{ required: true, message: '请选择所属仓库', trigger: 'change' }],
   shelfId: [{ required: true, message: '请选择货架', trigger: 'change' }],
 }
 
