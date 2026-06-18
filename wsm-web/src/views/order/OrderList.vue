@@ -1071,19 +1071,24 @@ async function handleBatchCancel() {
   }
 
   let successCount = 0
+  let failCount = 0
   for (const order of validOrders) {
     try {
       await updateOrderStatus(order.id, 'CANCELLED')
       successCount++
-    } catch {}
+    } catch {
+      failCount++
+    }
   }
 
   if (successCount > 0) {
-    ElMessage.success(`成功取消 ${successCount} 个订单`)
+    ElMessage.success(`成功取消 ${successCount} 个订单${failCount > 0 ? `，失败 ${failCount} 个` : ''}`)
     selectedOrders.value = []
     selectMode.value = null
     tableRef.value?.clearSelection()
     fetchData()
+  } else if (failCount > 0) {
+    ElMessage.error(`取消失败，共 ${failCount} 个订单`)
   }
 }
 
@@ -1101,7 +1106,9 @@ async function handleBatchOutbound() {
     selectedOrders.value = []
     selectMode.value = null
     fetchData()
-  } catch {}
+  } catch (e: any) {
+    ElMessage.error(e?.message || '批量出库失败')
+  }
 }
 
 async function handleBatchReturn() {
@@ -1255,6 +1262,7 @@ async function handleBatchReturnSubmit() {
 
   batchReturning.value = true
   let successCount = 0
+  let failCount = 0
 
   for (const item of batchReturnItems.value) {
     try {
@@ -1275,10 +1283,12 @@ async function handleBatchReturnSubmit() {
         items: returnItems,
       })
       successCount++
-    } catch {}
+    } catch {
+      failCount++
+    }
   }
 
-  ElMessage.success(`批量退货完成，成功 ${successCount} 个`)
+  ElMessage.success(`批量退货完成，成功 ${successCount} 个${failCount > 0 ? `，失败 ${failCount} 个` : ''}`)
   batchReturnDialogVisible.value = false
   selectedOrders.value = []
   selectMode.value = null
@@ -1523,9 +1533,10 @@ const uploadUrl = computed(() =>
     ? `${BASE_URL}/api/returns/import-file`
     : `${BASE_URL}/api/orders/import-file`
 )
-const uploadHeaders = {
+// 使用computed确保token刷新后headers也能更新
+const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-}
+}))
 
 const uploadData = computed(() => ({
   warehouseId: fileImportForm.warehouseId
@@ -1769,9 +1780,17 @@ function handleUploadSuccess(response: any) {
   fileImporting.value = false
 }
 
+// HTML转义函数，防止XSS攻击
+function escapeHtml(str: string): string {
+  const div = document.createElement('div')
+  div.appendChild(document.createTextNode(str))
+  return div.innerHTML
+}
+
 function showImportResult(data: any) {
   const { successCount, totalCount, errors } = data
-  const errorList = errors.map((e: string) => `<li class="mb-1">${e}</li>`).join('')
+  // 对错误信息进行HTML转义
+  const errorList = errors.map((e: string) => `<li class="mb-1">${escapeHtml(e)}</li>`).join('')
 
   ElMessageBox.alert(
     `<div>

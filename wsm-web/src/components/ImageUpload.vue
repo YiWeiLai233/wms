@@ -33,16 +33,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ZoomIn, Delete, Plus } from '@element-plus/icons-vue'
 
 const props = withDefaults(defineProps<{
   modelValue?: string
   placeholder?: string
+  maxSize?: number
 }>(), {
   modelValue: '',
-  placeholder: '点击上传图片'
+  placeholder: '点击上传图片',
+  maxSize: 5
 })
 
 const emit = defineEmits<{
@@ -52,20 +54,21 @@ const emit = defineEmits<{
 const previewVisible = ref(false)
 
 const uploadUrl = 'http://localhost:8080/api/images/upload'
-const uploadHeaders = {
+// 使用computed确保token刷新后headers也能更新
+const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token') || ''}`
-}
+}))
 
 function beforeUpload(file: File) {
   const isImage = file.type.startsWith('image/')
-  const isLt5M = file.size / 1024 / 1024 < 5
+  const isLtMax = file.size / 1024 / 1024 < props.maxSize
 
   if (!isImage) {
     ElMessage.error('只能上传图片文件!')
     return false
   }
-  if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB!')
+  if (!isLtMax) {
+    ElMessage.error(`图片大小不能超过 ${props.maxSize}MB!`)
     return false
   }
   return true
