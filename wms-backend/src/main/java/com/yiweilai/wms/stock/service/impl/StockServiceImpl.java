@@ -241,6 +241,10 @@ public class StockServiceImpl implements StockService {
         stockLogMapper.insert(log);
     }
 
+    // 默认预警阈值常量
+    private static final int DEFAULT_LOW_STOCK_THRESHOLD = 10;
+    private static final int DEFAULT_OUT_OF_STOCK_THRESHOLD = 0;
+
     private StockVO convertToVO(Stock stock, StockAlertConfig config) {
         StockVO vo = new StockVO();
         BeanUtils.copyProperties(stock, vo);
@@ -252,8 +256,8 @@ public class StockServiceImpl implements StockService {
         vo.setTotalQuantity(total);
 
         // 计算预警状态
-        int lowThreshold = 10;
-        int outThreshold = 0;
+        int lowThreshold = DEFAULT_LOW_STOCK_THRESHOLD;
+        int outThreshold = DEFAULT_OUT_OF_STOCK_THRESHOLD;
         if (config != null) {
             lowThreshold = config.getLowStockThreshold();
             outThreshold = config.getOutOfStockThreshold();
