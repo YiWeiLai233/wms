@@ -8,6 +8,7 @@ export const ORDER_STATUS_MAP: Record<string, { label: string; color: string; ef
   OUTBOUND_FAILED: { label: '出库失败', color: 'danger' },
   RETURNING: { label: '退货中', color: 'danger', effect: 'dark' },
   RETURNED: { label: '已退货', color: 'info', effect: 'dark' },
+  PARTIAL_RETURNED: { label: '部分退货', color: 'warning' },
   EXCHANGING: { label: '换货中', color: 'purple' },
   EXCHANGED: { label: '已换货', color: 'purple', effect: 'dark' },
 }
@@ -80,41 +81,33 @@ export interface MenuItem {
 }
 
 export const MENU_LIST: MenuItem[] = [
-  { title: '仪表盘', icon: 'Odometer', path: '/dashboard' },
+  { title: '工作台', icon: 'Odometer', path: '/dashboard' },
+
   {
-    title: '智能助手',
-    icon: 'ChatDotRound',
+    title: '商品中心',
+    icon: 'ShoppingBag',
     children: [
-      { title: 'AI 助手', path: '/ai/assistant' },
-      { title: '知识库管理', path: '/ai/knowledge' },
+      { title: '商品管理', path: '/product/list' },
+      { title: 'SKU 管理', path: '/product/sku' },
+      { title: '平台管理', path: '/system/platforms' },
     ],
   },
+
   {
-    title: '仓库管理',
+    title: '仓库与库存',
     icon: 'House',
     children: [
       { title: '仓库管理', path: '/warehouse/list' },
       { title: '货架管理', path: '/warehouse/shelves' },
-      { title: '特殊仓库管理', path: '/warehouse/special' },
-    ],
-  },
-  {
-    title: '商品管理',
-    icon: 'ShoppingBag',
-    children: [
-      { title: '商品列表', path: '/product/list' },
-      { title: 'SKU 管理', path: '/product/sku' },
-    ],
-  },
-  {
-    title: '库存管理',
-    icon: 'Search',
-    children: [
+      { title: '特殊仓库', path: '/warehouse/special' },
       { title: '库存查询', path: '/stock/query' },
       { title: '库存流水', path: '/stock/log' },
-      { title: '盘点管理', path: '/stock/check' },
+      { title: '库存盘点', path: '/stock/check' },
+      { title: '库存预警', path: '/system/stock-alert' },
+      { title: '预警模板', path: '/system/stock-alert-template' },
     ],
   },
+
   {
     title: '订单中心',
     icon: 'Document',
@@ -125,27 +118,35 @@ export const MENU_LIST: MenuItem[] = [
       { title: '换货管理', path: '/exchange/list' },
     ],
   },
+
   {
-    title: '快递管理',
+    title: '快递物流',
     icon: 'Van',
     children: [
       { title: '快递查询', path: '/express/query' },
-      { title: '快递公司管理', path: '/express/companies' },
-      { title: '费用模板管理', path: '/express/fee-templates' },
-      { title: '快递费用统计', path: '/express/fee-report' },
+      { title: '快递公司', path: '/express/companies' },
+      { title: '费用模板', path: '/express/fee-templates' },
+      { title: '费用统计', path: '/express/fee-report' },
     ],
   },
+
   {
-    title: '系统管理',
+    title: '智能助手',
+    icon: 'ChatDotRound',
+    children: [
+      { title: 'AI 助手', path: '/ai/assistant' },
+      { title: '知识库管理', path: '/ai/knowledge' },
+    ],
+  },
+
+  {
+    title: '系统设置',
     icon: 'Setting',
     children: [
       { title: '用户管理', path: '/system/users' },
-      { title: '文件管理', path: '/system/files' },
       { title: '操作日志', path: '/system/logs' },
-      { title: '库存预警设置', path: '/system/stock-alert' },
-      { title: '预警模板管理', path: '/system/stock-alert-template' },
-      { title: '平台管理', path: '/system/platforms' },
-      { title: '数据库备份', path: '/system/backup' },
+      { title: '文件管理', path: '/system/files' },
+      { title: '数据备份', path: '/system/backup' },
     ],
   },
 ]

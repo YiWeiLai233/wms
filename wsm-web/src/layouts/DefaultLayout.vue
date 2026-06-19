@@ -6,10 +6,18 @@
       class="layout-aside"
     >
       <div class="logo" @click="router.push('/dashboard')">
-        <svg viewBox="0 0 32 32" class="logo-icon">
-          <rect width="32" height="32" rx="6" fill="#3b82f6" />
-          <text x="16" y="22" text-anchor="middle" fill="white" font-size="16" font-weight="bold" font-family="Arial">W</text>
-        </svg>
+        <div class="logo-icon-wrap">
+          <svg viewBox="0 0 32 32" class="logo-icon">
+            <defs>
+              <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#60a5fa" />
+                <stop offset="100%" style="stop-color:#3b82f6" />
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="8" fill="url(#logoGrad)" />
+            <text x="16" y="22" text-anchor="middle" fill="white" font-size="16" font-weight="bold" font-family="Arial">W</text>
+          </svg>
+        </div>
         <transition name="fade">
           <span v-show="!appStore.sidebarCollapsed" class="logo-text">WSM 仓库管理</span>
         </transition>
@@ -20,14 +28,14 @@
           :default-active="currentPath"
           :collapse="appStore.sidebarCollapsed"
           :collapse-transition="false"
-          background-color="#1e293b"
+          background-color="transparent"
           text-color="#94a3b8"
           active-text-color="#ffffff"
           router
         >
           <template v-for="item in MENU_LIST" :key="item.title">
             <!-- 有子菜单 -->
-            <el-sub-menu v-if="item.children" :index="item.title">
+            <el-sub-menu v-if="item.children" :index="item.title" popper-class="sidebar-popper">
               <template #title>
                 <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
                 <span>{{ item.title }}</span>
@@ -172,130 +180,202 @@ function handleCommand(command: string) {
 }
 
 .layout-aside {
-  background: #1e293b;
-  transition: width 0.3s ease;
+  background: linear-gradient(180deg, #1a2332 0%, #1e293b 100%);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: visible;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   position: relative;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
 }
 
+// Logo 区域
 .logo {
-  height: 56px;
+  height: 60px;
   display: flex;
   align-items: center;
   padding: 0 16px;
   cursor: pointer;
   flex-shrink: 0;
-  gap: 10px;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  .logo-icon-wrap {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(59, 130, 246, 0.15);
+    padding: 2px;
+  }
 
   .logo-icon {
     width: 32px;
     height: 32px;
-    flex-shrink: 0;
   }
 
   .logo-text {
     color: #fff;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
+    letter-spacing: 0.02em;
   }
 }
 
+// 菜单滚动区
 .menu-scrollbar {
   flex: 1;
   overflow: hidden;
+  padding: 8px 0;
 }
 
+// 菜单样式
 .el-menu {
   border-right: none;
+  padding: 0 8px;
 
-  :deep(.el-sub-menu__title),
-  :deep(.el-menu-item) {
-    height: 48px;
-    line-height: 48px;
+  // 子菜单标题
+  :deep(.el-sub-menu__title) {
+    height: 44px;
+    line-height: 44px;
+    margin: 2px 0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 13px;
+    color: #94a3b8 !important;
 
     &:hover {
-      background-color: #334155 !important;
+      background-color: rgba(255, 255, 255, 0.06) !important;
+      color: #cbd5e1 !important;
+    }
+
+    .el-icon {
+      font-size: 17px;
+      margin-right: 10px;
     }
   }
 
-  :deep(.el-menu-item.is-active) {
-    background-color: #3b82f6 !important;
-    color: #fff !important;
-    border-radius: 0;
+  // 子菜单展开时标题高亮
+  :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
+    color: #e2e8f0 !important;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
+
+  // 菜单项
+  :deep(.el-menu-item) {
+    height: 40px;
+    line-height: 40px;
+    margin: 1px 0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 13px;
+    padding-left: 52px !important;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.06) !important;
+      color: #cbd5e1 !important;
+    }
+
+    // 活跃状态 — 左边蓝色指示条 + 蓝色背景
+    &.is-active {
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.08) 100%) !important;
+      color: #fff !important;
+      position: relative;
+      font-weight: 500;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        background: var(--color-primary);
+        border-radius: 0 2px 2px 0;
+      }
+    }
+  }
+
+  // 一级菜单项（无子菜单）
+  :deep(.el-menu-item:first-child) {
+    padding-left: 20px !important;
   }
 }
 
+// 折叠按钮
 .sidebar-collapse-btn {
-  height: 48px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #94a3b8;
-  border-top: 1px solid #334155;
+  color: #64748b;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   transition: all 0.2s;
   flex-shrink: 0;
 
   &:hover {
-    background: #334155;
-    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
   }
 }
 
+// 拖拽手柄
 .sidebar-drag-handle {
   position: absolute;
-  right: -20px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 60px;
-  background: #3b82f6;
-  border-radius: 0 8px 8px 0;
+  width: 16px;
+  height: 48px;
+  background: var(--color-primary);
+  border-radius: 0 6px 6px 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
   box-shadow: 2px 0 8px rgba(59, 130, 246, 0.3);
 
   &:hover {
     opacity: 1;
-    right: -24px;
-    width: 24px;
-    background: #2563eb;
-    box-shadow: 4px 0 12px rgba(59, 130, 246, 0.5);
+    right: -20px;
+    width: 20px;
+    background: var(--color-primary-dark);
   }
 
   .drag-indicator {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     align-items: center;
 
     span {
-      width: 4px;
-      height: 4px;
-      background: #fff;
+      width: 3px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.8);
       border-radius: 50%;
     }
   }
 }
 
 .layout-aside:hover .sidebar-drag-handle {
-  opacity: 0.8;
+  opacity: 0.6;
 }
 
+// 主内容区
 .layout-main {
   flex-direction: column;
   overflow: hidden;
-  background: #f1f5f9;
+  background: var(--color-bg-page);
   min-width: 0;
 }
 
@@ -306,10 +386,11 @@ function handleCommand(command: string) {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-header);
   z-index: 10;
   flex-shrink: 0;
   box-sizing: border-box;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .header-left {
@@ -320,11 +401,11 @@ function handleCommand(command: string) {
 
 .collapse-btn {
   cursor: pointer;
-  color: #64748b;
-  transition: color 0.2s;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast);
 
   &:hover {
-    color: #3b82f6;
+    color: var(--color-primary);
   }
 }
 
@@ -338,30 +419,62 @@ function handleCommand(command: string) {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.2s;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
 
   &:hover {
-    background: #f1f5f9;
+    background: var(--color-bg-page);
   }
 }
 
 .user-avatar {
-  background: #3b82f6;
+  background: var(--color-primary);
   color: #fff;
   font-size: 14px;
 }
 
 .user-name {
   font-size: 14px;
-  color: #334155;
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 
 .layout-content {
   overflow-y: auto;
-  padding: 24px;
+  padding: 20px;
   flex: 1;
   min-height: 0;
+}
+</style>
+
+<style lang="scss">
+// 全局：侧边栏弹出子菜单样式
+.sidebar-popper {
+  .el-menu {
+    padding: 4px;
+    background: #1e293b !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .el-menu-item {
+    height: 38px !important;
+    line-height: 38px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    color: #94a3b8 !important;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: #e2e8f0 !important;
+    }
+
+    &.is-active {
+      background: rgba(59, 130, 246, 0.2) !important;
+      color: #fff !important;
+    }
+  }
 }
 </style>

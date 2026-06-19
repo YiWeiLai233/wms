@@ -1,5 +1,5 @@
 <template>
-  <div class="stat-card" :style="{ borderTop: `3px solid ${color}` }">
+  <div class="stat-card" :class="{ 'stat-card--clickable': to }" :style="{ borderTop: `3px solid ${color}` }" @click="handleClick">
     <div class="stat-card__content">
       <div class="stat-card__value">{{ value }}</div>
       <div class="stat-card__label">{{ label }}</div>
@@ -11,47 +11,66 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { useRouter } from 'vue-router'
+
+const props = defineProps<{
   label: string
   value: string | number
   icon: string
   color?: string
+  to?: string
 }>()
+
+const router = useRouter()
+
+function handleClick() {
+  if (props.to) {
+    router.push(props.to)
+  }
+}
 </script>
 
 <style scoped lang="scss">
 .stat-card {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
   padding: 20px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
   transition: transform 0.2s, box-shadow 0.2s;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
   }
 
   &__value {
     font-size: 28px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--color-text-primary);
     line-height: 1.2;
   }
 
   &__label {
     font-size: 14px;
-    color: #94a3b8;
+    color: var(--color-text-secondary);
     margin-top: 4px;
   }
 
   &__icon {
     width: 56px;
     height: 56px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;

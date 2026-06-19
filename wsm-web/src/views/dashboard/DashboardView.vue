@@ -5,16 +5,16 @@
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="mb-6">
       <el-col :span="6">
-        <StatCard label="今日订单" :value="dashboard.todayOrderCount" icon="Document" color="#3b82f6" />
+        <StatCard label="今日订单" :value="dashboard.todayOrderCount" icon="Document" color="#3b82f6" to="/order/list" />
       </el-col>
       <el-col :span="6">
-        <StatCard label="待出库" :value="dashboard.pendingOutboundCount" icon="TopRight" color="#f59e0b" />
+        <StatCard label="待出库" :value="dashboard.pendingOutboundCount" icon="TopRight" color="#f59e0b" to="/order/list" />
       </el-col>
       <el-col :span="6">
-        <StatCard label="今日出库" :value="dashboard.todayOutboundCount" icon="Finished" color="#10b981" />
+        <StatCard label="今日出库" :value="dashboard.todayOutboundCount" icon="Finished" color="#10b981" to="/outbound/list" />
       </el-col>
       <el-col :span="6">
-        <StatCard label="今日退货" :value="dashboard.todayReturnCount" icon="BottomLeft" color="#ef4444" />
+        <StatCard label="今日退货" :value="dashboard.todayReturnCount" icon="BottomLeft" color="#ef4444" to="/returns/list" />
       </el-col>
     </el-row>
 
@@ -138,6 +138,31 @@ const handleComboChartWheel = (e: WheelEvent) => {
   }
 }
 
+// 统一 tooltip 样式
+const TOOLTIP_STYLE = {
+  backgroundColor: 'rgba(255,255,255,0.98)',
+  borderColor: '#e2e8f0',
+  borderWidth: 1,
+  borderRadius: 10,
+  padding: [12, 16],
+  textStyle: { color: '#374151', fontSize: 13 },
+  extraCssText: 'box-shadow: 0 6px 20px rgba(0,0,0,0.1); pointer-events: auto; overscroll-behavior: contain;',
+  confine: true,
+  appendToBody: true,
+}
+
+// 生成 tooltip 中的一行数据
+const tooltipItem = (color: string, name: string, value: string | number, bold = false) => `
+  <div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
+    <span style="color:#6b7280;min-width:0">${name}</span>
+    <span style="font-weight:${bold ? '700' : '500'};color:#1f2937;margin-left:auto">${value}</span>
+  </div>`
+
+// tooltip 标题行
+const tooltipTitle = (text: string) => `
+  <div style="font-weight:600;color:#1f2937;font-size:14px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">${text}</div>`
+
 // 辅助函数：给颜色添加透明度（支持 hex 和 rgb 格式）
 const colorWithAlpha = (color: string, alpha: number): string => {
   if (!color) return `rgba(148, 163, 184, ${alpha})`
@@ -173,19 +198,14 @@ const trendOption = computed(() => {
   if (platformTrends.length > 0) {
     return {
       tooltip: {
+        ...TOOLTIP_STYLE,
         trigger: 'axis',
-        confine: true,
-        appendToBody: true,
-        extraCssText: 'pointer-events:auto;',
         formatter: (params: any) => {
-          let result = `<div onwheel="event.stopPropagation()" style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
+          let html = tooltipTitle(params[0].axisValue)
           params.forEach((param: any) => {
-            result += `<div style="display:flex;align-items:center;gap:5px">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${param.color}"></span>
-              <span>${param.seriesName}: ${param.value}</span>
-            </div>`
+            html += tooltipItem(param.color, param.seriesName, param.value + ' 单')
           })
-          return result
+          return html
         },
       },
       legend: {
@@ -225,7 +245,13 @@ const trendOption = computed(() => {
 
   // 兼容旧版：显示总计曲线
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      ...TOOLTIP_STYLE,
+      trigger: 'axis',
+      formatter: (params: any) => {
+        return tooltipTitle(params[0].axisValue) + tooltipItem('#3b82f6', '订单数', params[0].value + ' 单', true)
+      },
+    },
     grid: { left: 40, right: 20, top: 20, bottom: 30 },
     xAxis: {
       type: 'category',
@@ -282,7 +308,18 @@ const barOption = computed(() => {
   // 如果没有平台数据，使用旧的单柱子模式
   if (platforms.length === 0) {
     return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      tooltip: {
+        ...TOOLTIP_STYLE,
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params: any) => {
+          let html = tooltipTitle(params[0].axisValue)
+          params.forEach((param: any) => {
+            html += tooltipItem(param.color || '#3b82f6', '出货量', param.value + ' 件', true)
+          })
+          return html
+        },
+      },
       grid: { left: 140, right: 50, top: 10, bottom: 20 },
       xAxis: {
         type: 'value',
@@ -320,25 +357,23 @@ const barOption = computed(() => {
   // 按平台分组显示柱子
   return {
     tooltip: {
+      ...TOOLTIP_STYLE,
       trigger: 'axis',
-      confine: true,
-      appendToBody: true,
-      extraCssText: 'pointer-events:auto;',
       axisPointer: { type: 'shadow' },
       formatter: (params: any) => {
-        let result = `<div onwheel="event.stopPropagation()" style="font-weight:bold;margin-bottom:5px">${params[0].axisValue}</div>`
+        let html = tooltipTitle(params[0].axisValue)
         let total = 0
         params.forEach((param: any) => {
           if (param.value > 0) {
-            result += `<div style="display:flex;align-items:center;gap:5px">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${param.color}"></span>
-              <span>${param.seriesName}: ${param.value}</span>
-            </div>`
+            html += tooltipItem(param.color, param.seriesName, param.value + ' 件')
             total += param.value
           }
         })
-        result += `<div style="margin-top:5px;font-weight:bold">总计: ${total}</div>`
-        return result
+        html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between">
+          <span style="color:#6b7280">总计</span>
+          <span style="font-weight:700;color:#1f2937">${total} 件</span>
+        </div>`
+        return html
       },
     },
     legend: {
@@ -446,32 +481,24 @@ const platformSkuComboOption = computed(() => {
 
   return {
     tooltip: {
+      ...TOOLTIP_STYLE,
       trigger: 'axis',
-      confine: true,
       enterable: true,
-      appendToBody: true,
       position: function (point: any) {
-        // tooltip 出现在鼠标右侧偏移位置
         return { left: point[0] + 20, top: point[1] - 50 }
       },
       axisPointer: {
         type: 'shadow',
         shadowStyle: { color: 'rgba(0,0,0,0.05)' },
       },
-      backgroundColor: 'rgba(255,255,255,0.98)',
-      borderColor: '#e5e7eb',
-      borderWidth: 1,
-      borderRadius: 12,
-      padding: [14, 20],
-      textStyle: { color: '#374151', fontSize: 12 },
-      extraCssText: 'overscroll-behavior: contain; pointer-events: auto; max-width: 450px;',
+      extraCssText: TOOLTIP_STYLE.extraCssText + ' max-width: 420px;',
       formatter: (params: any) => {
         if (!params || params.length === 0) return ''
         const dateLabel = params[0]?.axisValue || ''
         const originalDate = dates.find(d => d.slice(5) === dateLabel) || ''
 
-        let html = `<div style="min-width:350px;max-width:450px;max-height:500px;overflow-y:auto;padding:8px 16px;overscroll-behavior:contain;cursor:default" onmouseenter="event.stopPropagation()" onwheel="event.stopPropagation();event.preventDefault();this.scrollTop+=event.deltaY;return false">`
-        html += `<div style="font-weight:600;color:#1f2937;font-size:14px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;position:sticky;top:0;background:rgba(255,255,255,0.98);z-index:1">📅 ${dateLabel}</div>`
+        let html = `<div style="min-width:300px;max-width:420px;max-height:400px;overflow-y:auto;padding:4px 0;overscroll-behavior:contain" onwheel="event.stopPropagation();this.scrollTop+=event.deltaY;return false">`
+        html += tooltipTitle(dateLabel)
 
         params.forEach((p: any) => {
           if (p.value === 0) return
@@ -482,25 +509,18 @@ const platformSkuComboOption = computed(() => {
           const skuSales = platformData?.skuSales?.filter(s => s.date === originalDate) || []
           const sortedSales = [...skuSales].sort((a, b) => b.quantity - a.quantity)
 
-          html += `<div style="margin-bottom:10px">`
-          html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${platformColor}"></span>
-            <span style="font-weight:600;color:#374151">${platformName}</span>
-            <span style="margin-left:auto;font-weight:600;color:#1f2937">${p.value} 件</span>
-          </div>`
+          html += tooltipItem(platformColor, platformName, p.value + ' 件', true)
 
           if (sortedSales.length > 0) {
-            html += `<div style="padding-left:18px;font-size:11px;color:#6b7280">`
+            html += `<div style="padding-left:16px;font-size:12px;color:#9ca3af;margin-bottom:4px">`
             sortedSales.forEach((s) => {
-              html += `<div style="display:flex;justify-content:space-between;padding:2px 0">
+              html += `<div style="display:flex;justify-content:space-between;padding:1px 0">
                 <span>${s.skuName}</span>
-                <span style="font-weight:500;color:#374151">${s.quantity}</span>
+                <span style="font-weight:500;color:#6b7280">${s.quantity}</span>
               </div>`
             })
             html += `</div>`
           }
-
-          html += `</div>`
         })
 
         html += `</div>`
@@ -591,26 +611,13 @@ const platformSkuHeatmapOption = computed(() => {
 
   return {
     tooltip: {
+      ...TOOLTIP_STYLE,
       position: 'top',
-      confine: true,
-      appendToBody: true,
-      extraCssText: 'pointer-events:auto;',
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      borderColor: '#e5e7eb',
-      borderWidth: 1,
-      borderRadius: 8,
-      padding: [12, 16],
-      textStyle: { color: '#374151', fontSize: 13 },
       formatter: (params: any) => {
         const platform = platformNames[params.data[0]] || ''
         const sku = skuNames[params.data[1]] || ''
         const value = params.data[2]
-        return `<div onwheel="event.stopPropagation()" style="font-weight:600;margin-bottom:6px;color:#1f2937">${platform}</div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
-                  <span>${sku}</span>
-                  <span style="font-weight:700;color:#3b82f6;margin-left:auto">${value} 件</span>
-                </div>`
+        return tooltipTitle(platform) + tooltipItem('#3b82f6', sku, value + ' 件', true)
       },
     },
     grid: {
@@ -744,23 +751,18 @@ const outOfStockChartOption = computed(() => {
   })
   return {
     tooltip: {
+      ...TOOLTIP_STYLE,
       trigger: 'axis',
-      confine: true,
-      appendToBody: true,
-      extraCssText: 'pointer-events:auto;',
       axisPointer: { type: 'shadow' },
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      borderColor: '#e5e7eb',
-      textStyle: { color: '#333', fontSize: 13 },
       formatter: (params: any) => {
         const item = sortedList[params[0]?.dataIndex]
         if (!item) return ''
         const ratio = Math.round(((item.quantity || 0) / (item.outOfStockThreshold || 1)) * 100)
-        return `<div onwheel="event.stopPropagation()" style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
-                <div>当前库存: <span style="color:#ef4444;font-weight:600">${item.quantity}</span></div>
-                <div>缺货阈值: ${item.outOfStockThreshold || 0}</div>
-                <div>库存占比: <span style="color:${ratio < 50 ? '#ef4444' : '#f59e0b'};font-weight:600">${ratio}%</span></div>
-                <div>仓库: ${item.warehouseName || '所有仓库'}</div>`
+        return tooltipTitle(item.skuName)
+          + tooltipItem('#ef4444', '当前库存', item.quantity + ' 件', true)
+          + tooltipItem('#d1d5db', '缺货阈值', (item.outOfStockThreshold || 0) + ' 件')
+          + tooltipItem(ratio < 50 ? '#ef4444' : '#f59e0b', '库存占比', ratio + '%')
+          + tooltipItem('#9ca3af', '仓库', item.warehouseName || '所有仓库')
       }
     },
     legend: {
@@ -857,23 +859,18 @@ const lowStockChartOption = computed(() => {
   })
   return {
     tooltip: {
+      ...TOOLTIP_STYLE,
       trigger: 'axis',
-      confine: true,
-      appendToBody: true,
-      extraCssText: 'pointer-events:auto;',
       axisPointer: { type: 'shadow' },
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      borderColor: '#e5e7eb',
-      textStyle: { color: '#333', fontSize: 13 },
       formatter: (params: any) => {
         const item = sortedList[params[0]?.dataIndex]
         if (!item) return ''
         const ratio = Math.round(((item.quantity || 0) / (item.lowStockThreshold || 1)) * 100)
-        return `<div onwheel="event.stopPropagation()" style="font-weight:600;margin-bottom:4px">${item.skuName}</div>
-                <div>当前库存: <span style="color:#f59e0b;font-weight:600">${item.quantity}</span></div>
-                <div>低库存阈值: ${item.lowStockThreshold || 0}</div>
-                <div>库存占比: <span style="color:${ratio < 50 ? '#ef4444' : '#22c55e'};font-weight:600">${ratio}%</span></div>
-                <div>仓库: ${item.warehouseName || '所有仓库'}</div>`
+        return tooltipTitle(item.skuName)
+          + tooltipItem('#f59e0b', '当前库存', item.quantity + ' 件', true)
+          + tooltipItem('#d1d5db', '低库存阈值', (item.lowStockThreshold || 0) + ' 件')
+          + tooltipItem(ratio < 50 ? '#ef4444' : '#22c55e', '库存占比', ratio + '%')
+          + tooltipItem('#9ca3af', '仓库', item.warehouseName || '所有仓库')
       }
     },
     legend: {
