@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -14,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AesGcmPrivacyCryptoService implements PrivacyCryptoService {
@@ -75,7 +78,11 @@ public class AesGcmPrivacyCryptoService implements PrivacyCryptoService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "privacy decrypt failed");
+            String safePreview = encryptedText.length() > 30
+                    ? encryptedText.substring(0, 30) + "..."
+                    : encryptedText;
+            log.error("privacy decrypt failed, data=[{}], error={}", safePreview, e.getMessage());
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "privacy decrypt failed: " + e.getMessage());
         }
     }
 

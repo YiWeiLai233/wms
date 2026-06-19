@@ -23,7 +23,7 @@ public class BackupScheduleTask {
     public void autoIncrementalBackup() {
         log.info("开始执行自动增量备份...");
         try {
-            backupService.incrementalBackup(null);
+            backupService.incrementalBackup(null, null);
             log.info("自动增量备份完成");
         } catch (Exception e) {
             log.error("自动增量备份失败", e);
