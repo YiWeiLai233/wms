@@ -65,9 +65,9 @@ services:
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
       # 文件路径
       FILE_UPLOAD_PATH: /app/uploads
-      FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:8080}
+      FILE_BASE_URL: ${FILE_BASE_URL:-}
       IMAGE_STORAGE_PATH: /app/uploads/images
-      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-http://localhost:8080/images}
+      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-}
       # AI 服务
       AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://localhost:8010}
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-ChangeMeAiServiceToken}

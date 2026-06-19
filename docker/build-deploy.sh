@@ -157,9 +157,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-WmsJwtSecret2026ChangeMeInProduction!}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
       FILE_UPLOAD_PATH: /app/uploads
-      FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:8080}
+      FILE_BASE_URL: ${FILE_BASE_URL:-}
       IMAGE_STORAGE_PATH: /app/uploads/images
-      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-http://localhost:8080/images}
+      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-}
       AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://localhost:8010}
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-ChangeMeAiServiceToken}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
@@ -184,8 +184,9 @@ volumes:
   uploads_data:
 COMPOSE
 
-# 复制安装脚本
+# 复制安装和更新脚本
 cp "${PROJECT_ROOT}/docker/install-standalone.sh" "${BUILD_DIR}/"
+cp "${PROJECT_ROOT}/docker/update.sh" "${BUILD_DIR}/"
 
 # ============================================================
 # 4. 打包
