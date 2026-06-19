@@ -96,6 +96,24 @@ public class ExchangeServiceImpl implements ExchangeService {
         List<ExchangeOrderItemVO> items = exchangeOrderItemMapper.findByExchangeId(id).stream()
                 .map(this::convertToItemVO)
                 .collect(Collectors.toList());
+
+        // 兼容历史数据：如果没有 RETURN_ITEM 类型的明细，自动从原订单补充
+        boolean hasReturnItem = items.stream().anyMatch(i -> "RETURN_ITEM".equals(i.getItemType()));
+        if (!hasReturnItem && order.getOrderId() != null) {
+            List<SalesOrderItem> orderItems = salesOrderItemMapper.findByOrderId(order.getOrderId());
+            for (SalesOrderItem orderItem : orderItems) {
+                ExchangeOrderItemVO returnItem = new ExchangeOrderItemVO();
+                returnItem.setSkuId(orderItem.getSkuId());
+                returnItem.setSkuCode(orderItem.getSkuCode());
+                returnItem.setSkuName(orderItem.getSkuName());
+                returnItem.setSizeValue(orderItem.getSizeValue());
+                returnItem.setQuantity(orderItem.getQuantity());
+                returnItem.setUnitPrice(orderItem.getUnitPrice());
+                returnItem.setItemType("RETURN_ITEM");
+                items.add(0, returnItem); // 添加到列表开头
+            }
+        }
+
         vo.setItems(items);
 
         return vo;

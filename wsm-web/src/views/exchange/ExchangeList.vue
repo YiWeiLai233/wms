@@ -335,14 +335,29 @@
       </el-form>
 
       <div v-if="exchangeOrder">
-        <h4 class="mb-2 text-sm font-semibold text-gray-700">退回商品（原订单商品）</h4>
-        <el-table :data="exchangeOrder.items || []" border size="small" class="mb-4">
+        <h4 class="mb-2 text-sm font-semibold text-gray-700">退回商品（勾选需要退回的商品）</h4>
+        <el-table :data="exchangeOrder.items || []" border size="small" class="mb-4" @selection-change="handleReturnSelectionChange" ref="returnTableRef">
+          <el-table-column type="selection" width="45" :selectable="(row: any) => true" />
           <el-table-column prop="skuCode" label="SKU编码" width="130" />
           <el-table-column prop="skuName" label="SKU名称" min-width="100" />
           <el-table-column prop="sizeValue" label="码数" width="80" align="center">
             <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column label="原数量" width="80" align="center">
+            <template #default="{ row }">{{ row.quantity }}</template>
+          </el-table-column>
+          <el-table-column label="退回数量" width="130">
+            <template #default="{ row }">
+              <el-input-number
+                v-model="getReturnItem(row).quantity"
+                :min="1"
+                :max="row.quantity"
+                size="small"
+                style="width: 100px"
+                :disabled="!isReturnItemSelected(row)"
+              />
+            </template>
+          </el-table-column>
         </el-table>
 
         <div class="flex items-center justify-between mb-2">
@@ -507,6 +522,8 @@ const createForm = ref({
   remark: '',
   items: [] as { skuId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; image?: string }[],
 })
+// 选中的退回商品（带可修改数量）
+const selectedReturnItems = ref<{ skuId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; maxQuantity: number }[]>([])
 const createTemplateList = ref<any[]>([])
 const createTemplateDetail = ref<any>(null)
 
@@ -796,6 +813,7 @@ async function openCreateDialog() {
   createTemplateList.value = []
   createTemplateDetail.value = null
   exchangeOrder.value = null
+  selectedReturnItems.value = []
   skuList.value = []
   createDialogVisible.value = true
 }
@@ -831,6 +849,44 @@ async function loadOrderForExchange() {
   } catch {
     ElMessage.error('查询订单失败')
   }
+}
+
+// 退回商品选择相关
+const returnTableRef = ref<any>(null)
+
+function handleReturnSelectionChange(selection: any[]) {
+  // 同步选中状态到 selectedReturnItems
+  const existingMap = new Map(selectedReturnItems.value.map(i => [i.skuId, i]))
+  selectedReturnItems.value = selection.map(row => {
+    const existing = existingMap.get(row.skuId)
+    return existing || {
+      skuId: row.skuId,
+      skuCode: row.skuCode,
+      skuName: row.skuName,
+      sizeValue: row.sizeValue,
+      quantity: row.quantity, // 默认退回原数量
+      maxQuantity: row.quantity,
+    }
+  })
+}
+
+function isReturnItemSelected(row: any): boolean {
+  return selectedReturnItems.value.some(i => i.skuId === row.skuId)
+}
+
+function getReturnItem(row: any) {
+  let item = selectedReturnItems.value.find(i => i.skuId === row.skuId)
+  if (!item) {
+    item = {
+      skuId: row.skuId,
+      skuCode: row.skuCode,
+      skuName: row.skuName,
+      sizeValue: row.sizeValue,
+      quantity: row.quantity,
+      maxQuantity: row.quantity,
+    }
+  }
+  return item
 }
 
 function openSkuSelector() {
@@ -971,9 +1027,33 @@ async function handleCreate() {
     ElMessage.warning('请添加换出商品')
     return
   }
+  if (selectedReturnItems.value.length === 0) {
+    ElMessage.warning('请勾选需要退回的商品')
+    return
+  }
 
   creating.value = true
   try {
+    // 合并退回商品和换出商品
+    const allItems = [
+      ...selectedReturnItems.value.map(i => ({
+        skuId: i.skuId,
+        skuCode: i.skuCode,
+        skuName: i.skuName,
+        sizeValue: i.sizeValue,
+        quantity: i.quantity,
+        itemType: 'RETURN_ITEM' as const,
+      })),
+      ...createForm.value.items.map(i => ({
+        skuId: i.skuId,
+        skuCode: i.skuCode,
+        skuName: i.skuName,
+        sizeValue: i.sizeValue,
+        quantity: i.quantity,
+        itemType: 'EXCHANGE_ITEM' as const,
+      })),
+    ]
+
     await createExchange({
       orderId: exchangeOrder.value.id,
       warehouseId: createForm.value.warehouseId,
@@ -984,14 +1064,7 @@ async function handleCreate() {
       remark: createForm.value.responsibleParty === 'CUSTOMER'
         ? `客户自付快递费${createForm.value.remark ? '，' + createForm.value.remark : ''}`
         : createForm.value.remark || undefined,
-      items: createForm.value.items.map(i => ({
-        skuId: i.skuId,
-        skuCode: i.skuCode,
-        skuName: i.skuName,
-        sizeValue: i.sizeValue,
-        quantity: i.quantity,
-        itemType: 'EXCHANGE_ITEM',
-      })),
+      items: allItems,
     })
     ElMessage.success('换货单创建成功')
     createDialogVisible.value = false

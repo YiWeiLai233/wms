@@ -271,7 +271,7 @@
         </el-table>
 
         <h4 class="mb-2 text-sm font-semibold text-green-500">换出商品（换货后）</h4>
-        <el-table :data="exchangeNewItems" border size="small">
+        <el-table :data="exchangeNewItems" border size="small" class="mb-4">
           <el-table-column label="图片" width="60" align="center">
             <template #default="{ row }">
               <ImagePreview :src="row.image" />
@@ -284,6 +284,27 @@
           </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" align="center" />
         </el-table>
+
+        <!-- 正常售出商品（未参与换货） -->
+        <template v-if="normalItems.length > 0">
+          <h4 class="mb-2 text-sm font-semibold text-blue-500">正常售出商品</h4>
+          <el-table :data="normalItems" border size="small">
+            <el-table-column label="图片" width="60" align="center">
+              <template #default="{ row }">
+                <ImagePreview :src="row.skuImage" />
+              </template>
+            </el-table-column>
+            <el-table-column prop="skuCode" label="SKU编码" width="130" />
+            <el-table-column prop="skuName" label="SKU名称" min-width="100" />
+            <el-table-column prop="sizeValue" label="码数" width="80" align="center">
+              <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="quantity" label="数量" width="80" align="center" />
+            <el-table-column prop="totalPrice" label="小计" width="90" align="right">
+              <template #default="{ row }">¥{{ row.totalPrice?.toFixed(2) }}</template>
+            </el-table-column>
+          </el-table>
+        </template>
       </template>
 
       <!-- 普通订单明细 -->
@@ -1005,6 +1026,11 @@ const exchangeReturnItems = computed(() => {
 })
 const exchangeNewItems = computed(() => {
   return (exchangeDetail.value?.items || []).filter((i: any) => i.itemType === 'EXCHANGE_ITEM')
+})
+// 未参与换货的正常售出商品
+const normalItems = computed(() => {
+  const returnSkuIds = new Set(exchangeReturnItems.value.map((i: any) => i.skuId))
+  return (detail.value.items || []).filter((i: any) => !returnSkuIds.has(i.skuId))
 })
 
 // 编辑订单相关
