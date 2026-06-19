@@ -36,7 +36,7 @@ public class FileServiceImpl implements FileService {
     @Value("${file.upload-path:/app/uploads}")
     private String uploadPath;
 
-    @Value("${file.base-url:http://localhost:8080}")
+    @Value("${file.base-url:}")
     private String baseUrl;
 
     @Override
