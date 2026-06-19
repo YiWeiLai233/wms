@@ -917,3 +917,13 @@ async function handleConfirm() {
   margin-bottom: 16px;
 }
 </style>
+
+<style>
+/* 紫色标签样式（全局） */
+.el-tag--purple {
+  --el-tag-bg-color: #f3e8ff;
+  --el-tag-border-color: #d8b4fe;
+  --el-tag-text-color: #7c3aed;
+  --el-tag-hover-color: #ede9fe;
+}
+</style>

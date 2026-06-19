@@ -18,6 +18,7 @@ export const OUTBOUND_STATUS_MAP: Record<string, { label: string; color: string 
   PICKING: { label: '拣货中', color: '' },
   PICKED: { label: '已拣货', color: 'success' },
   SHIPPED: { label: '已发货', color: 'success' },
+  EXCHANGED: { label: '已换货', color: 'purple' },
   CANCELLED: { label: '已取消', color: 'danger' },
 }
 
