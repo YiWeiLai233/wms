@@ -37,6 +37,13 @@ mvnw.cmd
 # Uploads
 uploads/
 
+# Backup and build artifacts
+backups/
+wms.zip
+
+# Android (separate repo)
+wms-android/
+
 # Sensitive files
 **/application.properties
 **/application-*.properties
