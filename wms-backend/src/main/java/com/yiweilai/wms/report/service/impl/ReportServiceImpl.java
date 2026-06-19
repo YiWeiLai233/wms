@@ -194,12 +194,12 @@ public class ReportServiceImpl implements ReportService {
         // 本月出货量TOP10 SKU（扣除已退货数量）
         String monthStart = LocalDate.now().withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-        // 1. 查询出库数量
+        // 1. 查询出库数量（包含已换货的出库单）
         List<Map<String, Object>> shippedList = jdbcTemplate.queryForList(
                 "SELECT oi.sku_id, oi.sku_code, oi.sku_name, SUM(oi.quantity) AS shipped_qty " +
                 "FROM outbound_order_item oi " +
                 "JOIN outbound_order o ON oi.outbound_id = o.id AND o.deleted = 0 " +
-                "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? " +
+                "WHERE o.status IN ('SHIPPED', 'EXCHANGED') AND o.shipped_at >= ? " +
                 "GROUP BY oi.sku_id, oi.sku_code, oi.sku_name",
                 monthStart);
 
@@ -212,9 +212,23 @@ public class ReportServiceImpl implements ReportService {
                 "GROUP BY ri.sku_id",
                 monthStart);
 
-        // 3. 合并：出库 - 退货
+        // 2.1 查询换货退回数量
+        List<Map<String, Object>> exchangeReturnedList = jdbcTemplate.queryForList(
+                "SELECT eoi.sku_id, SUM(eoi.quantity) AS returned_qty " +
+                "FROM exchange_order_item eoi " +
+                "JOIN exchange_order eo ON eoi.exchange_id = eo.id " +
+                "WHERE eoi.item_type = 'RETURN_ITEM' AND eo.created_at >= ? " +
+                "GROUP BY eoi.sku_id",
+                monthStart);
+
+        // 3. 合并：出库 - 退货 - 换货退回
         Map<Long, Long> returnedQtyMap = new HashMap<>();
         for (Map<String, Object> row : returnedList) {
+            Long skuId = ((Number) row.get("sku_id")).longValue();
+            Long qty = ((Number) row.get("returned_qty")).longValue();
+            returnedQtyMap.put(skuId, returnedQtyMap.getOrDefault(skuId, 0L) + qty);
+        }
+        for (Map<String, Object> row : exchangeReturnedList) {
             Long skuId = ((Number) row.get("sku_id")).longValue();
             Long qty = ((Number) row.get("returned_qty")).longValue();
             returnedQtyMap.put(skuId, returnedQtyMap.getOrDefault(skuId, 0L) + qty);
@@ -252,13 +266,13 @@ public class ReportServiceImpl implements ReportService {
                 String platformName = (String) platform.get("name");
                 String platformColor = (String) platform.get("color");
 
-                // 查询该平台该SKU的出库数量
+                // 查询该平台该SKU的出库数量（包含已换货的出库单）
                 Long shippedQty = jdbcTemplate.queryForObject(
                         "SELECT COALESCE(SUM(oi.quantity), 0) " +
                         "FROM outbound_order_item oi " +
                         "JOIN outbound_order o ON oi.outbound_id = o.id AND o.deleted = 0 " +
                         "JOIN sales_order so ON o.order_no = so.order_no AND so.deleted = 0 " +
-                        "WHERE o.status = 'SHIPPED' AND o.shipped_at >= ? " +
+                        "WHERE o.status IN ('SHIPPED', 'EXCHANGED') AND o.shipped_at >= ? " +
                         "AND oi.sku_id = ? AND so.platform_id = ?",
                         Long.class, monthStart, rank.getSkuId(), platformId);
 
@@ -271,7 +285,17 @@ public class ReportServiceImpl implements ReportService {
                         "WHERE ri.sku_id = ? AND so.platform_id = ? AND ro.created_at >= ?",
                         Long.class, rank.getSkuId(), platformId, monthStart);
 
-                Long quantity = Math.max((shippedQty != null ? shippedQty : 0L) - (returnedQty != null ? returnedQty : 0L), 0L);
+                // 查询该平台该SKU的换货退回数量
+                Long exchangeReturnedQty = jdbcTemplate.queryForObject(
+                        "SELECT COALESCE(SUM(eoi.quantity), 0) " +
+                        "FROM exchange_order_item eoi " +
+                        "JOIN exchange_order eo ON eoi.exchange_id = eo.id " +
+                        "JOIN sales_order so ON eo.order_id = so.id AND so.deleted = 0 " +
+                        "WHERE eoi.item_type = 'RETURN_ITEM' AND eoi.sku_id = ? AND so.platform_id = ? AND eo.created_at >= ?",
+                        Long.class, rank.getSkuId(), platformId, monthStart);
+
+                Long totalReturned = (returnedQty != null ? returnedQty : 0L) + (exchangeReturnedQty != null ? exchangeReturnedQty : 0L);
+                Long quantity = Math.max((shippedQty != null ? shippedQty : 0L) - totalReturned, 0L);
 
                 quantity = quantity != null ? quantity : 0L;
                 remainingQuantity -= quantity;
@@ -353,10 +377,10 @@ public class ReportServiceImpl implements ReportService {
                 "FROM outbound_order o " +
                 "JOIN outbound_order_item oi ON o.id = oi.outbound_id " +
                 "LEFT JOIN sales_order so ON (o.order_id = so.id OR (o.order_id IS NULL AND o.order_no = so.order_no)) AND so.deleted = 0 " +
-                "WHERE o.deleted = 0 AND o.status = 'SHIPPED' " +
+                "WHERE o.deleted = 0 AND o.status IN ('SHIPPED', 'EXCHANGED') " +
                 "AND so.id IS NOT NULL " +
                 "AND COALESCE(o.shipped_at, o.updated_at) >= ? " +
-                "AND so.order_status NOT IN ('CANCELLED', 'EXCHANGING') " +
+                "AND so.order_status != 'CANCELLED' " +
                 shippedPlatformCondition +
                 "GROUP BY DATE(COALESCE(o.shipped_at, o.updated_at)), oi.sku_name",
                 shippedParams);
@@ -379,10 +403,29 @@ public class ReportServiceImpl implements ReportService {
                 "GROUP BY DATE(ro.created_at), ri.sku_name",
                 returnedParams);
 
-        // 3. 合并：出库 - 退货
+        // 2.1 查询换货退回数据
+        List<Map<String, Object>> exchangeReturnedList = jdbcTemplate.queryForList(
+                "SELECT DATE(eo.created_at) as return_date, eoi.sku_name, SUM(eoi.quantity) as returned_qty " +
+                "FROM exchange_order_item eoi " +
+                "JOIN exchange_order eo ON eoi.exchange_id = eo.id " +
+                "LEFT JOIN sales_order so ON eo.order_id = so.id AND so.deleted = 0 " +
+                "WHERE eoi.item_type = 'RETURN_ITEM' AND eo.created_at >= ? " +
+                (platformId != null ? "AND so.platform_id = ? " : "AND (so.platform_id IS NULL OR NOT EXISTS (SELECT 1 FROM platform p WHERE p.id = so.platform_id AND p.deleted = 0 AND p.enabled = 1)) ") +
+                "GROUP BY DATE(eo.created_at), eoi.sku_name",
+                platformId != null ? new Object[]{sevenDaysAgo, platformId} : new Object[]{sevenDaysAgo});
+
+        // 3. 合并：出库 - 退货 - 换货退回
         // 返回退货 Map: "date|skuName" -> qty
         Map<String, Long> returnMap = new HashMap<>();
         for (Map<String, Object> row : returnedList) {
+            String date = row.get("return_date").toString();
+            String skuName = (String) row.get("sku_name");
+            Long qty = ((Number) row.get("returned_qty")).longValue();
+            String key = date + "|" + skuName;
+            returnMap.put(key, returnMap.getOrDefault(key, 0L) + qty);
+        }
+        // 加上换货退回数量
+        for (Map<String, Object> row : exchangeReturnedList) {
             String date = row.get("return_date").toString();
             String skuName = (String) row.get("sku_name");
             Long qty = ((Number) row.get("returned_qty")).longValue();
