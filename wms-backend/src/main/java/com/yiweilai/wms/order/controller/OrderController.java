@@ -353,7 +353,7 @@ public class OrderController {
     @OperationLog(module = "order", action = "update_status", targetType = "SalesOrder", targetIdParam = "id")
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Long id,
-                                     @Valid @RequestBody OrderStatusUpdateDTO dto) {
+                                     @RequestBody OrderStatusUpdateDTO dto) {
         dto.setOrderId(id);
         orderService.updateStatus(dto);
         return Result.success();
