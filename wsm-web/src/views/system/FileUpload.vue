@@ -78,14 +78,12 @@ import type { FileInfo } from '@/api/file'
 import { formatDateTime } from '@/utils/format'
 import PageHeader from '@/components/PageHeader.vue'
 
-const BASE_URL = 'http://localhost:8080'
-
 const uploadRef = ref<UploadInstance>()
 const fileList = ref<FileInfo[]>([])
 const loading = ref(false)
 
 // 上传配置
-const uploadUrl = computed(() => `${BASE_URL}/api/files/upload`)
+const uploadUrl = '/api/files/upload'
 const uploadHeaders = computed(() => {
   const token = localStorage.getItem('token')
   return token ? { Authorization: `Bearer ${token}` } : {}

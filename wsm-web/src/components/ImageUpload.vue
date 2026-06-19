@@ -53,7 +53,7 @@ const emit = defineEmits<{
 
 const previewVisible = ref(false)
 
-const uploadUrl = 'http://localhost:8080/api/images/upload'
+const uploadUrl = '/api/images/upload'
 // 使用computed确保token刷新后headers也能更新
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token') || ''}`
