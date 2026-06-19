@@ -82,43 +82,42 @@ export interface MenuItem {
 }
 
 export const MENU_LIST: MenuItem[] = [
-  { title: '仪表盘', icon: 'Odometer', path: '/dashboard', permission: 'dashboard' },
+  { title: '工作台', icon: 'Odometer', path: '/dashboard', permission: 'dashboard' },
+
   {
-    title: '智能助手',
-    icon: 'ChatDotRound',
+    title: '商品',
+    icon: 'ShoppingBag',
     children: [
-      { title: 'AI 助手', path: '/ai/assistant', permission: 'ai.assistant' },
-      { title: '知识库管理', path: '/ai/knowledge', permission: 'ai.knowledge' },
+      { title: '商品管理', path: '/product/list', permission: 'product.list' },
+      { title: 'SKU 管理', path: '/product/sku', permission: 'product.sku' },
+      { title: '平台管理', path: '/system/platforms', permission: 'system.platforms' },
     ],
   },
+
   {
-    title: '仓库管理',
+    title: '仓库',
     icon: 'House',
     children: [
       { title: '仓库管理', path: '/warehouse/list', permission: 'warehouse.list' },
       { title: '货架管理', path: '/warehouse/shelves', permission: 'warehouse.shelf' },
-      { title: '特殊仓库管理', path: '/warehouse/special', permission: 'warehouse.special' },
+      { title: '特殊仓库', path: '/warehouse/special', permission: 'warehouse.special' },
     ],
   },
+
   {
-    title: '商品管理',
-    icon: 'ShoppingBag',
-    children: [
-      { title: '商品列表', path: '/product/list', permission: 'product.list' },
-      { title: 'SKU 管理', path: '/product/sku', permission: 'product.sku' },
-    ],
-  },
-  {
-    title: '库存管理',
-    icon: 'Search',
+    title: '库存',
+    icon: 'Box',
     children: [
       { title: '库存查询', path: '/stock/query', permission: 'stock.query' },
       { title: '库存流水', path: '/stock/log', permission: 'stock.log' },
-      { title: '盘点管理', path: '/stock/check', permission: 'stock.check' },
+      { title: '库存盘点', path: '/stock/check', permission: 'stock.check' },
+      { title: '库存预警', path: '/system/stock-alert', permission: 'system' },
+      { title: '预警模板', path: '/system/stock-alert-template', permission: 'system' },
     ],
   },
+
   {
-    title: '订单中心',
+    title: '订单',
     icon: 'Document',
     children: [
       { title: '订单管理', path: '/order/list', permission: 'order.list' },
@@ -127,28 +126,36 @@ export const MENU_LIST: MenuItem[] = [
       { title: '换货管理', path: '/exchange/list', permission: 'exchange.list' },
     ],
   },
+
   {
-    title: '快递管理',
+    title: '物流',
     icon: 'Van',
     children: [
       { title: '快递查询', path: '/express/query', permission: 'express.query' },
-      { title: '快递公司管理', path: '/express/companies', permission: 'express.company' },
-      { title: '费用模板管理', path: '/express/fee-templates', permission: 'express.template' },
-      { title: '快递费用统计', path: '/express/fee-report', permission: 'express.report' },
+      { title: '快递公司', path: '/express/companies', permission: 'express.company' },
+      { title: '费用模板', path: '/express/fee-templates', permission: 'express.template' },
+      { title: '费用统计', path: '/express/fee-report', permission: 'express.report' },
     ],
   },
+
   {
-    title: '系统管理',
+    title: 'AI',
+    icon: 'ChatDotRound',
+    children: [
+      { title: 'AI 助手', path: '/ai/assistant', permission: 'ai.assistant' },
+      { title: '知识库', path: '/ai/knowledge', permission: 'ai.knowledge' },
+    ],
+  },
+
+  {
+    title: '设置',
     icon: 'Setting',
     children: [
       { title: '用户管理', path: '/system/users', permission: 'system.users' },
       { title: '角色管理', path: '/system/roles', permission: 'system.roles' },
-      { title: '文件管理', path: '/system/files', permission: 'system.files' },
       { title: '操作日志', path: '/system/logs', permission: 'system.logs' },
-      { title: '库存预警设置', path: '/system/stock-alert', permission: 'system' },
-      { title: '预警模板管理', path: '/system/stock-alert-template', permission: 'system' },
-      { title: '平台管理', path: '/system/platforms', permission: 'system.platforms' },
-      { title: '数据库备份', path: '/system/backup', permission: 'system.backup' },
+      { title: '文件管理', path: '/system/files', permission: 'system.files' },
+      { title: '数据备份', path: '/system/backup', permission: 'system.backup' },
     ],
   },
 ]
