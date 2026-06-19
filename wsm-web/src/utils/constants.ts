@@ -63,6 +63,7 @@ export const STOCK_BIZ_TYPE_MAP: Record<string, { label: string; color: string; 
   INBOUND: { label: '入库', color: 'primary' },
   OUTBOUND: { label: '出库', color: 'success' },
   RETURN: { label: '退货', color: 'warning' },
+  CANCEL: { label: '取消', color: 'danger' },
   EXCHANGE: { label: '换货', color: 'info', className: 'exchange-stock-tag' },
   ADJUST: { label: '调整', color: 'info' },
   LOCK: { label: '锁定', color: 'danger' },

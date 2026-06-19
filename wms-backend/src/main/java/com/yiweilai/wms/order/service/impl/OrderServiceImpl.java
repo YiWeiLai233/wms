@@ -286,7 +286,7 @@ public class OrderServiceImpl implements OrderService {
             }
 
             StockLog log = new StockLog();
-            log.setBizType("RETURN");
+            log.setBizType("CANCEL");
             log.setBizNo(order.getOrderNo());
             log.setSkuId(item.getSkuId());
             log.setWarehouseId(order.getWarehouseId());
