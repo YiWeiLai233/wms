@@ -2,6 +2,7 @@ package com.yiweilai.wms.returns.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.returns.dto.ReturnBatchCreateDTO;
 import com.yiweilai.wms.returns.dto.ReturnCheckDTO;
 import com.yiweilai.wms.returns.dto.ReturnConfirmDTO;
@@ -67,6 +68,7 @@ public class ReturnController {
     /**
      * 创建退货单
      */
+    @OperationLog(module = "return", action = "create", targetType = "ReturnOrder")
     @PostMapping("/create")
     public Result<Long> create(@Valid @RequestBody ReturnCreateDTO dto) {
         return Result.success(returnService.create(dto));
@@ -75,6 +77,7 @@ public class ReturnController {
     /**
      * 批量创建退货单
      */
+    @OperationLog(module = "return", action = "create_batch", targetType = "ReturnOrder")
     @PostMapping("/create-batch")
     public Result<List<Long>> createBatch(@Valid @RequestBody ReturnBatchCreateDTO dto) {
         return Result.success(returnService.createBatch(dto));
@@ -83,6 +86,7 @@ public class ReturnController {
     /**
      * 退货质检
      */
+    @OperationLog(module = "return", action = "check", targetType = "ReturnOrder")
     @PostMapping("/check")
     public Result<Void> check(@Valid @RequestBody ReturnCheckDTO dto) {
         returnService.check(dto);
@@ -92,6 +96,7 @@ public class ReturnController {
     /**
      * 确认退货入库
      */
+    @OperationLog(module = "return", action = "confirm", targetType = "ReturnOrder")
     @PostMapping("/confirm")
     public Result<Void> confirm(@Valid @RequestBody ReturnConfirmDTO dto) {
         returnService.confirm(dto.getReturnId(), dto.getItems());
@@ -101,6 +106,7 @@ public class ReturnController {
     /**
      * 取消退货单
      */
+    @OperationLog(module = "return", action = "cancel", targetType = "ReturnOrder", targetIdParam = "id")
     @PostMapping("/{id}/cancel")
     public Result<Void> cancel(@PathVariable Long id) {
         returnService.cancel(id);
@@ -119,6 +125,7 @@ public class ReturnController {
     /**
      * 文档导入退货单
      */
+    @OperationLog(module = "return", action = "import_file", targetType = "ReturnOrder")
     @PostMapping("/import-file")
     public Result<Object> importFromFile(@RequestParam("file") MultipartFile file) {
         try {

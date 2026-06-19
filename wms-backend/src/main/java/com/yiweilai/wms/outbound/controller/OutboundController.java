@@ -2,6 +2,7 @@ package com.yiweilai.wms.outbound.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.outbound.dto.OutboundBatchCreateDTO;
 import com.yiweilai.wms.outbound.dto.OutboundConfirmDTO;
 import com.yiweilai.wms.outbound.dto.OutboundCreateDTO;
@@ -45,6 +46,7 @@ public class OutboundController {
     /**
      * 创建出库单
      */
+    @OperationLog(module = "outbound", action = "create", targetType = "OutboundOrder")
     @PostMapping("/create")
     public Result<Long> create(@Valid @RequestBody OutboundCreateDTO dto) {
         return Result.success(outboundService.create(dto));
@@ -53,6 +55,7 @@ public class OutboundController {
     /**
      * 批量创建出库单
      */
+    @OperationLog(module = "outbound", action = "create_batch", targetType = "OutboundOrder")
     @PostMapping("/create-batch")
     public Result<List<Long>> createBatch(@Valid @RequestBody OutboundBatchCreateDTO dto) {
         return Result.success(outboundService.createBatch(dto));
@@ -70,6 +73,7 @@ public class OutboundController {
     /**
      * 确认出库
      */
+    @OperationLog(module = "outbound", action = "confirm", targetType = "OutboundOrder")
     @PostMapping("/confirm")
     public Result<Void> confirm(@Valid @RequestBody OutboundConfirmDTO dto) {
         outboundService.confirm(dto);
@@ -79,6 +83,7 @@ public class OutboundController {
     /**
      * 更新发货单信息
      */
+    @OperationLog(module = "outbound", action = "update", targetType = "OutboundOrder", targetIdParam = "id")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id,
                                @Valid @RequestBody OutboundUpdateDTO dto) {
@@ -90,6 +95,7 @@ public class OutboundController {
     /**
      * 取消出库单
      */
+    @OperationLog(module = "outbound", action = "cancel", targetType = "OutboundOrder", targetIdParam = "id")
     @PostMapping("/{id}/cancel")
     public Result<Void> cancel(@PathVariable Long id) {
         outboundService.cancel(id);

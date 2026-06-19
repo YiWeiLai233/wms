@@ -2,6 +2,7 @@ package com.yiweilai.wms.warehouse.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.warehouse.dto.WarehouseQueryDTO;
 import com.yiweilai.wms.warehouse.dto.WarehouseSaveDTO;
 import com.yiweilai.wms.warehouse.service.WarehouseService;
@@ -39,6 +40,7 @@ public class WarehouseController {
     /**
      * 新增仓库
      */
+    @OperationLog(module = "warehouse", action = "create", targetType = "Warehouse")
     @PostMapping
     public Result<Long> create(@Valid @RequestBody WarehouseSaveDTO dto) {
         return Result.success(warehouseService.create(dto));
@@ -47,6 +49,7 @@ public class WarehouseController {
     /**
      * 修改仓库
      */
+    @OperationLog(module = "warehouse", action = "update", targetType = "Warehouse")
     @PutMapping
     public Result<Void> update(@Valid @RequestBody WarehouseSaveDTO dto) {
         warehouseService.update(dto);
@@ -56,6 +59,7 @@ public class WarehouseController {
     /**
      * 删除仓库
      */
+    @OperationLog(module = "warehouse", action = "delete", targetType = "Warehouse", targetIdParam = "id")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         warehouseService.delete(id);

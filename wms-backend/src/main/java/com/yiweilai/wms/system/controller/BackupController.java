@@ -1,6 +1,7 @@
 package com.yiweilai.wms.system.controller;
 
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.system.entity.BackupRecord;
 import com.yiweilai.wms.system.service.BackupService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,6 +27,7 @@ public class BackupController {
     /**
      * 全量备份
      */
+    @OperationLog(module = "system", action = "backup_full", targetType = "Backup")
     @PostMapping("/full")
     public Result<BackupRecord> fullBackup(@RequestBody(required = false) Map<String, String> body) {
         String backupPath = body != null ? body.get("backupPath") : null;
@@ -35,6 +37,7 @@ public class BackupController {
     /**
      * 增量备份
      */
+    @OperationLog(module = "system", action = "backup_incremental", targetType = "Backup")
     @PostMapping("/incremental")
     public Result<BackupRecord> incrementalBackup(@RequestBody(required = false) Map<String, String> body) {
         String backupPath = body != null ? body.get("backupPath") : null;
@@ -74,6 +77,7 @@ public class BackupController {
     /**
      * 删除备份记录
      */
+    @OperationLog(module = "system", action = "backup_delete", targetType = "Backup", targetIdParam = "id")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         backupService.deleteBackup(id);

@@ -18,27 +18,24 @@ public class OperationLog {
     /** 操作人姓名 */
     private String userName;
 
-    /** 操作类型 */
-    private String operation;
+    /** 模块 */
+    private String module;
 
-    /** 方法名 */
-    private String method;
+    /** 操作 */
+    private String action;
 
-    /** 请求参数 */
-    private String params;
+    /** 操作对象类型 */
+    private String targetType;
 
-    /** 返回结果 */
-    private String result;
+    /** 操作对象ID */
+    private Long targetId;
 
-    /** 操作状态：0-失败 1-成功 */
-    private Integer status;
+    /** 操作详情 */
+    private String detail;
 
-    /** 错误信息 */
-    private String errorMsg;
-
-    /** 操作IP */
+    /** IP地址 */
     private String ip;
 
-    /** 操作时间 */
+    /** 创建时间 */
     private LocalDateTime createdAt;
 }

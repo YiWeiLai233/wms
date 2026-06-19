@@ -16,8 +16,8 @@ public interface OperationLogMapper {
      * 分页查询日志
      */
     List<OperationLog> findByPage(@Param("userId") Long userId,
-                                  @Param("operation") String operation,
-                                  @Param("status") Integer status);
+                                  @Param("module") String module,
+                                  @Param("action") String action);
 
     /**
      * 新增日志

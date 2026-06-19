@@ -2,6 +2,7 @@ package com.yiweilai.wms.product.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.product.dto.ProductBarcodeSaveDTO;
 import com.yiweilai.wms.product.dto.ProductSkuQueryDTO;
 import com.yiweilai.wms.product.dto.ProductSkuSaveDTO;
@@ -59,6 +60,7 @@ public class ProductSkuController {
     /**
      * 新增SKU
      */
+    @OperationLog(module = "product", action = "sku_create", targetType = "ProductSku")
     @PostMapping
     public Result<Long> create(@Valid @RequestBody ProductSkuSaveDTO dto) {
         return Result.success(skuService.create(dto));
@@ -67,6 +69,7 @@ public class ProductSkuController {
     /**
      * 修改SKU
      */
+    @OperationLog(module = "product", action = "sku_update", targetType = "ProductSku")
     @PutMapping
     public Result<Void> update(@Valid @RequestBody ProductSkuSaveDTO dto) {
         skuService.update(dto);
@@ -76,6 +79,7 @@ public class ProductSkuController {
     /**
      * 删除SKU
      */
+    @OperationLog(module = "product", action = "sku_delete", targetType = "ProductSku", targetIdParam = "id")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         skuService.delete(id);

@@ -2,6 +2,7 @@ package com.yiweilai.wms.express.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.express.dto.ExpressCompanySaveDTO;
 import com.yiweilai.wms.express.service.ExpressCompanyService;
 import com.yiweilai.wms.express.vo.ExpressCompanyVO;
@@ -58,6 +59,7 @@ public class ExpressCompanyController {
     /**
      * 新增
      */
+    @OperationLog(module = "express", action = "create", targetType = "ExpressCompany")
     @Operation(summary = "新增公司")
     @PostMapping
     public Result<Long> create(@Valid @RequestBody ExpressCompanySaveDTO dto) {
@@ -67,6 +69,7 @@ public class ExpressCompanyController {
     /**
      * 修改
      */
+    @OperationLog(module = "express", action = "update", targetType = "ExpressCompany")
     @Operation(summary = "修改公司")
     @PutMapping
     public Result<Void> update(@Valid @RequestBody ExpressCompanySaveDTO dto) {
@@ -77,6 +80,7 @@ public class ExpressCompanyController {
     /**
      * 删除
      */
+    @OperationLog(module = "express", action = "delete", targetType = "ExpressCompany", targetIdParam = "id")
     @Operation(summary = "删除公司")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

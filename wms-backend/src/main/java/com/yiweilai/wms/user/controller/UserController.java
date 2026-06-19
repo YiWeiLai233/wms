@@ -2,6 +2,7 @@ package com.yiweilai.wms.user.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.security.JwtUtils;
 import com.yiweilai.wms.user.dto.LoginRequest;
 import com.yiweilai.wms.user.dto.LoginResponse;
@@ -61,6 +62,7 @@ public class UserController {
         return Result.success(user);
     }
 
+    @OperationLog(module = "user", action = "create", targetType = "User")
     @Operation(summary = "新增用户")
     @PostMapping("/users")
     public Result<Long> createUser(@Valid @RequestBody UserSaveDTO dto) {
@@ -68,6 +70,7 @@ public class UserController {
         return Result.success(userId);
     }
 
+    @OperationLog(module = "user", action = "update", targetType = "User")
     @Operation(summary = "修改用户")
     @PutMapping("/users")
     public Result<Void> updateUser(@Valid @RequestBody UserSaveDTO dto) {
@@ -75,6 +78,7 @@ public class UserController {
         return Result.success();
     }
 
+    @OperationLog(module = "user", action = "delete", targetType = "User", targetIdParam = "id")
     @Operation(summary = "删除用户")
     @DeleteMapping("/users/{id}")
     public Result<Void> deleteUser(@PathVariable Long id) {
@@ -82,6 +86,7 @@ public class UserController {
         return Result.success();
     }
 
+    @OperationLog(module = "user", action = "reset_password", targetType = "User", targetIdParam = "id")
     @Operation(summary = "重置密码")
     @PutMapping("/users/{id}/reset-password")
     public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
