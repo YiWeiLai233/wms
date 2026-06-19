@@ -13,6 +13,7 @@
             <el-option label="入库" value="INBOUND" />
             <el-option label="出库" value="OUTBOUND" />
             <el-option label="退货" value="RETURN" />
+            <el-option label="取消" value="CANCEL" />
             <el-option label="换货" value="EXCHANGE" />
             <el-option label="调整" value="ADJUST" />
             <el-option label="锁定" value="LOCK" />
