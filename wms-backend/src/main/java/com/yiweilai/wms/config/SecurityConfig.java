@@ -44,6 +44,7 @@ public class SecurityConfig {
                             .requestMatchers("/api/auth/register").permitAll()
                             .requestMatchers("/api/ai/internal/**").permitAll()
                             .requestMatchers("/images/**").permitAll()
+                            .requestMatchers("/api/images/file/**").permitAll()
                             .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll();
                     // Swagger/API文档仅在启用时开放访问
                     if (swaggerEnabled) {
