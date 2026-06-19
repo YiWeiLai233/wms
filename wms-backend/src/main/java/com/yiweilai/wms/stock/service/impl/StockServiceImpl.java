@@ -363,16 +363,18 @@ public class StockServiceImpl implements StockService {
 
             boolean deducted = false;
             for (Stock stock : availableStocks) {
-                int beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
-                int deductQty = Math.min(beforeQty, remaining);
+                int deductQty = Math.min(stock.getQuantity() == null ? 0 : stock.getQuantity(), remaining);
                 if (deductQty <= 0) continue;
 
+                // 原子扣减，WHERE quantity >= deductQty 保证不会超扣
                 int affected = stockMapper.deductQuantity(stock.getId(), deductQty);
-                if (affected == 0) continue;
+                if (affected == 0) continue; // 并发冲突，重试
 
-                // 写流水
+                // 扣减成功后重新查询真实数量，写流水
+                Stock updated = stockMapper.findById(stock.getId());
+                int afterQty = updated.getQuantity() == null ? 0 : updated.getQuantity();
                 writeLog(bizType, bizNo, skuId, warehouseId,
-                        beforeQty, -deductQty, beforeQty - deductQty, remark);
+                        afterQty + deductQty, -deductQty, afterQty, remark);
 
                 remaining -= deductQty;
                 deducted = true;

@@ -462,6 +462,49 @@ public class ExchangeServiceImpl implements ExchangeService {
             throw new BusinessException(ErrorCode.EXCHANGE_STATUS_ERROR, "当前状态不允许取消");
         }
 
+        // 如果是从 CHECKED 状态取消，需要撤销质检入库的库存
+        if ("CHECKED".equals(status)) {
+            List<ExchangeOrderItem> items = exchangeOrderItemMapper.findByExchangeId(exchangeId);
+            Warehouse defectiveWarehouse = warehouseMapper.findByType("DEFECTIVE");
+            Warehouse scrapWarehouse = warehouseMapper.findByType("SCRAP");
+
+            for (ExchangeOrderItem item : items) {
+                if (!"RETURN_ITEM".equals(item.getItemType()) || item.getQualityStatus() == null) {
+                    continue;
+                }
+
+                // 确定库存所在仓库
+                Long targetWarehouseId;
+                if ("DEFECTIVE".equals(item.getQualityStatus())) {
+                    targetWarehouseId = defectiveWarehouse != null ? defectiveWarehouse.getId() : null;
+                } else if ("SCRAPPED".equals(item.getQualityStatus())) {
+                    targetWarehouseId = scrapWarehouse != null ? scrapWarehouse.getId() : null;
+                } else {
+                    targetWarehouseId = order.getWarehouseId();
+                }
+
+                if (targetWarehouseId == null) continue;
+
+                // 扣减库存
+                Stock stock = stockMapper.findBySkuAndWarehouse(item.getSkuId(), targetWarehouseId);
+                if (stock != null && stock.getQuantity() >= item.getQuantity()) {
+                    stockMapper.deductQuantity(stock.getId(), item.getQuantity());
+
+                    // 写库存流水
+                    StockLog log = new StockLog();
+                    log.setBizType("CANCEL");
+                    log.setBizNo(order.getExchangeNo());
+                    log.setSkuId(item.getSkuId());
+                    log.setWarehouseId(targetWarehouseId);
+                    log.setQuantityBefore(stock.getQuantity());
+                    log.setQuantityChange(-item.getQuantity());
+                    log.setQuantityAfter(stock.getQuantity() - item.getQuantity());
+                    log.setRemark("取消换货撤销入库");
+                    stockLogMapper.insert(log);
+                }
+            }
+        }
+
         // 更新换货单状态为已取消
         exchangeOrderMapper.updateStatus(exchangeId, "CANCELLED");
 
