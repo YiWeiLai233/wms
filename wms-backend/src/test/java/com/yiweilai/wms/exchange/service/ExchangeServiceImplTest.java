@@ -1,6 +1,7 @@
 package com.yiweilai.wms.exchange.service;
 
 import com.yiweilai.wms.config.CacheService;
+import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exchange.entity.ExchangeOrder;
 import com.yiweilai.wms.exchange.entity.ExchangeOrderItem;
 import com.yiweilai.wms.exchange.mapper.ExchangeOrderItemMapper;
@@ -28,6 +29,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -153,5 +155,98 @@ class ExchangeServiceImplTest {
         stock.setId(id);
         stock.setQuantity(quantity);
         return stock;
+    }
+
+    @Test
+    void cancel_pendingReturnStatus_success() {
+        ExchangeOrder order = new ExchangeOrder();
+        order.setId(1L);
+        order.setOrderId(10L);
+        order.setExchangeNo("EX001");
+        order.setStatus("PENDING_RETURN");
+        order.setWarehouseId(5L);
+
+        when(exchangeOrderMapper.findById(1L)).thenReturn(order);
+
+        service.cancel(1L);
+
+        verify(exchangeOrderMapper).updateStatus(1L, "CANCELLED");
+        verify(salesOrderMapper).updateStatus(10L, "SHIPPED");
+    }
+
+    @Test
+    void cancel_returnedStatus_success() {
+        ExchangeOrder order = new ExchangeOrder();
+        order.setId(1L);
+        order.setOrderId(10L);
+        order.setExchangeNo("EX001");
+        order.setStatus("RETURNED");
+
+        when(exchangeOrderMapper.findById(1L)).thenReturn(order);
+
+        service.cancel(1L);
+
+        verify(exchangeOrderMapper).updateStatus(1L, "CANCELLED");
+        verify(salesOrderMapper).updateStatus(10L, "SHIPPED");
+    }
+
+    @Test
+    void cancel_exchangedStatus_throwsException() {
+        ExchangeOrder order = new ExchangeOrder();
+        order.setId(1L);
+        order.setStatus("EXCHANGED");
+
+        when(exchangeOrderMapper.findById(1L)).thenReturn(order);
+
+        assertThatThrownBy(() -> service.cancel(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("当前状态不允许取消");
+    }
+
+    @Test
+    void cancel_orderNotFound_throwsException() {
+        when(exchangeOrderMapper.findById(999L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.cancel(999L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("换货单不存在");
+    }
+
+    @Test
+    void receive_pendingReturnStatus_success() {
+        ExchangeOrder order = new ExchangeOrder();
+        order.setId(1L);
+        order.setStatus("PENDING_RETURN");
+
+        when(exchangeOrderMapper.findById(1L)).thenReturn(order);
+
+        service.receive(1L);
+
+        verify(exchangeOrderMapper).updateStatus(1L, "RETURNED");
+    }
+
+    @Test
+    void receive_alreadyReturned_throwsException() {
+        ExchangeOrder order = new ExchangeOrder();
+        order.setId(1L);
+        order.setStatus("RETURNED");
+
+        when(exchangeOrderMapper.findById(1L)).thenReturn(order);
+
+        assertThatThrownBy(() -> service.receive(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("只有待退回状态");
+    }
+
+    @Test
+    void create_orderNotFound_throwsException() {
+        com.yiweilai.wms.exchange.dto.ExchangeCreateDTO dto = new com.yiweilai.wms.exchange.dto.ExchangeCreateDTO();
+        dto.setOrderId(10L);
+
+        when(salesOrderMapper.findById(10L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("订单不存在");
     }
 }
