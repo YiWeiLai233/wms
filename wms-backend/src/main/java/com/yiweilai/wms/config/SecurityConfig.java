@@ -2,6 +2,7 @@ package com.yiweilai.wms.config;
 
 import com.yiweilai.wms.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -26,6 +27,9 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
+    @Value("${knife4j.enable:false}")
+    private boolean swaggerEnabled;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -33,15 +37,20 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/health").permitAll()
-                        .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/register").permitAll()
-                        .requestMatchers("/api/ai/internal/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/doc.html", "/webjars/**").permitAll()
-                        .requestMatchers("/images/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> {
+                    auth
+                            .requestMatchers("/api/health").permitAll()
+                            .requestMatchers("/api/auth/login").permitAll()
+                            .requestMatchers("/api/auth/register").permitAll()
+                            .requestMatchers("/api/ai/internal/**").permitAll()
+                            .requestMatchers("/images/**").permitAll()
+                            .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll();
+                    // Swagger/API文档仅在启用时开放访问
+                    if (swaggerEnabled) {
+                        auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/doc.html", "/webjars/**").permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                })
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

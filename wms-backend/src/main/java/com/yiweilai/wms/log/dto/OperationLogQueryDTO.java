@@ -17,9 +17,9 @@ public class OperationLogQueryDTO {
     /** 操作人ID */
     private Long userId;
 
-    /** 操作类型 */
-    private String operation;
+    /** 模块 */
+    private String module;
 
-    /** 操作状态 */
-    private Integer status;
+    /** 操作 */
+    private String action;
 }

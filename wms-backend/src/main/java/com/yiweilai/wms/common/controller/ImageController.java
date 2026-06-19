@@ -74,7 +74,7 @@ public class ImageController {
             return Result.success(url);
         } catch (IOException e) {
             log.error("图片上传失败", e);
-            return Result.error(500, "图片上传失败：" + e.getMessage());
+            return Result.error(500, "图片上传失败");
         }
     }
 

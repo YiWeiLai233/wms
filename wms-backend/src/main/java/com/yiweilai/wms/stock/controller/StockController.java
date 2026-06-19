@@ -2,6 +2,7 @@ package com.yiweilai.wms.stock.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.stock.dto.BatchStockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockQueryDTO;
@@ -36,6 +37,7 @@ public class StockController {
     /**
      * 库存调整
      */
+    @OperationLog(module = "stock", action = "adjust", targetType = "Stock")
     @PostMapping("/adjust")
     public Result<Void> adjust(@Valid @RequestBody StockAdjustDTO dto) {
         stockService.adjust(dto);
@@ -45,6 +47,7 @@ public class StockController {
     /**
      * 批量入库
      */
+    @OperationLog(module = "stock", action = "batch_adjust", targetType = "Stock")
     @PostMapping("/batch-adjust")
     public Result<Void> batchAdjust(@Valid @RequestBody BatchStockAdjustDTO dto) {
         stockService.batchAdjust(dto);
@@ -65,6 +68,7 @@ public class StockController {
     /**
      * 确认可售（次品仓→普通仓）
      */
+    @OperationLog(module = "stock", action = "confirm_sellable", targetType = "Stock")
     @PostMapping("/confirm-sellable")
     public Result<Void> confirmSellable(@RequestParam Long stockId, @RequestParam Long targetWarehouseId, @RequestParam Integer quantity) {
         stockService.confirmSellable(stockId, targetWarehouseId, quantity);
@@ -74,6 +78,7 @@ public class StockController {
     /**
      * 确认报废处置（报废仓→移除）
      */
+    @OperationLog(module = "stock", action = "confirm_dispose", targetType = "Stock")
     @PostMapping("/confirm-dispose")
     public Result<Void> confirmDispose(@RequestParam Long stockId, @RequestParam Integer quantity) {
         stockService.confirmDispose(stockId, quantity);
@@ -83,6 +88,7 @@ public class StockController {
     /**
      * 确认转入报废仓（次品仓→报废仓）
      */
+    @OperationLog(module = "stock", action = "confirm_scrap", targetType = "Stock")
     @PostMapping("/confirm-scrap")
     public Result<Void> confirmScrap(@RequestParam Long stockId, @RequestParam Integer quantity) {
         stockService.confirmScrap(stockId, quantity);

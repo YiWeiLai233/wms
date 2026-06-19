@@ -11,7 +11,11 @@ import com.yiweilai.wms.stock.dto.BatchStockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockAdjustDTO;
 import com.yiweilai.wms.stock.dto.StockQueryDTO;
 import com.yiweilai.wms.stock.entity.Stock;
+import com.yiweilai.wms.stock.entity.StockCheck;
+import com.yiweilai.wms.stock.entity.StockCheckItem;
 import com.yiweilai.wms.stock.entity.StockLog;
+import com.yiweilai.wms.stock.mapper.StockCheckItemMapper;
+import com.yiweilai.wms.stock.mapper.StockCheckMapper;
 import com.yiweilai.wms.stock.mapper.StockLogMapper;
 import com.yiweilai.wms.stock.mapper.StockMapper;
 import com.yiweilai.wms.stock.service.StockService;
@@ -24,9 +28,14 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * 库存 Service 实现
@@ -38,6 +47,8 @@ public class StockServiceImpl implements StockService {
 
     private final StockMapper stockMapper;
     private final StockLogMapper stockLogMapper;
+    private final StockCheckMapper stockCheckMapper;
+    private final StockCheckItemMapper stockCheckItemMapper;
     private final WarehouseMapper warehouseMapper;
     private final StockAlertConfigService stockAlertConfigService;
 
@@ -75,6 +86,10 @@ public class StockServiceImpl implements StockService {
         // 查询或创建库存记录
         Stock stock = stockMapper.findBySkuAndWarehouse(dto.getSkuId(), dto.getWarehouseId());
 
+        // 根据数量正负判断业务类型：正数=入库，负数=调整
+        String bizType = dto.getQuantity() > 0 ? "INBOUND" : "ADJUST";
+        String bizNo = bizType + "_" + (stock != null ? stock.getId() : "NEW");
+
         if (stock == null) {
             // 新增库存记录
             stock = new Stock();
@@ -82,11 +97,10 @@ public class StockServiceImpl implements StockService {
             stock.setWarehouseId(dto.getWarehouseId());
             stock.setQuantity(dto.getQuantity());
             stock.setLockedQty(0);
-//            stock.setDefectiveQty(0);
             stockMapper.insert(stock);
 
             // 写流水
-            writeLog("ADJUST", "ADJUST_" + stock.getId(), dto.getSkuId(),
+            writeLog(bizType, bizType + "_" + stock.getId(), dto.getSkuId(),
                     dto.getWarehouseId(),
                     0, dto.getQuantity(), dto.getQuantity(), dto.getRemark());
         } else {
@@ -101,9 +115,14 @@ public class StockServiceImpl implements StockService {
             stockMapper.updateQuantity(stock.getId(), afterQty);
 
             // 写流水
-            writeLog("ADJUST", "ADJUST_" + stock.getId(), dto.getSkuId(),
+            writeLog(bizType, bizType + "_" + stock.getId(), dto.getSkuId(),
                     dto.getWarehouseId(),
                     beforeQty, dto.getQuantity(), afterQty, dto.getRemark());
+        }
+
+        // 入库自动创建盘点单
+        if ("INBOUND".equals(bizType)) {
+            createAutoCheck(dto.getSkuId(), dto.getWarehouseId(), stock.getQuantity());
         }
     }
 
@@ -229,17 +248,65 @@ public class StockServiceImpl implements StockService {
 
     private void writeLog(String bizType, String bizNo, Long skuId, Long warehouseId,
                           int before, int change, int after, String remark) {
-        StockLog log = new StockLog();
-        log.setBizType(bizType);
-        log.setBizNo(bizNo);
-        log.setSkuId(skuId);
-        log.setWarehouseId(warehouseId);
-        log.setQuantityBefore(before);
-        log.setQuantityChange(change);
-        log.setQuantityAfter(after);
-        log.setRemark(remark);
-        stockLogMapper.insert(log);
+        StockLog stockLog = new StockLog();
+        stockLog.setBizType(bizType);
+        stockLog.setBizNo(bizNo);
+        stockLog.setSkuId(skuId);
+        stockLog.setWarehouseId(warehouseId);
+        stockLog.setQuantityBefore(before);
+        stockLog.setQuantityChange(change);
+        stockLog.setQuantityAfter(after);
+        stockLog.setRemark(remark);
+
+        // 从请求上下文获取当前操作人
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                Object userId = attrs.getRequest().getAttribute("userId");
+                Object username = attrs.getRequest().getAttribute("username");
+                if (userId instanceof Long) {
+                    stockLog.setOperatorId((Long) userId);
+                }
+                if (username instanceof String) {
+                    stockLog.setOperatorName((String) username);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("获取操作人信息失败", e);
+        }
+
+        stockLogMapper.insert(stockLog);
     }
+
+    /**
+     * 入库自动创建盘点单
+     */
+    private void createAutoCheck(Long skuId, Long warehouseId, int currentQty) {
+        try {
+            String checkNo = "CHK-AUTO-" + System.currentTimeMillis();
+
+            StockCheck check = new StockCheck();
+            check.setCheckNo(checkNo);
+            check.setWarehouseId(warehouseId);
+            check.setStatus(0); // 待盘点
+            check.setRemark("入库自动创建");
+            stockCheckMapper.insert(check);
+
+            StockCheckItem item = new StockCheckItem();
+            item.setCheckId(check.getId());
+            item.setSkuId(skuId);
+            item.setSystemQty(currentQty);
+            stockCheckItemMapper.insert(item);
+
+            log.info("入库自动创建盘点单: checkNo={}, skuId={}, qty={}", checkNo, skuId, currentQty);
+        } catch (Exception e) {
+            log.error("入库自动创建盘点单失败", e);
+        }
+    }
+
+    // 默认预警阈值常量
+    private static final int DEFAULT_LOW_STOCK_THRESHOLD = 10;
+    private static final int DEFAULT_OUT_OF_STOCK_THRESHOLD = 0;
 
     private StockVO convertToVO(Stock stock, StockAlertConfig config) {
         StockVO vo = new StockVO();
@@ -252,8 +319,8 @@ public class StockServiceImpl implements StockService {
         vo.setTotalQuantity(total);
 
         // 计算预警状态
-        int lowThreshold = 10;
-        int outThreshold = 0;
+        int lowThreshold = DEFAULT_LOW_STOCK_THRESHOLD;
+        int outThreshold = DEFAULT_OUT_OF_STOCK_THRESHOLD;
         if (config != null) {
             lowThreshold = config.getLowStockThreshold();
             outThreshold = config.getOutOfStockThreshold();

@@ -2,6 +2,7 @@ package com.yiweilai.wms.order.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
 import com.yiweilai.wms.order.dto.OrderQueryDTO;
 import com.yiweilai.wms.order.dto.OrderStatusUpdateDTO;
@@ -60,6 +61,7 @@ public class OrderController {
     /**
      * 导入订单
      */
+    @OperationLog(module = "order", action = "import", targetType = "SalesOrder")
     @PostMapping("/import")
     public Result<Long> importOrder(@Valid @RequestBody OrderImportDTO dto) {
         return Result.success(orderService.importOrder(dto));
@@ -68,6 +70,7 @@ public class OrderController {
     /**
      * 文档导入订单
      */
+    @OperationLog(module = "order", action = "import_file", targetType = "SalesOrder")
     @PostMapping("/import-file")
     public Result<Object> importFromFile(@RequestParam("file") MultipartFile file,
                                           @RequestParam("warehouseId") Long warehouseId) {
@@ -347,6 +350,7 @@ public class OrderController {
     /**
      * 更新订单状态
      */
+    @OperationLog(module = "order", action = "update_status", targetType = "SalesOrder", targetIdParam = "id")
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Long id,
                                      @Valid @RequestBody OrderStatusUpdateDTO dto) {
@@ -358,6 +362,7 @@ public class OrderController {
     /**
      * 更新订单信息
      */
+    @OperationLog(module = "order", action = "update", targetType = "SalesOrder", targetIdParam = "id")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id,
                                @Valid @RequestBody OrderUpdateDTO dto) {

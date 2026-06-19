@@ -1,9 +1,12 @@
 import json
+import logging
 from typing import Any
 
 import requests
 
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def query_order_by_no(
@@ -101,10 +104,23 @@ def _post_tool(endpoint: str, payload: dict, context: dict | None, tool_name: st
             error = body.get("message") or "WMS backend returned an error"
             result = _failed_result(tool_name, error)
         else:
-            result = body.get("data") or _failed_result(tool_name, "WMS backend returned empty data")
+            # 统一返回格式：成功时也包裹在标准结构中
+            data = body.get("data")
+            result = {
+                "toolName": tool_name,
+                "status": "SUCCESS",
+                "data": data,
+                "summary": None,
+                "errorMessage": None,
+            }
+            if data is None:
+                result["status"] = "FAILED"
+                result["errorMessage"] = "WMS backend returned empty data"
     except requests.RequestException as exc:
+        logger.warning("Tool %s request failed: %s", tool_name, exc)
         result = _failed_result(tool_name, str(exc))
     except ValueError as exc:
+        logger.warning("Tool %s response parse failed: %s", tool_name, exc)
         result = _failed_result(tool_name, f"Invalid WMS backend response: {exc}")
 
     return result, _tool_call(tool_name, request_payload, result)

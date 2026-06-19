@@ -31,7 +31,7 @@ public class OperationLogServiceImpl implements OperationLogService {
     public PageResult<OperationLogVO> findByPage(OperationLogQueryDTO query) {
         PageHelper.startPage(query.getPage(), query.getSize());
         List<OperationLog> logs = operationLogMapper.findByPage(
-                query.getUserId(), query.getOperation(), query.getStatus());
+                query.getUserId(), query.getModule(), query.getAction());
 
         PageInfo<OperationLog> pageInfo = new PageInfo<>(logs);
 

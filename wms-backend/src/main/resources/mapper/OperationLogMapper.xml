@@ -6,39 +6,38 @@
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
         <result column="user_name" property="userName"/>
-        <result column="operation" property="operation"/>
-        <result column="method" property="method"/>
-        <result column="params" property="params"/>
-        <result column="result" property="result"/>
-        <result column="status" property="status"/>
-        <result column="error_msg" property="errorMsg"/>
+        <result column="module" property="module"/>
+        <result column="action" property="action"/>
+        <result column="target_type" property="targetType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="detail" property="detail"/>
         <result column="ip" property="ip"/>
         <result column="created_at" property="createdAt"/>
     </resultMap>
 
     <select id="findByPage" resultMap="BaseResultMap">
-        SELECT id, user_id, user_name, operation, method, params, result,
-               status, error_msg, ip, created_at
+        SELECT id, user_id, user_name, module, action, target_type, target_id,
+               detail, ip, created_at
         FROM operation_log
         <where>
             <if test="userId != null">
                 AND user_id = #{userId}
             </if>
-            <if test="operation != null and operation != ''">
-                AND operation = #{operation}
+            <if test="module != null and module != ''">
+                AND module = #{module}
             </if>
-            <if test="status != null">
-                AND status = #{status}
+            <if test="action != null and action != ''">
+                AND action = #{action}
             </if>
         </where>
         ORDER BY id DESC
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO operation_log (user_id, user_name, operation, method, params, result,
-                                   status, error_msg, ip)
-        VALUES (#{userId}, #{userName}, #{operation}, #{method}, #{params}, #{result},
-                #{status}, #{errorMsg}, #{ip})
+        INSERT INTO operation_log (user_id, user_name, module, action, target_type,
+                                   target_id, detail, ip)
+        VALUES (#{userId}, #{userName}, #{module}, #{action}, #{targetType},
+                #{targetId}, #{detail}, #{ip})
     </insert>
 
 </mapper>

@@ -168,12 +168,11 @@ public class AiWriteToolService {
         OperationLog log = new OperationLog();
         log.setUserId(userId);
         log.setUserName(username);
-        log.setOperation(action.getActionName());
-        log.setMethod("AI_ASSISTANT:" + action.getActionType());
-        log.setParams(action.getRequestParams());
-        log.setResult(toJson(response));
-        log.setStatus("SUCCESS".equals(status) ? 1 : 0);
-        log.setErrorMsg(errorMessage);
+        log.setModule("ai_assistant");
+        log.setAction(action.getActionType());
+        log.setTargetType(action.getActionName());
+        log.setDetail(action.getRequestParams());
+        log.setIp("AI_SERVICE");
         operationLogService.saveLog(log);
     }
 

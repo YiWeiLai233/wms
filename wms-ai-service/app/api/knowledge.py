@@ -1,9 +1,10 @@
 import json
+import logging
 from pathlib import Path
 
 import requests
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.rag.chain import build_answer
@@ -12,6 +13,7 @@ from app.rag.loader import load_document
 from app.rag.splitter import split_text
 from app.rag.vector_store import delete_document, upsert_chunks
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -23,7 +25,10 @@ class IngestRequest(BaseModel):
 
 
 def verify_token(token: str) -> None:
-    if token != get_settings().ai_service_token:
+    settings = get_settings()
+    if not settings.ai_service_token:
+        raise HTTPException(status_code=503, detail="AI service not configured: AI_SERVICE_TOKEN is empty")
+    if token != settings.ai_service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
 
 
@@ -45,11 +50,12 @@ def ingest(request: IngestRequest, x_ai_service_token: str = Header(default=""))
         callback_ingestion(request.documentId, "SUCCESS", stored_chunks, None)
         return {"status": "SUCCESS"}
     except Exception as exc:
+        logger.exception("Ingestion failed for document %d", request.documentId)
         try:
             callback_ingestion(request.documentId, "FAILED", [], str(exc))
         except Exception as cb_exc:
-            print(f"[WARN] 回调失败状态失败: {cb_exc}")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+            logger.warning("回调失败状态失败: %s", cb_exc)
+        raise HTTPException(status_code=500, detail="Ingestion failed") from exc
 
 
 @router.delete("/documents/{document_id}")
@@ -60,12 +66,18 @@ def delete(document_id: int, x_ai_service_token: str = Header(default="")) -> di
 
 
 def resolve_upload_path(file_path: str) -> Path:
+    """解析上传路径，防止路径遍历攻击"""
     settings = get_settings()
+    root = Path(settings.wms_upload_root).resolve()
     clean_path = file_path.lstrip("/\\")
     # 如果 filePath 不包含 uploads/ 前缀，自动加上
     if not clean_path.startswith("uploads/") and not clean_path.startswith("uploads\\"):
         clean_path = f"uploads/{clean_path}"
-    return Path(settings.wms_upload_root) / clean_path
+    resolved = (root / clean_path).resolve()
+    # 安全检查：确保解析后的路径仍在允许的目录内
+    if not resolved.is_relative_to(root):
+        raise HTTPException(status_code=400, detail="invalid file path: path traversal detected")
+    return resolved
 
 
 def callback_ingestion(document_id: int, status: str, chunks: list[dict], error: str | None) -> None:
@@ -102,5 +114,7 @@ def callback_ingestion(document_id: int, status: str, chunks: list[dict], error:
 
 
 @router.get("/preview-answer")
-def preview_answer(question: str) -> dict:
+def preview_answer(question: str, x_ai_service_token: str = Header(default="")) -> dict:
+    """预览问答结果，需要认证"""
+    verify_token(x_ai_service_token)
     return build_answer(question)

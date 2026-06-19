@@ -38,8 +38,8 @@
 
     <div class="card">
       <el-table :data="skuMatrixRows" v-loading="loading" stripe border>
-        <el-table-column prop="skuCode" label="SKU 编码" width="150" show-overflow-tooltip />
-        <el-table-column prop="skuName" label="SKU 名称" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="skuCode" label="SKU 编码" width="140" show-overflow-tooltip />
+        <el-table-column prop="skuName" label="SKU 名称" width="130" show-overflow-tooltip />
         <el-table-column label="仓库" width="120" align="center">
           <template #default>
             <el-tag v-if="searchParams.warehouseId" type="primary" size="small">
@@ -48,11 +48,11 @@
             <el-tag v-else type="info" size="small">全部</el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-for="size in sizeColumns" :key="size" :label="size" width="72" align="center">
+        <el-table-column v-for="size in sizeColumns" :key="size" :label="size" :width="sizeColumnWidth" align="center" class-name="size-col">
           <template #default="{ row }">
-            <el-tag v-if="getSizeStock(row, size) !== undefined" :type="getStockTagType(getSizeStock(row, size), getSizeSku(row, size)?.lowStockThreshold, getSizeSku(row, size)?.outOfStockThreshold)" size="small">
+            <span v-if="getSizeStock(row, size) !== undefined" class="stock-cell" :class="getStockClass(getSizeStock(row, size), getSizeSku(row, size)?.lowStockThreshold, getSizeSku(row, size)?.outOfStockThreshold)">
               {{ getSizeStock(row, size) }}
-            </el-tag>
+            </span>
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
@@ -204,7 +204,7 @@
     </el-dialog>
 
     <!-- 批量入库对话框 -->
-    <el-dialog v-model="batchInboundDialogVisible" title="批量入库" width="900px" destroy-on-close>
+    <el-dialog v-model="batchInboundDialogVisible" title="批量入库" width="900px" top="5vh" destroy-on-close>
       <el-form ref="batchInboundFormRef" :model="batchInboundForm" :rules="batchInboundRules" label-width="80px">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -255,7 +255,7 @@
           </el-table-column>
         </el-table>
 
-        <el-table :data="batchInboundForm.items" border size="small">
+        <el-table ref="batchTableRef" :data="batchInboundForm.items" border size="small" :row-class-name="batchRowClassName" max-height="320">
           <el-table-column label="图片" width="60" align="center">
             <template #default="{ row }">
               <ImagePreview :src="row.image" />
@@ -273,17 +273,29 @@
           </el-table-column>
           <el-table-column label="入库数量" width="140" align="center">
             <template #default="{ row }">
-              <el-input-number v-model="row.quantity" :min="1" :max="999999" size="small" style="width: 110px" />
+              <el-input-number v-model="row.quantity" :min="1" :max="999999" size="small" style="width: 110px" @change="onBatchQuantityChange" />
+            </template>
+          </el-table-column>
+          <el-table-column label="入库后库存" width="100" align="center">
+            <template #default="{ row }">
+              <span class="text-green-600 font-bold">{{ (row.availableQty ?? 0) + row.quantity }}</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="80" align="center">
             <template #default="{ $index }">
-              <el-button type="danger" link icon="Delete" @click="batchInboundForm.items.splice($index, 1)">删除</el-button>
+              <el-button type="danger" link icon="Delete" @click="removeBatchItem($index)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
         <div v-if="batchInboundForm.items.length === 0" class="text-sm text-gray-400 mt-2">
           请先选择商品，再点击具体码数加入入库清单。
+        </div>
+        <div v-else class="mt-3 flex items-center justify-between text-sm">
+          <span class="text-gray-500">
+            共 <b class="text-blue-600">{{ batchInboundForm.items.length }}</b> 个SKU，
+            合计入库 <b class="text-green-600 text-base">{{ batchTotalQuantity }}</b> 件
+          </span>
+          <el-button type="danger" size="small" plain @click="batchInboundForm.items = []">清空</el-button>
         </div>
       </el-form>
       <template #footer>
@@ -295,7 +307,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getAllSkuList, createSku, updateSku, deleteSku, getProductList } from '@/api/product'
@@ -431,6 +443,15 @@ const sizeColumns = computed(() => {
   return Array.from(new Set(sizes)).sort(compareSizeValue)
 })
 
+// 码数列宽：根据码数数量动态调整
+const sizeColumnWidth = computed(() => {
+  const count = sizeColumns.value.length
+  if (count <= 6) return 85
+  if (count <= 10) return 70
+  if (count <= 15) return 58
+  return 48
+})
+
 // 所有分组后的行
 const allSkuMatrixRows = computed(() => {
   const rowMap = new Map<string, SkuMatrixRow>()
@@ -484,6 +505,15 @@ function getStockTagType(quantity?: number, lowThreshold?: number, outThreshold?
   if (value <= out) return 'danger'
   if (value <= low) return 'warning'
   return 'success'
+}
+
+function getStockClass(quantity?: number, lowThreshold?: number, outThreshold?: number): string {
+  const value = quantity ?? 0
+  const low = lowThreshold ?? 10
+  const out = outThreshold ?? 0
+  if (value <= out) return 'stock-danger'
+  if (value <= low) return 'stock-warning'
+  return 'stock-normal'
 }
 
 function normalizeSizeValue(sizeValue?: string | number) {
@@ -753,12 +783,18 @@ const batchInbounding = ref(false)
 const batchInboundFormRef = ref<FormInstance>()
 const batchInboundSkuGroupKey = ref('')
 const batchSkuList = ref<SkuListItem[]>([])
+const batchTableRef = ref()
+const highlightedSkuId = ref<number | null>(null)
 
 const batchInboundForm = reactive({
   warehouseId: undefined as number | undefined,
   remark: '',
   items: [] as BatchInboundItem[],
 })
+
+const batchTotalQuantity = computed(() =>
+  batchInboundForm.items.reduce((sum, item) => sum + item.quantity, 0)
+)
 
 const batchInboundRules: FormRules = {
   warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
@@ -807,6 +843,9 @@ function addSkuToBatch(sku: SkuListItem) {
   const existing = batchInboundForm.items.find((item) => item.skuId === sku.id)
   if (existing) {
     existing.quantity += 1
+    highlightedSkuId.value = sku.id
+    setTimeout(() => { highlightedSkuId.value = null }, 1500)
+    ElMessage.success(`${sku.skuCode} 数量 +1，当前 ${existing.quantity}`)
     return
   }
   batchInboundForm.items.push({
@@ -820,6 +859,28 @@ function addSkuToBatch(sku: SkuListItem) {
     lowStockThreshold: sku.lowStockThreshold,
     outOfStockThreshold: sku.outOfStockThreshold,
   })
+  highlightedSkuId.value = sku.id
+  setTimeout(() => { highlightedSkuId.value = null }, 1500)
+  ElMessage.success(`已添加 ${sku.skuCode} ${sku.sizeValue || ''}`)
+  // 自动滚动到底部
+  nextTick(() => {
+    const tableEl = batchTableRef.value?.$el?.querySelector('.el-table__body-wrapper')
+    if (tableEl) {
+      tableEl.scrollTop = tableEl.scrollHeight
+    }
+  })
+}
+
+function removeBatchItem(index: number) {
+  batchInboundForm.items.splice(index, 1)
+}
+
+function onBatchQuantityChange() {
+  // 触发 computed 更新（batchTotalQuantity 自动响应）
+}
+
+function batchRowClassName({ row }: { row: BatchInboundItem }) {
+  return row.skuId === highlightedSkuId.value ? 'batch-row-highlight' : ''
 }
 
 async function handleBatchInbound() {
@@ -849,3 +910,48 @@ async function handleBatchInbound() {
   }
 }
 </script>
+
+<style scoped lang="scss">
+/* 批量入库行高亮 */
+:deep(.batch-row-highlight) {
+  animation: row-flash 1.5s ease;
+}
+@keyframes row-flash {
+  0%, 100% { background-color: transparent; }
+  20%, 60% { background-color: #fef0d6; }
+  40% { background-color: #fde2b0; }
+}
+
+/* 码数列：覆盖全局 nowrap */
+:deep(.size-col) .cell {
+  white-space: normal !important;
+  padding: 4px 2px !important;
+  overflow: visible !important;
+}
+
+/* 码数库存单元格 — 紧凑 pill */
+.stock-cell {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.5;
+
+  &.stock-normal {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  &.stock-warning {
+    background: #fef3c7;
+    color: #d97706;
+  }
+
+  &.stock-danger {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+}
+</style>

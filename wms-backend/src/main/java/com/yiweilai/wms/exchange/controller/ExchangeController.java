@@ -2,6 +2,7 @@ package com.yiweilai.wms.exchange.controller;
 
 import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
 import com.yiweilai.wms.exchange.dto.ExchangeCheckDTO;
 import com.yiweilai.wms.exchange.dto.ExchangeCreateDTO;
 import com.yiweilai.wms.exchange.dto.ExchangeQueryDTO;
@@ -45,6 +46,7 @@ public class ExchangeController {
     /**
      * 创建换货单
      */
+    @OperationLog(module = "exchange", action = "create", targetType = "ExchangeOrder")
     @PostMapping("/create")
     public Result<Long> create(@Valid @RequestBody ExchangeCreateDTO dto) {
         return Result.success(exchangeService.create(dto));
@@ -53,6 +55,7 @@ public class ExchangeController {
     /**
      * 收货（确认收到退回商品）
      */
+    @OperationLog(module = "exchange", action = "receive", targetType = "ExchangeOrder", targetIdParam = "id")
     @PostMapping("/{id}/receive")
     public Result<Void> receive(@PathVariable Long id) {
         exchangeService.receive(id);
@@ -62,6 +65,7 @@ public class ExchangeController {
     /**
      * 质检（更新退回商品质量状态）
      */
+    @OperationLog(module = "exchange", action = "check", targetType = "ExchangeOrder")
     @PostMapping("/check")
     public Result<Void> check(@Valid @RequestBody ExchangeCheckDTO dto) {
         exchangeService.check(dto);
@@ -71,6 +75,7 @@ public class ExchangeController {
     /**
      * 发货（为换出商品创建出库单）
      */
+    @OperationLog(module = "exchange", action = "ship", targetType = "ExchangeOrder", targetIdParam = "id")
     @PostMapping("/{id}/ship")
     public Result<Void> ship(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
         Long expressCompanyId = null;
@@ -92,6 +97,7 @@ public class ExchangeController {
     /**
      * 取消换货单
      */
+    @OperationLog(module = "exchange", action = "cancel", targetType = "ExchangeOrder", targetIdParam = "id")
     @PostMapping("/{id}/cancel")
     public Result<Void> cancel(@PathVariable Long id) {
         exchangeService.cancel(id);
