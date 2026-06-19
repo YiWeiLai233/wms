@@ -26,13 +26,13 @@ public class ProductSaveDTO {
     private String name;
 
     /** 仓库ID */
+    @NotNull(message = "仓库不能为空")
     private Long warehouseId;
 
     /** 分类ID（支持单个数字或级联数组） */
     private Object categoryId;
 
     /** 货架ID */
-    @NotNull(message = "货架不能为空")
     private Long shelfId;
 
     /** 主图URL */
