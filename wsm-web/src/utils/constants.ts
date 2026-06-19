@@ -59,8 +59,8 @@ export const AREA_TYPE_MAP: Record<number, { label: string; color: string }> = {
 }
 
 export const STOCK_BIZ_TYPE_MAP: Record<string, { label: string; color: string; className?: string }> = {
-  INBOUND: { label: '入库', color: 'primary' },
-  OUTBOUND: { label: '出库', color: 'success' },
+  INBOUND: { label: '入库', color: 'success' },
+  OUTBOUND: { label: '出库', color: 'primary' },
   RETURN: { label: '退货', color: 'warning' },
   EXCHANGE: { label: '换货', color: 'info', className: 'exchange-stock-tag' },
   ADJUST: { label: '调整', color: 'info' },
