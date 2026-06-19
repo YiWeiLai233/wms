@@ -45,9 +45,8 @@ class AiWriteToolServiceTest {
         verify(toolLogService).recordToolCall(eq(7L), eq(8L), eq(null),
                 eq("create_outbound_order"), eq(action.getRequestParams()), any(), eq("SUCCESS"), eq(null));
         verify(operationLogService).saveLog(org.mockito.ArgumentMatchers.argThat(log ->
-                Integer.valueOf(1).equals(log.getStatus())
-                        && "AI_ASSISTANT:create_outbound_order".equals(log.getMethod())
-                        && log.getParams().contains("\"orderId\":11")));
+                "create_outbound_order".equals(log.getAction())
+                        && log.getDetail().contains("\"orderId\":11")));
     }
 
     @Test
