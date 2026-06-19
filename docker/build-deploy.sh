@@ -53,6 +53,8 @@ COPY pom.xml .
 RUN mvn dependency:go-offline -q
 COPY src ./src
 RUN mvn package -DskipTests -Dmaven.test.skip=true -q
+# 安装 mysqldump（备份功能需要）
+RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "target/wms-0.0.1-SNAPSHOT.jar", "--spring.profiles.active=docker"]
 DOCKERFILE
