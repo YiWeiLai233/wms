@@ -83,4 +83,56 @@ public class BackupController {
         backupService.deleteBackup(id);
         return Result.success();
     }
+
+    /**
+     * 测试远程备份连接
+     */
+    @PostMapping("/test-connection")
+    public Result<Boolean> testConnection(@RequestBody Map<String, String> config) {
+        String type = config.getOrDefault("type", "");
+        String host = config.getOrDefault("host", "");
+        String port = config.getOrDefault("port", "22");
+        String username = config.getOrDefault("username", "");
+        String password = config.getOrDefault("password", "");
+
+        try {
+            boolean success = switch (type) {
+                case "ssh", "sftp" -> testSshConnection(host, Integer.parseInt(port), username, password);
+                case "ftp" -> testFtpConnection(host, Integer.parseInt(port), username, password);
+                default -> false;
+            };
+            return Result.success(success);
+        } catch (Exception e) {
+            return Result.success(false);
+        }
+    }
+
+    private boolean testSshConnection(String host, int port, String username, String password) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    "ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=no",
+                    "-o", "BatchMode=yes",
+                    "-p", String.valueOf(port),
+                    username + "@" + host,
+                    "echo ok"
+            );
+            pb.environment().put("SSHPASS", password);
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean testFtpConnection(String host, int port, String username, String password) {
+        try {
+            java.net.Socket socket = new java.net.Socket();
+            socket.connect(new java.net.InetSocketAddress(host, port), 5000);
+            socket.close();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

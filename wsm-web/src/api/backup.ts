@@ -36,3 +36,16 @@ export function downloadBackupUrl(fileName: string) {
 export function deleteBackup(id: number) {
   return request.delete<any, ApiResponse<void>>(`/backup/${id}`)
 }
+
+// 测试远程备份连接
+export function testBackupConnection(config: {
+  type: string
+  host: string
+  port: string
+  username: string
+  password: string
+  path: string
+  sshMethod?: string
+}) {
+  return request.post<any, ApiResponse<boolean>>('/backup/test-connection', config)
+}
