@@ -24,6 +24,9 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -229,16 +232,34 @@ public class StockServiceImpl implements StockService {
 
     private void writeLog(String bizType, String bizNo, Long skuId, Long warehouseId,
                           int before, int change, int after, String remark) {
-        StockLog log = new StockLog();
-        log.setBizType(bizType);
-        log.setBizNo(bizNo);
-        log.setSkuId(skuId);
-        log.setWarehouseId(warehouseId);
-        log.setQuantityBefore(before);
-        log.setQuantityChange(change);
-        log.setQuantityAfter(after);
-        log.setRemark(remark);
-        stockLogMapper.insert(log);
+        StockLog stockLog = new StockLog();
+        stockLog.setBizType(bizType);
+        stockLog.setBizNo(bizNo);
+        stockLog.setSkuId(skuId);
+        stockLog.setWarehouseId(warehouseId);
+        stockLog.setQuantityBefore(before);
+        stockLog.setQuantityChange(change);
+        stockLog.setQuantityAfter(after);
+        stockLog.setRemark(remark);
+
+        // 从请求上下文获取当前操作人
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                Object userId = attrs.getRequest().getAttribute("userId");
+                Object username = attrs.getRequest().getAttribute("username");
+                if (userId instanceof Long) {
+                    stockLog.setOperatorId((Long) userId);
+                }
+                if (username instanceof String) {
+                    stockLog.setOperatorName((String) username);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("获取操作人信息失败", e);
+        }
+
+        stockLogMapper.insert(stockLog);
     }
 
     // 默认预警阈值常量

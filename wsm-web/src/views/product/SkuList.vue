@@ -255,7 +255,7 @@
           </el-table-column>
         </el-table>
 
-        <el-table :data="batchInboundForm.items" border size="small">
+        <el-table ref="batchTableRef" :data="batchInboundForm.items" border size="small" :row-class-name="batchRowClassName" max-height="320">
           <el-table-column label="图片" width="60" align="center">
             <template #default="{ row }">
               <ImagePreview :src="row.image" />
@@ -273,17 +273,29 @@
           </el-table-column>
           <el-table-column label="入库数量" width="140" align="center">
             <template #default="{ row }">
-              <el-input-number v-model="row.quantity" :min="1" :max="999999" size="small" style="width: 110px" />
+              <el-input-number v-model="row.quantity" :min="1" :max="999999" size="small" style="width: 110px" @change="onBatchQuantityChange" />
+            </template>
+          </el-table-column>
+          <el-table-column label="入库后库存" width="100" align="center">
+            <template #default="{ row }">
+              <span class="text-green-600 font-bold">{{ (row.availableQty ?? 0) + row.quantity }}</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="80" align="center">
             <template #default="{ $index }">
-              <el-button type="danger" link icon="Delete" @click="batchInboundForm.items.splice($index, 1)">删除</el-button>
+              <el-button type="danger" link icon="Delete" @click="removeBatchItem($index)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
         <div v-if="batchInboundForm.items.length === 0" class="text-sm text-gray-400 mt-2">
           请先选择商品，再点击具体码数加入入库清单。
+        </div>
+        <div v-else class="mt-3 flex items-center justify-between text-sm">
+          <span class="text-gray-500">
+            共 <b class="text-blue-600">{{ batchInboundForm.items.length }}</b> 个SKU，
+            合计入库 <b class="text-green-600 text-base">{{ batchTotalQuantity }}</b> 件
+          </span>
+          <el-button type="danger" size="small" plain @click="batchInboundForm.items = []">清空</el-button>
         </div>
       </el-form>
       <template #footer>
@@ -295,7 +307,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getAllSkuList, createSku, updateSku, deleteSku, getProductList } from '@/api/product'
@@ -753,12 +765,18 @@ const batchInbounding = ref(false)
 const batchInboundFormRef = ref<FormInstance>()
 const batchInboundSkuGroupKey = ref('')
 const batchSkuList = ref<SkuListItem[]>([])
+const batchTableRef = ref()
+const highlightedSkuId = ref<number | null>(null)
 
 const batchInboundForm = reactive({
   warehouseId: undefined as number | undefined,
   remark: '',
   items: [] as BatchInboundItem[],
 })
+
+const batchTotalQuantity = computed(() =>
+  batchInboundForm.items.reduce((sum, item) => sum + item.quantity, 0)
+)
 
 const batchInboundRules: FormRules = {
   warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
@@ -807,6 +825,9 @@ function addSkuToBatch(sku: SkuListItem) {
   const existing = batchInboundForm.items.find((item) => item.skuId === sku.id)
   if (existing) {
     existing.quantity += 1
+    highlightedSkuId.value = sku.id
+    setTimeout(() => { highlightedSkuId.value = null }, 1500)
+    ElMessage.success(`${sku.skuCode} 数量 +1，当前 ${existing.quantity}`)
     return
   }
   batchInboundForm.items.push({
@@ -820,6 +841,28 @@ function addSkuToBatch(sku: SkuListItem) {
     lowStockThreshold: sku.lowStockThreshold,
     outOfStockThreshold: sku.outOfStockThreshold,
   })
+  highlightedSkuId.value = sku.id
+  setTimeout(() => { highlightedSkuId.value = null }, 1500)
+  ElMessage.success(`已添加 ${sku.skuCode} ${sku.sizeValue || ''}`)
+  // 自动滚动到底部
+  nextTick(() => {
+    const tableEl = batchTableRef.value?.$el?.querySelector('.el-table__body-wrapper')
+    if (tableEl) {
+      tableEl.scrollTop = tableEl.scrollHeight
+    }
+  })
+}
+
+function removeBatchItem(index: number) {
+  batchInboundForm.items.splice(index, 1)
+}
+
+function onBatchQuantityChange() {
+  // 触发 computed 更新（batchTotalQuantity 自动响应）
+}
+
+function batchRowClassName({ row }: { row: BatchInboundItem }) {
+  return row.skuId === highlightedSkuId.value ? 'batch-row-highlight' : ''
 }
 
 async function handleBatchInbound() {
@@ -849,3 +892,14 @@ async function handleBatchInbound() {
   }
 }
 </script>
+
+<style scoped>
+:deep(.batch-row-highlight) {
+  animation: row-flash 1.5s ease;
+}
+@keyframes row-flash {
+  0%, 100% { background-color: transparent; }
+  20%, 60% { background-color: #fef0d6; }
+  40% { background-color: #fde2b0; }
+}
+</style>
