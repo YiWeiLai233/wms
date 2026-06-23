@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -68,5 +69,45 @@ class ReportServiceImplTest {
         assertThat(outboundDetailSql)
                 .contains("oo.status IN ('SHIPPED','EXCHANGED')")
                 .contains("oo.remark NOT LIKE '换货单[%自动创建%'");
+    }
+
+    @Test
+    void updateExpressFeeItemUpdatesOutboundFeeAndCompany() {
+        service.updateExpressFeeItem("OUTBOUND", 10L, 3L, new BigDecimal("12.50"));
+
+        verify(jdbcTemplate).update(
+                "UPDATE outbound_order SET express_company_id = ?, shipping_fee = ? WHERE id = ? AND deleted = 0",
+                3L,
+                new BigDecimal("12.50"),
+                10L);
+    }
+
+    @Test
+    void updateExpressFeeItemUpdatesExchangeFeeAndCompany() {
+        service.updateExpressFeeItem("EXCHANGE", 10L, 3L, new BigDecimal("12.50"));
+
+        verify(jdbcTemplate).update(
+                "UPDATE exchange_order SET express_company_id = ?, shipping_fee = ? WHERE id = ? AND deleted = 0",
+                3L,
+                new BigDecimal("12.50"),
+                10L);
+    }
+
+    @Test
+    void deleteExpressFeeItemClearsOutboundFeeAndCompany() {
+        service.deleteExpressFeeItem("OUTBOUND", 10L);
+
+        verify(jdbcTemplate).update(
+                "UPDATE outbound_order SET express_company_id = NULL, shipping_fee = NULL WHERE id = ? AND deleted = 0",
+                10L);
+    }
+
+    @Test
+    void expressFeeWriteRejectsReturnRowsBecauseTheyHaveNoCompanyField() {
+        assertThatThrownBy(() -> service.updateExpressFeeItem("RETURN", 10L, 3L, new BigDecimal("12.50")))
+                .hasMessageContaining("仅支持修改出库和换货快递费用");
+
+        assertThatThrownBy(() -> service.deleteExpressFeeItem("RETURN", 10L))
+                .hasMessageContaining("仅支持删除出库和换货快递费用");
     }
 }

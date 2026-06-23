@@ -5,6 +5,8 @@ import com.yiweilai.wms.report.vo.ExpressFeeReportVO;
 import com.yiweilai.wms.report.vo.OutboundReportVO;
 import com.yiweilai.wms.report.vo.StockReportVO;
 
+import java.math.BigDecimal;
+
 /**
  * 报表统计 Service
  */
@@ -29,4 +31,14 @@ public interface ReportService {
      * 快递费用统计
      */
     ExpressFeeReportVO getExpressFeeReport(String orderNo, String platformOrderNo, String startTime, String endTime, Long expressCompanyId);
+
+    /**
+     * 修改快递费用统计记录
+     */
+    void updateExpressFeeItem(String bizType, Long id, Long expressCompanyId, BigDecimal shippingFee);
+
+    /**
+     * 删除快递费用统计记录
+     */
+    void deleteExpressFeeItem(String bizType, Long id);
 }

@@ -1,11 +1,18 @@
 package com.yiweilai.wms.report.controller;
 
 import com.yiweilai.wms.common.Result;
+import com.yiweilai.wms.log.annotation.OperationLog;
+import com.yiweilai.wms.report.dto.ExpressFeeUpdateDTO;
 import com.yiweilai.wms.report.service.ReportService;
 import com.yiweilai.wms.report.vo.DashboardVO;
 import com.yiweilai.wms.report.vo.ExpressFeeReportVO;
 import com.yiweilai.wms.report.vo.OutboundReportVO;
 import com.yiweilai.wms.report.vo.StockReportVO;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,5 +66,27 @@ public class ReportController {
             @RequestParam(required = false) String endTime,
             @RequestParam(required = false) Long expressCompanyId) {
         return Result.success(reportService.getExpressFeeReport(orderNo, platformOrderNo, startTime, endTime, expressCompanyId));
+    }
+
+    /**
+     * 修改快递费用统计记录
+     */
+    @OperationLog(module = "report", action = "update_express_fee", targetType = "ExpressFee", targetIdParam = "id")
+    @PutMapping("/express-fee/{bizType}/{id}")
+    public Result<Void> updateExpressFeeItem(@PathVariable String bizType,
+                                             @PathVariable Long id,
+                                             @Valid @RequestBody ExpressFeeUpdateDTO dto) {
+        reportService.updateExpressFeeItem(bizType, id, dto.getExpressCompanyId(), dto.getShippingFee());
+        return Result.success();
+    }
+
+    /**
+     * 删除快递费用统计记录
+     */
+    @OperationLog(module = "report", action = "delete_express_fee", targetType = "ExpressFee", targetIdParam = "id")
+    @DeleteMapping("/express-fee/{bizType}/{id}")
+    public Result<Void> deleteExpressFeeItem(@PathVariable String bizType, @PathVariable Long id) {
+        reportService.deleteExpressFeeItem(bizType, id);
+        return Result.success();
     }
 }

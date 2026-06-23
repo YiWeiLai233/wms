@@ -1,6 +1,8 @@
 package com.yiweilai.wms.report.service.impl;
 
 import com.yiweilai.wms.config.CacheService;
+import com.yiweilai.wms.exception.BusinessException;
+import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.report.service.ReportService;
 import com.yiweilai.wms.report.vo.DashboardVO;
 import com.yiweilai.wms.report.vo.ExpressFeeReportVO;
@@ -735,5 +737,47 @@ public class ReportServiceImpl implements ReportService {
 
         vo.setItems(allItems);
         return vo;
+    }
+
+    @Override
+    public void updateExpressFeeItem(String bizType, Long id, Long expressCompanyId, BigDecimal shippingFee) {
+        String normalizedType = normalizeExpressFeeBizType(bizType, "仅支持修改出库和换货快递费用");
+        if ("OUTBOUND".equals(normalizedType)) {
+            jdbcTemplate.update(
+                    "UPDATE outbound_order SET express_company_id = ?, shipping_fee = ? WHERE id = ? AND deleted = 0",
+                    expressCompanyId,
+                    shippingFee,
+                    id);
+            return;
+        }
+
+        jdbcTemplate.update(
+                "UPDATE exchange_order SET express_company_id = ?, shipping_fee = ? WHERE id = ? AND deleted = 0",
+                expressCompanyId,
+                shippingFee,
+                id);
+    }
+
+    @Override
+    public void deleteExpressFeeItem(String bizType, Long id) {
+        String normalizedType = normalizeExpressFeeBizType(bizType, "仅支持删除出库和换货快递费用");
+        if ("OUTBOUND".equals(normalizedType)) {
+            jdbcTemplate.update(
+                    "UPDATE outbound_order SET express_company_id = NULL, shipping_fee = NULL WHERE id = ? AND deleted = 0",
+                    id);
+            return;
+        }
+
+        jdbcTemplate.update(
+                "UPDATE exchange_order SET express_company_id = NULL, shipping_fee = NULL WHERE id = ? AND deleted = 0",
+                id);
+    }
+
+    private String normalizeExpressFeeBizType(String bizType, String unsupportedMessage) {
+        String normalizedType = bizType == null ? "" : bizType.trim().toUpperCase();
+        if (!"OUTBOUND".equals(normalizedType) && !"EXCHANGE".equals(normalizedType)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, unsupportedMessage);
+        }
+        return normalizedType;
     }
 }
