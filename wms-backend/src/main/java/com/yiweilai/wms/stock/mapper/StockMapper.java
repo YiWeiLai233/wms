@@ -76,6 +76,24 @@ public interface StockMapper {
                         @Param("quantity") Integer quantity);
 
     /**
+     * 仅锁定库存（locked_qty += N，quantity 不变）
+     */
+    int lockOnly(@Param("id") Long id,
+                 @Param("quantity") Integer quantity);
+
+    /**
+     * 仅释放锁定（locked_qty -= N，quantity 不变）
+     */
+    int releaseOnly(@Param("id") Long id,
+                    @Param("quantity") Integer quantity);
+
+    /**
+     * 确认扣减（quantity -= N，locked_qty -= N）
+     */
+    int confirmDeduct(@Param("id") Long id,
+                      @Param("quantity") Integer quantity);
+
+    /**
      * 按仓库类型查询库存（关联 warehouse 表）
      */
     List<Stock> findByWarehouseType(@Param("warehouseType") String warehouseType,

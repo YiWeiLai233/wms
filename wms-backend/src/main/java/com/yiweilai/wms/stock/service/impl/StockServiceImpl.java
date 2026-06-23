@@ -318,6 +318,11 @@ public class StockServiceImpl implements StockService {
         if (stock.getLockedQty() != null) total += stock.getLockedQty();
         vo.setTotalQuantity(total);
 
+        // 计算可用数量（物理库存 - 锁定）
+        int qty = stock.getQuantity() != null ? stock.getQuantity() : 0;
+        int locked = stock.getLockedQty() != null ? stock.getLockedQty() : 0;
+        vo.setAvailableQty(Math.max(qty - locked, 0));
+
         // 计算预警状态
         int lowThreshold = DEFAULT_LOW_STOCK_THRESHOLD;
         int outThreshold = DEFAULT_OUT_OF_STOCK_THRESHOLD;
@@ -328,11 +333,11 @@ public class StockServiceImpl implements StockService {
         vo.setLowStockThreshold(lowThreshold);
         vo.setOutOfStockThreshold(outThreshold);
 
-        int qty = stock.getQuantity() != null ? stock.getQuantity() : 0;
+        int available = vo.getAvailableQty() != null ? vo.getAvailableQty() : 0;
         String status;
-        if (qty <= outThreshold) {
+        if (available <= outThreshold) {
             status = "OUT_OF_STOCK";
-        } else if (qty <= lowThreshold) {
+        } else if (available <= lowThreshold) {
             status = "LOW_STOCK";
         } else {
             status = "NORMAL";
@@ -410,5 +415,79 @@ public class StockServiceImpl implements StockService {
         // 写流水
         writeLog(bizType, bizNo, skuId, warehouseId,
                 beforeQty, quantity, beforeQty + quantity, remark);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void lockStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark) {
+        int remaining = quantity;
+        while (remaining > 0) {
+            List<Stock> availableStocks = stockMapper.findAvailableBySkuAndWarehouse(skuId, warehouseId);
+            if (availableStocks.isEmpty()) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]库存不足，剩余需锁定: " + remaining);
+            }
+
+            boolean locked = false;
+            for (Stock stock : availableStocks) {
+                int lockQty = Math.min(stock.getQuantity() == null ? 0 : stock.getQuantity(), remaining);
+                // 可锁定数量 = quantity - locked_qty
+                int availableToLock = (stock.getQuantity() == null ? 0 : stock.getQuantity())
+                        - (stock.getLockedQty() == null ? 0 : stock.getLockedQty());
+                lockQty = Math.min(lockQty, availableToLock);
+                if (lockQty <= 0) continue;
+
+                int affected = stockMapper.lockOnly(stock.getId(), lockQty);
+                if (affected == 0) continue;
+
+                Stock updated = stockMapper.findById(stock.getId());
+                writeLog(bizType, bizNo, skuId, warehouseId,
+                        updated.getQuantity(), lockQty, updated.getQuantity(),
+                        remark + "（锁定" + lockQty + "）");
+
+                remaining -= lockQty;
+                locked = true;
+                break;
+            }
+
+            if (!locked) {
+                throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]可锁定库存不足，剩余: " + remaining);
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void releaseStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark) {
+        Stock stock = stockMapper.findBySkuAndWarehouse(skuId, warehouseId);
+        if (stock == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库存记录不存在");
+        }
+
+        int affected = stockMapper.releaseOnly(stock.getId(), quantity);
+        if (affected == 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "释放锁定数量超出，锁定库存: " + (stock.getLockedQty() == null ? 0 : stock.getLockedQty()));
+        }
+
+        Stock updated = stockMapper.findById(stock.getId());
+        writeLog(bizType, bizNo, skuId, warehouseId,
+                updated.getQuantity(), quantity, updated.getQuantity(), remark);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmDeductStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark) {
+        Stock stock = stockMapper.findBySkuAndWarehouse(skuId, warehouseId);
+        if (stock == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库存记录不存在");
+        }
+
+        int affected = stockMapper.confirmDeduct(stock.getId(), quantity);
+        if (affected == 0) {
+            throw new BusinessException(ErrorCode.STOCK_NOT_ENOUGH, "SKU[" + skuId + "]确认扣减失败，库存或锁定数量不足");
+        }
+
+        Stock updated = stockMapper.findById(stock.getId());
+        writeLog(bizType, bizNo, skuId, warehouseId,
+                updated.getQuantity() + quantity, -quantity, updated.getQuantity(), remark);
     }
 }

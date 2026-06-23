@@ -69,4 +69,19 @@ public interface StockService {
      * @param remark 备注
      */
     void addStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark);
+
+    /**
+     * 锁定库存（订单导入时调用，locked_qty += N，quantity 不变）
+     */
+    void lockStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark);
+
+    /**
+     * 释放锁定库存（取消出库时调用，locked_qty -= N，quantity 不变）
+     */
+    void releaseStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark);
+
+    /**
+     * 确认扣减库存（发货确认时调用，quantity -= N，locked_qty -= N）
+     */
+    void confirmDeductStock(Long skuId, int quantity, String bizNo, Long warehouseId, String bizType, String remark);
 }

@@ -45,6 +45,14 @@ requireSnippets('src/views/outbound/OutboundList.vue', [
   ':model="confirmForm"',
   ':rules="confirmRules"',
   'confirmFormRef.value?.validate()',
+  'deleteOutbound',
+  'handleDelete(row.id)',
+  '确定删除该发货单吗？',
+])
+
+requireSnippets('src/api/outbound.ts', [
+  'export function deleteOutbound',
+  "request.delete<any, ApiResponse<void>>(`/outbound/${id}`)",
 ])
 
 requireSnippets('src/views/returns/ReturnList.vue', [
@@ -71,6 +79,22 @@ requireSnippets('src/views/express/ExpressFeeTemplate.vue', [
   'prop="firstFee"',
   'prop="additionalWeight"',
   'prop="additionalFee"',
+])
+
+requireSnippets('src/views/express/ExpressFeeReport.vue', [
+  'updateExpressFeeItem',
+  'deleteExpressFeeItem',
+  'openEditDialog(row)',
+  'handleDelete(row)',
+  '确定删除该快递费用记录吗？',
+  'prop="expressCompanyId"',
+  'prop="shippingFee"',
+  'editFormRef.value?.validate()',
+])
+
+requireSnippets('src/api/report.ts', [
+  'export function updateExpressFeeItem',
+  'export function deleteExpressFeeItem',
 ])
 
 requireSnippets('src/views/product/ProductList.vue', [

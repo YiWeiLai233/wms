@@ -231,8 +231,10 @@ public class ExchangeServiceImpl implements ExchangeService {
                 }
                 targetWarehouseId = scrapWarehouse.getId();
             } else {
-                // 可售商品退回原发货仓
-                targetWarehouseId = order.getWarehouseId();
+                // 可售商品：优先使用前端选择的仓库，否则退回原发货仓
+                targetWarehouseId = checkItem.getWarehouseId() != null
+                        ? checkItem.getWarehouseId()
+                        : order.getWarehouseId();
             }
 
             // 增加库存
@@ -358,7 +360,7 @@ public class ExchangeServiceImpl implements ExchangeService {
         outboundOrderMapper.updateStatus(outboundOrder.getId(), "SHIPPED");
         outboundOrderMapper.updateShippedAt(outboundOrder.getId());
 
-        // 更新原订单明细
+        // 更新原订单明细（退回商品减数量/删除，换出商品累加/新增）
         updateOrderItems(order.getOrderId(), allItems);
 
         // 更新原订单状态为已换货
@@ -385,30 +387,55 @@ public class ExchangeServiceImpl implements ExchangeService {
         // 查询原订单明细
         List<SalesOrderItem> orderItems = salesOrderItemMapper.findByOrderId(orderId);
 
-        // 删除退回的商品（按SKU匹配）
+        // 记录被删除的SKU，避免换出时匹配到已删除的行
+        java.util.Set<Long> deletedSkuIds = new java.util.HashSet<>();
+
+        // 处理退回的商品（按SKU匹配，支持部分退回）
         for (ExchangeOrderItem returnItem : returnItems) {
             SalesOrderItem matchedItem = orderItems.stream()
-                    .filter(oi -> oi.getSkuId().equals(returnItem.getSkuId()))
+                    .filter(oi -> oi.getSkuId().equals(returnItem.getSkuId()) && !deletedSkuIds.contains(oi.getSkuId()))
                     .findFirst()
                     .orElse(null);
             if (matchedItem != null) {
-                salesOrderItemMapper.deleteById(matchedItem.getId());
+                int originalQty = matchedItem.getQuantity() != null ? matchedItem.getQuantity() : 0;
+                int returnQty = returnItem.getQuantity() != null ? returnItem.getQuantity() : 0;
+                if (returnQty >= originalQty) {
+                    // 全部退回，删除整条
+                    salesOrderItemMapper.deleteById(matchedItem.getId());
+                    deletedSkuIds.add(matchedItem.getSkuId());
+                } else {
+                    // 部分退回，减少数量
+                    salesOrderItemMapper.updateQuantity(matchedItem.getId(), originalQty - returnQty);
+                }
             }
         }
 
-        // 添加换出的商品
+        // 重新查询最新明细（退回处理后的状态）
+        List<SalesOrderItem> updatedItems = salesOrderItemMapper.findByOrderId(orderId);
+
+        // 添加换出的商品（如果同SKU已存在则累加数量，否则新增）
         for (ExchangeOrderItem newItem : newItems) {
-            SalesOrderItem orderItem = new SalesOrderItem();
-            orderItem.setOrderId(orderId);
-            orderItem.setSkuId(newItem.getSkuId());
-            orderItem.setSkuCode(newItem.getSkuCode());
-            orderItem.setSkuName(newItem.getSkuName());
-            orderItem.setSizeValue(newItem.getSizeValue());
-            orderItem.setQuantity(newItem.getQuantity());
-            BigDecimal unitPrice = newItem.getUnitPrice() != null ? newItem.getUnitPrice() : BigDecimal.ZERO;
-            orderItem.setUnitPrice(unitPrice);
-            orderItem.setTotalPrice(unitPrice.multiply(BigDecimal.valueOf(newItem.getQuantity())));
-            salesOrderItemMapper.insert(orderItem);
+            SalesOrderItem existingItem = updatedItems.stream()
+                    .filter(oi -> oi.getSkuId().equals(newItem.getSkuId()))
+                    .findFirst()
+                    .orElse(null);
+            if (existingItem != null) {
+                int newQty = (existingItem.getQuantity() != null ? existingItem.getQuantity() : 0)
+                        + (newItem.getQuantity() != null ? newItem.getQuantity() : 0);
+                salesOrderItemMapper.updateQuantity(existingItem.getId(), newQty);
+            } else {
+                SalesOrderItem orderItem = new SalesOrderItem();
+                orderItem.setOrderId(orderId);
+                orderItem.setSkuId(newItem.getSkuId());
+                orderItem.setSkuCode(newItem.getSkuCode());
+                orderItem.setSkuName(newItem.getSkuName());
+                orderItem.setSizeValue(newItem.getSizeValue());
+                orderItem.setQuantity(newItem.getQuantity());
+                BigDecimal unitPrice = newItem.getUnitPrice() != null ? newItem.getUnitPrice() : BigDecimal.ZERO;
+                orderItem.setUnitPrice(unitPrice);
+                orderItem.setTotalPrice(unitPrice.multiply(BigDecimal.valueOf(newItem.getQuantity())));
+                salesOrderItemMapper.insert(orderItem);
+            }
         }
     }
 

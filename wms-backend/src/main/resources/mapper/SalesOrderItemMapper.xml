@@ -38,4 +38,10 @@
         DELETE FROM sales_order_item WHERE order_id = #{orderId}
     </delete>
 
+    <update id="updateQuantity">
+        UPDATE sales_order_item SET quantity = #{quantity},
+               total_price = unit_price * #{quantity}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

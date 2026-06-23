@@ -1,4 +1,5 @@
 import logging
+import threading
 import uuid
 
 from qdrant_client import QdrantClient
@@ -11,14 +12,17 @@ logger = logging.getLogger(__name__)
 
 _client: QdrantClient | None = None
 _collection_ensured = False
+_lock = threading.Lock()
 
 
 def get_client() -> QdrantClient:
     global _client
     if _client is None:
-        settings = get_settings()
-        logger.info("Connecting to Qdrant at %s", settings.qdrant_url)
-        _client = QdrantClient(url=settings.qdrant_url)
+        with _lock:
+            if _client is None:
+                settings = get_settings()
+                logger.info("Connecting to Qdrant at %s", settings.qdrant_url)
+                _client = QdrantClient(url=settings.qdrant_url)
     return _client
 
 

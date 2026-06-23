@@ -35,5 +35,8 @@ public class ExchangeCheckDTO {
         /** 质量状态：SELLABLE/DEFECTIVE/SCRAPPED */
         @NotNull(message = "质量状态不能为空")
         private String qualityStatus;
+
+        /** 退回仓库ID（可售商品入库目标仓库，不填则退回原发货仓） */
+        private Long warehouseId;
     }
 }

@@ -40,8 +40,11 @@ public class StockVO {
     /** 锁定数量 */
     private Integer lockedQty;
 
-    /** 总数量（可用+锁定） */
+    /** 总数量（物理库存） */
     private Integer totalQuantity;
+
+    /** 可用数量（物理库存 - 锁定） */
+    private Integer availableQty;
 
     /** 库存预警状态：NORMAL/LOW_STOCK/OUT_OF_STOCK */
     private String stockAlertStatus;

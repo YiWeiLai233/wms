@@ -53,4 +53,34 @@
         WHERE id = #{id}
     </update>
 
+    <select id="findExchangeItemsByOrderId" resultMap="BaseResultMap">
+        SELECT eoi.id, eoi.exchange_id, eoi.sku_id, eoi.sku_code, eoi.sku_name,
+               ps.size_value AS size_value,
+               COALESCE(ps.image, p.main_image) AS image,
+               eoi.quantity, eoi.unit_price, eoi.quality_status, eoi.item_type,
+               eoi.created_at
+        FROM exchange_order_item eoi
+        JOIN exchange_order eo ON eoi.exchange_id = eo.id AND eo.deleted = 0
+            AND eo.status IN ('EXCHANGED', 'COMPLETED')
+        LEFT JOIN product_sku ps ON eoi.sku_id = ps.id AND ps.deleted = 0
+        LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
+        WHERE eo.order_id = #{orderId} AND eoi.item_type = 'EXCHANGE_ITEM'
+        ORDER BY eoi.id ASC
+    </select>
+
+    <select id="findReturnAndExchangeItemsByOrderId" resultMap="BaseResultMap">
+        SELECT eoi.id, eoi.exchange_id, eoi.sku_id, eoi.sku_code, eoi.sku_name,
+               ps.size_value AS size_value,
+               COALESCE(ps.image, p.main_image) AS image,
+               eoi.quantity, eoi.unit_price, eoi.quality_status, eoi.item_type,
+               eoi.created_at
+        FROM exchange_order_item eoi
+        JOIN exchange_order eo ON eoi.exchange_id = eo.id AND eo.deleted = 0
+            AND eo.status IN ('EXCHANGED', 'COMPLETED')
+        LEFT JOIN product_sku ps ON eoi.sku_id = ps.id AND ps.deleted = 0
+        LEFT JOIN product p ON ps.product_id = p.id AND p.deleted = 0
+        WHERE eo.order_id = #{orderId}
+        ORDER BY eoi.item_type DESC, eoi.id ASC
+    </select>
+
 </mapper>

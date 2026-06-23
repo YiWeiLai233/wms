@@ -6,6 +6,8 @@ import com.yiweilai.wms.common.PageResult;
 import com.yiweilai.wms.config.CacheService;
 import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
+import com.yiweilai.wms.exchange.entity.ExchangeOrderItem;
+import com.yiweilai.wms.exchange.mapper.ExchangeOrderItemMapper;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
 import com.yiweilai.wms.order.dto.OrderQueryDTO;
 import com.yiweilai.wms.order.dto.OrderStatusUpdateDTO;
@@ -38,8 +40,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -61,6 +65,7 @@ public class OrderServiceImpl implements OrderService {
     private final StockService stockService;
     private final ProductImageHelper productImageHelper;
     private final ReturnOrderItemMapper returnOrderItemMapper;
+    private final ExchangeOrderItemMapper exchangeOrderItemMapper;
     private final PrivacyCryptoService privacyCryptoService;
     private final PrivacyHashService privacyHashService;
     private final CacheService cacheService;
@@ -107,7 +112,7 @@ public class OrderServiceImpl implements OrderService {
             returnedQtyMap.put(skuId, returnedQtyMap.getOrDefault(skuId, 0) + qty);
         }
 
-        // 查询订单明细
+        // 查询订单明细（updateOrderItems 已保证明细反映当前状态）
         List<OrderItemVO> items = orderItemMapper.findByOrderId(id).stream()
                 .map(item -> {
                     OrderItemVO voItem = convertToItemVO(item);
@@ -166,7 +171,7 @@ public class OrderServiceImpl implements OrderService {
 
             // 刷单订单不扣减真实库存
             if (!isBrushOrder) {
-                stockService.deductStock(itemDTO.getSkuId(), itemDTO.getQuantity(), orderNo, dto.getWarehouseId(), "OUTBOUND", "订单导入扣减库存");
+                stockService.lockStock(itemDTO.getSkuId(), itemDTO.getQuantity(), orderNo, dto.getWarehouseId(), "LOCK", "订单导入锁定库存");
             }
         }
 

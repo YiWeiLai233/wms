@@ -2,7 +2,7 @@ import re
 from typing import Any
 
 from app.rag.chain import build_answer
-from app.tools import wms_tools
+from app.tools import mcp_tools as wms_tools
 
 
 WRITE_KEYWORDS = (

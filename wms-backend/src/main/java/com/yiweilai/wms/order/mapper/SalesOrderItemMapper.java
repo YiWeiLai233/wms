@@ -31,4 +31,9 @@ public interface SalesOrderItemMapper {
      * 根据订单ID删除明细
      */
     int deleteByOrderId(@Param("orderId") Long orderId);
+
+    /**
+     * 更新明细数量
+     */
+    int updateQuantity(@Param("id") Long id, @Param("quantity") Integer quantity);
 }

@@ -80,6 +80,54 @@ services:
     volumes:
       - uploads_data:/app/uploads
 
+  # ==================== AI 服务 ====================
+  wms-ai-service:
+    build:
+      context: ./wms-ai-service
+      dockerfile: Dockerfile
+    container_name: wms-ai-service
+    restart: unless-stopped
+    depends_on:
+      - wms-backend
+    ports:
+      - "8010:8010"
+    environment:
+      WMS_BACKEND_URL: http://wms-backend:8080
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-ChangeMeAiServiceToken}
+      QDRANT_URL: http://qdrant:6333
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
+    volumes:
+      - uploads_data:/app/uploads
+
+  # ==================== Qdrant 向量库 ====================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: wms-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # ==================== MCP Server ====================
+  wms-mcp-server:
+    build:
+      context: ./wms-mcp-server
+      dockerfile: Dockerfile
+    container_name: wms-mcp-server
+    restart: unless-stopped
+    depends_on:
+      - wms-backend
+    ports:
+      - "8020:8020"
+    environment:
+      WMS_BACKEND_URL: http://wms-backend:8080
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-ChangeMeAiServiceToken}
+      MCP_PORT: 8020
+
   # ==================== 前端 ====================
   wms-frontend:
     build:
@@ -96,3 +144,4 @@ volumes:
   mysql_data:
   redis_data:
   uploads_data:
+  qdrant_data:

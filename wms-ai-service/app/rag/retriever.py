@@ -1,5 +1,3 @@
-from qdrant_client.http import models
-
 from app.config import get_settings
 from app.rag.embedding import embed_texts
 from app.rag.vector_store import get_client

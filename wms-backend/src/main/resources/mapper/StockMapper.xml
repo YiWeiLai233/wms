@@ -130,6 +130,24 @@
         WHERE id = #{id} AND deleted = 0 AND locked_qty >= #{quantity}
     </update>
 
+    <update id="lockOnly">
+        UPDATE stock
+        SET locked_qty = locked_qty + #{quantity}
+        WHERE id = #{id} AND deleted = 0 AND quantity >= locked_qty + #{quantity}
+    </update>
+
+    <update id="releaseOnly">
+        UPDATE stock
+        SET locked_qty = locked_qty - #{quantity}
+        WHERE id = #{id} AND deleted = 0 AND locked_qty >= #{quantity}
+    </update>
+
+    <update id="confirmDeduct">
+        UPDATE stock
+        SET quantity = quantity - #{quantity}, locked_qty = locked_qty - #{quantity}
+        WHERE id = #{id} AND deleted = 0 AND quantity >= #{quantity} AND locked_qty >= #{quantity}
+    </update>
+
     <select id="findByWarehouseType" resultMap="BaseResultMap">
         SELECT s.id, s.sku_id,
                ps.sku_code AS sku_code, ps.name AS sku_name, ps.product_id,

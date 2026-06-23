@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     wms_upload_root: str = "./uploads"
     # 生产环境必须通过环境变量配置随机token，不设置默认值
     ai_service_token: str = ""
+    # MCP Server 地址
+    mcp_server_url: str = "http://localhost:8020/sse"
 
     llm_provider: str = "deepseek"
     llm_api_key: str = ""
@@ -30,4 +32,4 @@ def get_settings() -> Settings:
     if not settings.ai_service_token:
         import warnings
         warnings.warn("AI_SERVICE_TOKEN 未配置，服务将拒绝所有请求。请在环境变量或 .env 文件中设置 AI_SERVICE_TOKEN。")
-    return settings()
+    return settings

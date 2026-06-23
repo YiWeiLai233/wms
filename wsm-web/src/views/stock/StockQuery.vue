@@ -39,10 +39,10 @@
         <el-table-column prop="skuCode" label="SKU编码" width="130" />
         <el-table-column prop="skuName" label="SKU名称" min-width="100" show-overflow-tooltip />
         <el-table-column prop="warehouseName" label="仓库" width="120" />
-        <el-table-column prop="quantity" label="可用库存" width="100" align="center">
+        <el-table-column prop="availableQty" label="可用库存" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="getStockAlertTagType(row.stockAlertStatus)" size="small">
-              {{ row.quantity }}
+              {{ row.availableQty ?? row.quantity }}
             </el-tag>
           </template>
         </el-table-column>
@@ -53,14 +53,14 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="quantity" label="物理库存" width="90" align="center">
+          <template #default="{ row }">
+            <span>{{ row.quantity }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="lockedQty" label="锁定" width="80" align="center">
           <template #default="{ row }">
             <span class="text-orange-500">{{ row.lockedQty }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="totalQuantity" label="总库存" width="90" align="center">
-          <template #default="{ row }">
-            <span class="font-bold">{{ row.totalQuantity }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="updatedAt" label="更新时间" width="170">

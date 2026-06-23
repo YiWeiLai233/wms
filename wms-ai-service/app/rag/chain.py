@@ -1,5 +1,9 @@
+import logging
+
 from app.llm.llm_client import chat_completion
 from app.rag.retriever import retrieve
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = """你是易仓 WMS 智能助手。
@@ -35,7 +39,16 @@ def build_answer(question: str) -> dict:
         }
 
     context = "\n\n".join(f"来源：{source.get('title')}\n{source.get('content')}" for source in sources)
-    answer = chat_completion(SYSTEM_PROMPT, question, context)
+    try:
+        answer = chat_completion(SYSTEM_PROMPT, question, context)
+    except Exception as exc:
+        logger.exception("LLM 调用失败")
+        return {
+            "answer": "AI 服务暂时不可用，请稍后再试。",
+            "needConfirm": False,
+            "sources": sources,
+            "toolCalls": [{"toolName": "knowledge_retrieval", "status": "SUCCESS"}, {"toolName": "llm_completion", "status": "FAILED"}],
+        }
     return {
         "answer": answer,
         "needConfirm": False,

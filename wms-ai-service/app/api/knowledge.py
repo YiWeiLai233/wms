@@ -4,7 +4,7 @@ from pathlib import Path
 
 import requests
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.config import get_settings
 from app.rag.chain import build_answer

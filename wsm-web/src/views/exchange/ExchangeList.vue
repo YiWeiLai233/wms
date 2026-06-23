@@ -168,8 +168,8 @@
     </el-dialog>
 
     <!-- 质检弹窗 -->
-    <el-dialog v-model="checkDialogVisible" title="收货质检" width="700px" destroy-on-close>
-      <p class="mb-3 text-sm text-gray-500">请为退回商品选择质检结果</p>
+    <el-dialog v-model="checkDialogVisible" title="收货质检" width="850px" destroy-on-close>
+      <p class="mb-3 text-sm text-gray-500">请为退回商品选择质检结果，可售商品可选择入库仓库</p>
       <el-table :data="checkItems" border size="small">
         <el-table-column label="图片" width="60" align="center">
           <template #default="{ row }">
@@ -182,13 +182,21 @@
           <template #default="{ row }">{{ row.sizeValue || '-' }}</template>
         </el-table-column>
         <el-table-column prop="quantity" label="数量" width="80" align="center" />
-        <el-table-column label="质检结果" width="150">
+        <el-table-column label="质检结果" width="120">
           <template #default="{ row }">
-            <el-select v-model="row.qualityStatus" style="width: 120px">
+            <el-select v-model="row.qualityStatus" style="width: 100px" @change="row.warehouseId = undefined">
               <el-option label="可售" value="SELLABLE" />
               <el-option label="次品" value="DEFECTIVE" />
               <el-option label="报废" value="SCRAPPED" />
             </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="入库仓库" width="160">
+          <template #default="{ row }">
+            <el-select v-if="row.qualityStatus === 'SELLABLE'" v-model="row.warehouseId" placeholder="原发货仓" clearable style="width: 140px">
+              <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+            </el-select>
+            <span v-else class="text-gray-400 text-xs">{{ row.qualityStatus === 'DEFECTIVE' ? '次品仓' : '报废仓' }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -451,7 +459,7 @@ const titleCollapsed = ref(false)
 const checkDialogVisible = ref(false)
 const checking = ref(false)
 const checkExchangeId = ref(0)
-const checkItems = ref<{ itemId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; qualityStatus: string }[]>([])
+const checkItems = ref<{ itemId: number; skuCode: string; skuName: string; sizeValue?: string; quantity: number; qualityStatus: string; warehouseId?: number }[]>([])
 
 // 发货相关
 const shipDialogVisible = ref(false)
@@ -658,7 +666,7 @@ async function handleCheck() {
   try {
     await checkExchange({
       exchangeId: checkExchangeId.value,
-      items: checkItems.value.map(i => ({ itemId: i.itemId, qualityStatus: i.qualityStatus })),
+      items: checkItems.value.map(i => ({ itemId: i.itemId, qualityStatus: i.qualityStatus, warehouseId: i.warehouseId || undefined })),
     })
     ElMessage.success('质检完成')
     checkDialogVisible.value = false

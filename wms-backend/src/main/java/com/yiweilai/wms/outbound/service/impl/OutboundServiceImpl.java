@@ -280,7 +280,11 @@ public class OutboundServiceImpl implements OutboundService {
 
         List<OutboundOrderItem> items = outboundOrderItemMapper.findByOutboundId(dto.getOutboundId());
 
-        // 库存在创建出库单时已扣减，此处不再重复扣减
+        // 确认发货时真正扣减库存（quantity -= N, locked_qty -= N）
+        for (OutboundOrderItem item : items) {
+            stockService.confirmDeductStock(item.getSkuId(), item.getQuantity(),
+                    order.getOutboundNo(), order.getWarehouseId(), "OUTBOUND", "确认发货扣减库存");
+        }
 
         // 计算快递费用
         BigDecimal shippingFee = dto.getShippingFee();
@@ -450,10 +454,11 @@ public class OutboundServiceImpl implements OutboundService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "出库单已取消");
         }
 
-        // 恢复库存
+        // 释放锁定库存（locked_qty -= N，quantity 不变）
         List<OutboundOrderItem> items = outboundOrderItemMapper.findByOutboundId(id);
         for (OutboundOrderItem item : items) {
-            restoreStock(item.getSkuId(), item.getQuantity(), order.getOutboundNo(), order.getWarehouseId());
+            stockService.releaseStock(item.getSkuId(), item.getQuantity(),
+                    order.getOutboundNo(), order.getWarehouseId(), "RELEASE", "取消出库释放锁定");
         }
 
         // 更新出库单状态为已取消
@@ -477,38 +482,6 @@ public class OutboundServiceImpl implements OutboundService {
         outboundOrderMapper.deleteById(id);
     }
 
-    /**
-     * 恢复库存（取消出库时调用）
-     */
-    private void restoreStock(Long skuId, int quantity, String outboundNo, Long warehouseId) {
-        Stock stock = stockMapper.findBySkuAndWarehouse(skuId, warehouseId);
-        int beforeQty;
-        if (stock != null) {
-            beforeQty = stock.getQuantity() == null ? 0 : stock.getQuantity();
-            stockMapper.addQuantity(stock.getId(), quantity);
-        } else {
-            beforeQty = 0;
-            stock = new Stock();
-            stock.setSkuId(skuId);
-            stock.setWarehouseId(warehouseId);
-            stock.setQuantity(quantity);
-            stock.setLockedQty(0);
-//            stock.setDefectiveQty(0);
-            stockMapper.insert(stock);
-        }
-
-        // 写库存流水
-        StockLog log = new StockLog();
-        log.setBizType("RETURN");
-        log.setBizNo(outboundNo);
-        log.setSkuId(skuId);
-        log.setWarehouseId(warehouseId);
-        log.setQuantityBefore(beforeQty);
-        log.setQuantityChange(quantity);
-        log.setQuantityAfter(beforeQty + quantity);
-        log.setRemark("取消出库恢复库存");
-        stockLogMapper.insert(log);
-    }
 
     private OutboundOrderVO convertToVO(OutboundOrder order) {
         OutboundOrderVO vo = new OutboundOrderVO();
