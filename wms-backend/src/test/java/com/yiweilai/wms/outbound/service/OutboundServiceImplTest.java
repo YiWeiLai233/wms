@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -159,6 +160,31 @@ class OutboundServiceImplTest {
 
         verify(salesOrderMapper).updateStatus(1L, "OUTBOUNDING");
         verify(salesOrderMapper).updateStatus(2L, "OUTBOUNDING");
+    }
+
+    @Test
+    void deleteRemovesCancelledOutboundOrder() {
+        OutboundOrder order = new OutboundOrder();
+        order.setId(10L);
+        order.setStatus("CANCELLED");
+
+        when(outboundOrderMapper.findById(10L)).thenReturn(order);
+
+        service.delete(10L);
+
+        verify(outboundOrderMapper).deleteById(10L);
+    }
+
+    @Test
+    void deleteRejectsOutboundOrderThatIsNotCancelled() {
+        OutboundOrder order = new OutboundOrder();
+        order.setId(10L);
+        order.setStatus("WAIT_PICKING");
+
+        when(outboundOrderMapper.findById(10L)).thenReturn(order);
+
+        assertThatThrownBy(() -> service.delete(10L))
+                .hasMessageContaining("请先取消发货单后再删除");
     }
 
     private SalesOrder order(Long id, String orderNo, Long warehouseId) {

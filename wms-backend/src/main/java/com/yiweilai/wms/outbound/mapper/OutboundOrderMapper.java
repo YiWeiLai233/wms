@@ -74,4 +74,9 @@ public interface OutboundOrderMapper {
      */
     int updateRemark(@Param("id") Long id,
                      @Param("remark") String remark);
+
+    /**
+     * 逻辑删除出库单
+     */
+    int deleteById(@Param("id") Long id);
 }

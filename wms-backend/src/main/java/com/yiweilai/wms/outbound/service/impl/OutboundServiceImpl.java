@@ -463,6 +463,20 @@ public class OutboundServiceImpl implements OutboundService {
         salesOrderMapper.updateStatus(order.getOrderId(), "OUTBOUND_FAILED");
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        OutboundOrder order = outboundOrderMapper.findById(id);
+        if (order == null) {
+            throw new BusinessException(ErrorCode.OUTBOUND_NOT_FOUND);
+        }
+        if (!"CANCELLED".equals(order.getStatus())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请先取消发货单后再删除");
+        }
+
+        outboundOrderMapper.deleteById(id);
+    }
+
     /**
      * 恢复库存（取消出库时调用）
      */

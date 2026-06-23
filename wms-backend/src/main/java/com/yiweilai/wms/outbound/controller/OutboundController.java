@@ -103,4 +103,14 @@ public class OutboundController {
         outboundService.cancel(id);
         return Result.success();
     }
+
+    /**
+     * 删除已取消的出库单
+     */
+    @OperationLog(module = "outbound", action = "delete", targetType = "OutboundOrder", targetIdParam = "id")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        outboundService.delete(id);
+        return Result.success();
+    }
 }

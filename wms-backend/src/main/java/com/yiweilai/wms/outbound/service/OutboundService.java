@@ -55,4 +55,9 @@ public interface OutboundService {
      * 取消出库单
      */
     void cancel(Long id);
+
+    /**
+     * 删除已取消的出库单
+     */
+    void delete(Long id);
 }

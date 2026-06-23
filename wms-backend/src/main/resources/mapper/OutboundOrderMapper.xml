@@ -133,4 +133,10 @@
         WHERE id = #{id} AND deleted = 0
     </update>
 
+    <update id="deleteById">
+        UPDATE outbound_order
+        SET deleted = 1
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
 </mapper>
