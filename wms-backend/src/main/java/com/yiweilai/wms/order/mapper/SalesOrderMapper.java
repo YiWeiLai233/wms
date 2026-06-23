@@ -77,4 +77,9 @@ public interface SalesOrderMapper {
      * Update encrypted receiver fields and lookup hashes.
      */
     int updatePrivacyFields(SalesOrder order);
+
+    /**
+     * 逻辑删除订单
+     */
+    int softDelete(@Param("id") Long id);
 }

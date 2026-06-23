@@ -8,6 +8,8 @@ import com.yiweilai.wms.exception.BusinessException;
 import com.yiweilai.wms.exception.ErrorCode;
 import com.yiweilai.wms.exchange.entity.ExchangeOrderItem;
 import com.yiweilai.wms.exchange.mapper.ExchangeOrderItemMapper;
+import com.yiweilai.wms.outbound.entity.OutboundOrder;
+import com.yiweilai.wms.outbound.mapper.OutboundOrderMapper;
 import com.yiweilai.wms.order.dto.OrderImportDTO;
 import com.yiweilai.wms.order.dto.OrderQueryDTO;
 import com.yiweilai.wms.order.dto.OrderStatusUpdateDTO;
@@ -66,6 +68,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductImageHelper productImageHelper;
     private final ReturnOrderItemMapper returnOrderItemMapper;
     private final ExchangeOrderItemMapper exchangeOrderItemMapper;
+    private final OutboundOrderMapper outboundOrderMapper;
     private final PrivacyCryptoService privacyCryptoService;
     private final PrivacyHashService privacyHashService;
     private final CacheService cacheService;
@@ -273,6 +276,41 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orderMapper.update(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteOrder(Long id) {
+        SalesOrder order = orderMapper.findById(id);
+        if (order == null) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
+        }
+
+        // 查询订单明细，用于恢复库存
+        List<SalesOrderItem> items = orderItemMapper.findByOrderId(id);
+
+        // 查询关联的出库单
+        OutboundOrder outbound = outboundOrderMapper.findByOrderId(id);
+
+        // 恢复已扣减的库存（已发货订单库存已确认扣减，需要加回来）
+        for (SalesOrderItem item : items) {
+            stockService.addStock(item.getSkuId(), item.getQuantity(),
+                    order.getOrderNo(), order.getWarehouseId(), "删除订单", "删除订单恢复库存");
+        }
+
+        // 逻辑删除出库单（同时清除快递费用统计）
+        if (outbound != null) {
+            outboundOrderMapper.deleteById(outbound.getId());
+        }
+
+        // 逻辑删除订单
+        orderMapper.softDelete(id);
+
+        // 删除订单明细
+        orderItemMapper.deleteByOrderId(id);
+
+        // 清除仪表盘缓存
+        cacheService.delete("cache:dashboard");
     }
 
     /**

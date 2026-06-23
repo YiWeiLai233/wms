@@ -36,4 +36,9 @@ public interface OrderService {
      * 更新订单信息
      */
     void update(OrderUpdateDTO dto);
+
+    /**
+     * 删除订单（逻辑删除）
+     */
+    void deleteOrder(Long id);
 }

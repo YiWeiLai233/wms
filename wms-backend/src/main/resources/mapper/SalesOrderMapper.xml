@@ -192,4 +192,8 @@
         WHERE id = #{id} AND deleted = 0
     </update>
 
+    <update id="softDelete">
+        UPDATE sales_order SET deleted = 1 WHERE id = #{id} AND deleted = 0
+    </update>
+
 </mapper>

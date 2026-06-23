@@ -80,3 +80,8 @@ export function updateOrder(id: number, data: {
 export function searchOrders(params: PageParams & { keyword?: string; orderStatus?: string; warehouseId?: number; startTime?: string; endTime?: string }) {
   return request.get<any, ApiResponse<PageResult<Order>>>('/orders/search', { params })
 }
+
+// 删除订单（逻辑删除）
+export function deleteOrder(id: number) {
+  return request.delete<any, ApiResponse<void>>(`/orders/${id}`)
+}

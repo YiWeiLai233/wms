@@ -169,6 +169,15 @@
                 <el-button type="danger" link icon="Close">取消退货</el-button>
               </template>
             </el-popconfirm>
+            <el-popconfirm
+              v-if="row.orderStatus === 'SHIPPED'"
+              title="确定删除此订单吗？删除后将不再显示"
+              @confirm="handleDeleteOrder(row)"
+            >
+              <template #reference>
+                <el-button type="danger" link icon="Delete">删除</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -955,7 +964,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { getOrderDetail, getOrderList, importOrder, updateOrder, updateOrderStatus } from '@/api/order'
+import { getOrderDetail, getOrderList, importOrder, updateOrder, updateOrderStatus, deleteOrder } from '@/api/order'
 import type { Order } from '@/api/order'
 import { createOutbound, createBatchOutbound, getOutboundList, getOutboundDetail, confirmOutbound } from '@/api/outbound'
 import { createBatchReturn } from '@/api/returns'
@@ -2089,6 +2098,14 @@ async function handleCancelReturn(row: Order) {
   try {
     await cancelReturnByOrderId(row.id)
     ElMessage.success('退货已取消')
+    fetchData()
+  } catch {}
+}
+
+async function handleDeleteOrder(row: Order) {
+  try {
+    await deleteOrder(row.id)
+    ElMessage.success('订单已删除')
     fetchData()
   } catch {}
 }

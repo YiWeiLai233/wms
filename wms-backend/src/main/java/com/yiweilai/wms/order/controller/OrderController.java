@@ -370,4 +370,14 @@ public class OrderController {
         orderService.update(dto);
         return Result.success();
     }
+
+    /**
+     * 删除订单（逻辑删除）
+     */
+    @OperationLog(module = "order", action = "delete", targetType = "SalesOrder", targetIdParam = "id")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        orderService.deleteOrder(id);
+        return Result.success();
+    }
 }
