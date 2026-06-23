@@ -87,3 +87,8 @@ export function updateOutbound(id: number, data: {
 export function cancelOutbound(id: number) {
   return request.post<any, ApiResponse<void>>(`/outbound/${id}/cancel`)
 }
+
+// 删除已取消的发货单
+export function deleteOutbound(id: number) {
+  return request.delete<any, ApiResponse<void>>(`/outbound/${id}`)
+}

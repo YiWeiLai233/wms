@@ -95,25 +95,67 @@
         <el-table-column prop="createdAt" label="时间" min-width="170">
           <template #default="{ row }">{{ row.createdAt || '-' }}</template>
         </el-table-column>
+        <el-table-column label="操作" width="160" fixed="right" align="center">
+          <template #default="{ row }">
+            <template v-if="canEdit(row)">
+              <el-button type="primary" link icon="Edit" @click="openEditDialog(row)">修改</el-button>
+              <el-popconfirm
+                title="确定删除该快递费用记录吗？删除后将从统计中移除"
+                @confirm="handleDelete(row)"
+              >
+                <template #reference>
+                  <el-button type="danger" link icon="Delete">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </template>
+            <span v-else class="text-gray-400">-</span>
+          </template>
+        </el-table-column>
       </el-table>
 
       <el-empty v-if="!loading && (!reportData.items || reportData.items.length === 0)" description="暂无数据，请选择日期范围查询" />
     </div>
+
+    <!-- 修改快递费用 -->
+    <el-dialog v-model="editDialogVisible" title="修改快递费用" width="460px" destroy-on-close>
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="90px">
+        <el-form-item label="单号">
+          <el-input :model-value="editForm.bizNo" disabled />
+        </el-form-item>
+        <el-form-item label="快递公司" prop="expressCompanyId">
+          <el-select v-model="editForm.expressCompanyId" placeholder="请选择快递公司" style="width: 100%">
+            <el-option v-for="c in companyList" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="快递费用" prop="shippingFee">
+          <el-input-number v-model="editForm.shippingFee" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editing" @click="handleEdit">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { getExpressFeeReport } from '@/api/report'
-import type { ExpressFeeReport } from '@/api/report'
+import { deleteExpressFeeItem, getExpressFeeReport, updateExpressFeeItem } from '@/api/report'
+import type { ExpressFeeItem, ExpressFeeReport } from '@/api/report'
 import { getCompanyList } from '@/api/express'
 import type { ExpressCompany } from '@/api/express'
+import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import DateRangePicker from '@/components/DateRangePicker.vue'
 
 const loading = ref(false)
 const companyList = ref<ExpressCompany[]>([])
 const reportData = ref<ExpressFeeReport>({ totalFee: 0, totalCount: 0, items: [] })
+const editDialogVisible = ref(false)
+const editing = ref(false)
+const editFormRef = ref<FormInstance>()
 
 const queryForm = reactive({
   orderNo: '',
@@ -121,6 +163,19 @@ const queryForm = reactive({
   dateRange: [] as string[],
   expressCompanyId: undefined as number | undefined,
 })
+
+const editForm = reactive({
+  id: 0,
+  bizType: '',
+  bizNo: '',
+  expressCompanyId: undefined as number | undefined,
+  shippingFee: undefined as number | undefined,
+})
+
+const editRules: FormRules = {
+  expressCompanyId: [{ required: true, message: '请选择快递公司', trigger: 'change' }],
+  shippingFee: [{ required: true, message: '请输入快递费用', trigger: 'change' }],
+}
 
 async function handleQuery() {
   loading.value = true
@@ -146,6 +201,47 @@ function handleReset() {
   queryForm.dateRange = []
   queryForm.expressCompanyId = undefined
   reportData.value = { totalFee: 0, totalCount: 0, items: [] }
+}
+
+function canEdit(row: ExpressFeeItem) {
+  return row.bizType === 'OUTBOUND' || row.bizType === 'EXCHANGE'
+}
+
+function openEditDialog(row: ExpressFeeItem) {
+  Object.assign(editForm, {
+    id: row.id,
+    bizType: row.bizType,
+    bizNo: row.bizNo,
+    expressCompanyId: row.expressCompanyId || undefined,
+    shippingFee: row.shippingFee ?? undefined,
+  })
+  editDialogVisible.value = true
+}
+
+async function handleEdit() {
+  const valid = await editFormRef.value?.validate().catch(() => false)
+  if (!valid || !editForm.expressCompanyId || editForm.shippingFee === undefined) return
+
+  editing.value = true
+  try {
+    await updateExpressFeeItem(editForm.bizType, editForm.id, {
+      expressCompanyId: editForm.expressCompanyId,
+      shippingFee: editForm.shippingFee,
+    })
+    ElMessage.success('快递费用已修改')
+    editDialogVisible.value = false
+    handleQuery()
+  } catch {} finally {
+    editing.value = false
+  }
+}
+
+async function handleDelete(row: ExpressFeeItem) {
+  try {
+    await deleteExpressFeeItem(row.bizType, row.id)
+    ElMessage.success('快递费用记录已删除')
+    handleQuery()
+  } catch {}
 }
 
 onMounted(async () => {

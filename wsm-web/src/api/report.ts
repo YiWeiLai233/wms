@@ -48,6 +48,16 @@ export function getExpressFeeReport(params: { orderNo?: string; platformOrderNo?
   return request.get<any, ApiResponse<ExpressFeeReport>>('/reports/express-fee', { params })
 }
 
+// 修改快递费用统计记录
+export function updateExpressFeeItem(bizType: string, id: number, data: { expressCompanyId: number; shippingFee: number }) {
+  return request.put<any, ApiResponse<void>>(`/reports/express-fee/${bizType}/${id}`, data)
+}
+
+// 删除快递费用统计记录
+export function deleteExpressFeeItem(bizType: string, id: number) {
+  return request.delete<any, ApiResponse<void>>(`/reports/express-fee/${bizType}/${id}`)
+}
+
 export interface ExpressFeeReport {
   totalFee: number
   totalCount: number

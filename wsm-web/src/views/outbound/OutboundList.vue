@@ -102,6 +102,15 @@
                 <el-button type="danger" link icon="Close">取消</el-button>
               </template>
             </el-popconfirm>
+            <el-popconfirm
+              v-if="row.status === 'CANCELLED'"
+              title="确定删除该发货单吗？删除后列表中将不再显示"
+              @confirm="handleDelete(row.id)"
+            >
+              <template #reference>
+                <el-button type="danger" link icon="Delete">删除</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -348,7 +357,7 @@ import { reactive, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { cancelOutbound, confirmOutbound, createOutbound, getOutboundDetail, getOutboundList, scanOutbound, updateOutbound } from '@/api/outbound'
+import { cancelOutbound, confirmOutbound, createOutbound, deleteOutbound, getOutboundDetail, getOutboundList, scanOutbound, updateOutbound } from '@/api/outbound'
 import type { OutboundOrder } from '@/api/outbound'
 import { getOrderList } from '@/api/order'
 import type { Order } from '@/api/order'
@@ -875,6 +884,14 @@ async function handleCancel(id: number) {
   try {
     await cancelOutbound(id)
     ElMessage.success('发货单已取消')
+    fetchData()
+  } catch {}
+}
+
+async function handleDelete(id: number) {
+  try {
+    await deleteOutbound(id)
+    ElMessage.success('发货单已删除')
     fetchData()
   } catch {}
 }
